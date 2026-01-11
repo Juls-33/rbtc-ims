@@ -3,9 +3,9 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Foundation\Auth\User as Authenticatable; 
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Staff extends Authenticatable
 {
@@ -30,6 +30,9 @@ class Staff extends Authenticatable
         'password',
     ];
 
+    // Relationships
+    public function admissions() { return $this->hasMany(Admission::class, 'staff_id'); }
+    public function prescriptions() { return $this->hasMany(Prescription::class, 'staff_id'); }
     /**
      * The attributes that should be hidden for serialization.
      *

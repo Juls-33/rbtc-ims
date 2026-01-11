@@ -16,8 +16,9 @@ return new class extends Migration
             $table->string('contact_no');
             $table->string('address');
             $table->enum('gender', ['Male', 'Female', 'Other']);
-            $table->enum('role', ['Doctor', 'Nurse', 'Staff', 'SuperAdmin']);
+            $table->enum('role', ['Doctor', 'Nurse', 'Admin']); 
             $table->string('password');
+            $table->rememberToken(); 
             $table->timestamps();
         });
 
