@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable
+class Staff extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
@@ -17,9 +17,16 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+    protected $table = 'staff';
+
     protected $fillable = [
-        'name',
+        'first_name',
+        'last_name',
         'email',
+        'contact_no',
+        'address',
+        'gender',
+        'role',
         'password',
     ];
 
