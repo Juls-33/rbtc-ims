@@ -62,6 +62,17 @@
       0 => 'Termwind\\Laravel\\TermwindServiceProvider',
     ),
   ),
+  'spatie/laravel-ciphersweet' => 
+  array (
+    'aliases' => 
+    array (
+      'LaravelCipherSweet' => 'Spatie\\LaravelCipherSweet\\Facades\\LaravelCipherSweet',
+    ),
+    'providers' => 
+    array (
+      0 => 'Spatie\\LaravelCipherSweet\\LaravelCipherSweetServiceProvider',
+    ),
+  ),
   'tightenco/ziggy' => 
   array (
     'providers' => 

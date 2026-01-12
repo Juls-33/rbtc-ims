@@ -37,6 +37,7 @@
                 <h3 class="text-3xl font-bold">{{ $billsAlert }}</h3>
                 <p class="text-gray-500">Bills Alert</p>
             </div>
+            
         </div>
 
         <div class="grid grid-cols-2 gap-6">

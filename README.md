@@ -2,29 +2,34 @@
 
 A secure, Single Page Application (SPA) built to manage patient records, inventory, and billing for the **RBTC Therapeutic Community**.
 
-**Tech Stack:** * **Backend:** Laravel 12 (PHP)
+**Tech Stack:** * **Backend:** Laravel 12 (PHP) 
 
 * **Frontend:** React 19 + Tailwind CSS
 * **Bridge:** Inertia.js (The Modern Monolith)
-* **Server:** XAMPP (Apache + MySQL)
+* 
+**Database:** MySQL with Foreign Key integrity 
+
+
+* **Security:** CipherSweet (Searchable Encryption) + Sodium
 
 ---
 
-## 🛠 Prerequisites
+## ⚙️ Mandatory PHP Configuration
 
-* **XAMPP**: For Apache and MySQL.
-* **Node.js (v22.12.0+)**: Essential for Vite and React compilation.
-* **Composer**: For PHP dependency management.
-* **Git**: To push and pull code from the repository.
-* **VS Code**: Recommended extensions: *ESLint*, *Prettier*, and *PHP Intelephense*.
+Before running the application, you **must** enable the following extensions in your XAMPP settings for the encryption to work:
 
-> **🚨 Important for Windows Users:** > If you encounter "Permission Denied" errors when running commands, you **must** run VS Code as **Administrator**. Right-click the VS Code icon > "Run as administrator."
+1. Open **XAMPP Control Panel**.
+2. Click **Config** next to Apache > **PHP (php.ini)**.
+3. Find and remove the semicolon (`;`) from the start of these lines:
+* `extension=sodium`
+* `extension=intl`
+
+
+4. **Save and Restart Apache.**
 
 ---
 
-## 🚀 First-Time Setup (New Team Members)
-
-After cloning the repository for the first time, run these steps in order:
+## 🚀 First-Time Setup
 
 1. **Install Dependencies:**
 ```bash
@@ -34,22 +39,16 @@ npm install
 ```
 
 
-2. **Environment Configuration:**
-* Create a new database in XAMPP (PHPMyAdmin) named `rbtc_ims`.
-* Copy `.env.example` to a new file named `.env`.
-* Open `.env` and update the `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` lines.
+2. **Environment:** * Create a database named `rbtc_ims` in PHPMyAdmin.
+* Copy `.env.example` to `.env` and update your database credentials.
 
 
-3. **Generate Security Key:**
+
+
+3. **Generate Keys & Migrate:**
 ```bash
 php artisan key:generate
-
-```
-
-
-4. **Build Database Structure:**
-```bash
-php artisan migrate
+php artisan migrate:fresh --seed
 
 ```
 
@@ -59,52 +58,43 @@ php artisan migrate
 
 ## 💻 Daily Development Workflow
 
-In a team environment, code and database structures change daily. Follow this loop every time you start working:
+### 1. The "Sync" Sequence
 
-### 1. The "Sync" Sequence (Run once per day)
-
-Before writing code, make sure your local environment matches the team's latest work:
+Run this every morning to match the team's latest work:
 
 ```powershell
-git pull origin main       # Get newest code
-composer install           # Get new PHP packages
-npm install               # Get new React tools
-php artisan migrate        # Sync your database tables
+git pull origin main             # Get newest code
+composer install                 # Get new PHP packages
+npm install                      # Get new React tools
+[cite_start]php artisan migrate              # Apply any new table changes [cite: 7]
 
 ```
 
-### 2. The "Running" Sequence (Keep these open)
+### 2. Running the App
 
-You need **two terminal tabs** running simultaneously to view the app:
+Keep **two terminals** open:
 
-* **Tab A:** `php artisan serve` (Powers the logic/database)
-* **Tab B:** `npm run dev` (Powers the React UI and CSS)
+* 
+**Terminal A:** `php artisan serve` (Powers the logic/database) 
+
+
+* 
+**Terminal B:** `npm run dev` (Powers the React UI) 
+
+
 
 ---
 
-## 📂 Project Structure & Modification Guide
+## 📂 Project Structure Guide
 
 | Folder Path | Description | When to modify? |
 | --- | --- | --- |
-| **`app/Models`** | Database object definitions. | When adding new data fields. |
-| **`app/Http/Controllers`** | Backend logic & data fetching. | **Very Frequent** - When building features. |
-| **`database/migrations`** | Database "blueprints." | When creating/altering SQL tables. |
-| **`resources/js/Pages`** | The actual React screens. | **Very Frequent** - Designing the UI. |
-| **`resources/js/Components`** | Reusable UI (Buttons, Cards). | When creating shared design elements. |
-| **`resources/js/Layouts`** | The "Shell" (Sidebar/Navbar). | To change the general app layout. |
-| **`routes/web.php`** | URL definitions. | When adding a new page or link. |
+| **`app/Models`** | Database objects 
 
----
+ | Adding new data fields. |
+| **`app/Http/Controllers`** | Backend & Search logic | Building features/encryption logic. |
+| **`database/migrations`** | Table Blueprints 
 
-## 🌿 Team Collaboration (Git Policy)
-
-* **No direct pushes to `main**`: Always create a feature branch.
-```bash
-git checkout -b feature/patient-registration
-
-```
-
-
-* **Database Rule**: Never edit an old migration file that has already been pushed to GitHub. Always create a **new** migration if you need to add or change a column.
-* **The `.env` Rule**: Never commit your `.env` file. It contains your local database passwords and unique security keys.
-
+ | Altering SQL structures. |
+| **`resources/js/Pages`** | React Screens | Designing new pages. |
+| **`resources/js/Components`** | Reusable UI | Creating shared elements (Buttons, Cards). |
