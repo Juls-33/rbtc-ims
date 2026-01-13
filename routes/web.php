@@ -9,20 +9,32 @@ use App\Http\Controllers\DashboardController;
 
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+    return Inertia::render('Welcome');
+})->name('welcome');
 
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+//Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+Route::middleware(['auth', 'verified'])->group(function () {
+    
+    // Admin Routes
+    Route::prefix('admin')->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        // Add placeholders for Inventory, Patients, Staff
+        Route::get('/inventory', fn() => Inertia::render('Admin/Inventory'))->name('admin.inventory');
+        Route::get('/staff', fn() => Inertia::render('Admin/StaffManagement'))->name('admin.staff');
+    });
+
+    // Doctor Routes
+    Route::prefix('doctor')->group(function () {
+        Route::get('/dashboard', fn() => Inertia::render('Doctor/Dashboard'))->name('doctor.dashboard');
+        Route::get('/patients', fn() => Inertia::render('Doctor/Patients'))->name('doctor.patients');
+    });
+
+    // Nurse Routes
+    Route::prefix('nurse')->group(function () {
+        Route::get('/dashboard', fn() => Inertia::render('Nurse/Dashboard'))->name('nurse.dashboard');
+        Route::get('/patients', fn() => Inertia::render('Nurse/Patients'))->name('nurse.patients');
+    });
 });
 
 require __DIR__.'/auth.php';
