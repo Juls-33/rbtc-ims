@@ -33,7 +33,8 @@ export default function Dashboard({
 
     return (
         <AuthenticatedLayout 
-            header="System Overview"
+            header="Admin / Dashboard" 
+            sectionTitle="Patient List"
             // The Layout now handles the Sidebar and User Profile automatically
         >
             <Head title="RBTC-IMS Dashboard" />

@@ -3,7 +3,7 @@ import { Head } from '@inertiajs/react';
 
 export default function DoctorDashboard() {
     return (
-        <AuthenticatedLayout header="Doctor Dashboard">
+        <AuthenticatedLayout header="Doctor / Dashboard">
             <Head title="Doctor Dashboard" />
             <div className="bg-white p-6 rounded-lg shadow">
                 <h3 className="text-lg font-medium">Assigned Patients</h3>

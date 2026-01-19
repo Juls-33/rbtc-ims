@@ -3,7 +3,7 @@ import { Head } from '@inertiajs/react';
 
 export default function NurseDashboard() {
     return (
-        <AuthenticatedLayout header="Nurse Dashboard">
+        <AuthenticatedLayout header="Nurse / Dashboard">
             <Head title="Nurse Dashboard" />
             <div className="bg-white p-6 rounded-lg shadow">
                 <h3 className="text-lg font-medium">Quick Vitals Check</h3>
