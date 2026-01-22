@@ -20,7 +20,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         // Add placeholders for Inventory, Patients, Staff
-        Route::get('/inventory', fn() => Inertia::render('Admin/Inventory'))->name('admin.inventory');
+        Route::get('/inventory', fn() => Inertia::render('Admin/MedicineInventory'))->name('admin.inventory');
+        Route::get('/patients', fn() => Inertia::render('Admin/PatientManagement'))->name('admin.patients');
         Route::get('/staff', fn() => Inertia::render('Admin/StaffManagement'))->name('admin.staff');
     });
 
