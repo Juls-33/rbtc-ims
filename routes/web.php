@@ -5,7 +5,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\DashboardController;
-
+use App\Http\Controllers\MedicineController;
 
 
 Route::get('/', function () {
@@ -20,7 +20,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         // Add placeholders for Inventory, Patients, Staff
-        Route::get('/inventory', fn() => Inertia::render('Admin/MedicineInventory'))->name('admin.inventory');
+        Route::post('/inventory', [MedicineController::class, 'store'])->name('inventory.store');
+        Route::put('/inventory/{id}', [MedicineController::class, 'update'])->name('inventory.update');
+        Route::delete('/inventory/{id}', [MedicineController::class, 'destroy'])->name('inventory.destroy');
+        Route::get('/inventory', [MedicineController::class, 'index'])->name('inventory.index');
         Route::get('/patients', fn() => Inertia::render('Admin/PatientManagement'))->name('admin.patients');
         Route::get('/staff', fn() => Inertia::render('Admin/StaffManagement'))->name('admin.staff');
     });
@@ -37,5 +40,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/patients', fn() => Inertia::render('Nurse/Patients'))->name('nurse.patients');
     });
 });
+
 
 require __DIR__.'/auth.php';

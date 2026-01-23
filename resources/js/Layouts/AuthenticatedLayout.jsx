@@ -14,7 +14,7 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
     const navigation = {
         Admin: [
             { name: 'Dashboard', routeName: 'dashboard', href: route('dashboard'), icon: '📊' },
-            { name: 'Medicine Inventory', routeName: 'admin.inventory', href: route('admin.inventory'), icon: '💊' },
+            { name: 'Medicine Inventory', routeName: 'inventory.index', href: route('inventory.index'), icon: '💊' },
             { name: 'Patient Management', routeName: 'admin.patients', href: route('admin.patients'), icon: '👤' },
             { name: 'Staff Management', routeName: 'admin.staff', href: route('admin.staff'), icon: '🆔' },
         ],

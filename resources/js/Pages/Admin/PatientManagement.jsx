@@ -33,10 +33,9 @@ export default function PatientManagement({ auth }) {
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className={`flex-1 py-2 text-center transition-colors font-bold uppercase ${
+                            className={`flex-1 py-4 text-center transition-colors font-bold tracking-wider uppercase ${
                                 activeTab === tab 
-                                ? 'bg-[#2E4696] text-white' 
-                                : 'bg-slate-400/50 text-slate-100 hover:bg-slate-400'
+                                ? 'bg-slate-400/50 text-slate-100 hover:bg-slate-400' : 'bg-[#2E4696] text-white hover:bg-[#243776]'
                             }`}
                         >
                             {tab === 'all' ? 'All Patients' : tab}
