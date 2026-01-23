@@ -49,6 +49,7 @@ npm install
 ```bash
 php artisan key:generate
 php artisan migrate:fresh --seed
+php artisan db:seed --class=MedicineSeeder 
 
 ```
 

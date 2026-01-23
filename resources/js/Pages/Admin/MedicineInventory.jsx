@@ -7,6 +7,15 @@ import DeleteMedicineModal from './Partials/DeleteMedicineModal';
 
 export default function MedicineInventory({ auth, inventory = [] }) {
     const [activeTab, setActiveTab] = useState('manage'); // 'manage' or 'ledger'
+    
+    // --- SEARCH STATE ---
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // --- PAGINATION STATE ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
+    // --- MODAL & ROW STATE ---
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedMedicine, setSelectedMedicine] = useState(null);
@@ -14,11 +23,74 @@ export default function MedicineInventory({ auth, inventory = [] }) {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [medicineToDelete, setMedicineToDelete] = useState(null);
 
-    // TEMPORARY: Placeholder for the Ledger tab until we build that backend
+    // TEMPORARY: Placeholder for the Ledger tab
     const mockLedger = [
         { dateTime: '2023-10-25 09:30', id: 'BATCH-001', action: 'STOCK IN', amount: '+50', newQty: 150, reason: 'New Shipment', admin: 'Nurse Joy' },
         { dateTime: '2023-10-24 14:15', id: 'BATCH-002', action: 'DISPENSE', amount: '-2', newQty: 98, reason: 'Patient: John Doe', admin: 'Dr. House' },
+        { dateTime: '2023-10-23 10:00', id: 'BATCH-003', action: 'STOCK IN', amount: '+100', newQty: 200, reason: 'New Shipment', admin: 'Dr. Strange' },
     ];
+
+    // --- FILTERING LOGIC (Updated to include all columns) ---
+    const getFilteredData = () => {
+        const query = searchQuery.toLowerCase();
+
+        if (activeTab === 'manage') {
+            return inventory.filter(item => 
+                // String fields
+                item.name.toLowerCase().includes(query) || 
+                item.sku.toLowerCase().includes(query) ||
+                item.category.toLowerCase().includes(query) ||
+                item.status.toLowerCase().includes(query) ||
+                
+                // Number fields (convert to string first)
+                item.totalStock.toString().includes(query) ||
+
+                // Nullable fields (check if exists first)
+                (item.soonestExpiry && item.soonestExpiry.toLowerCase().includes(query))
+            );
+        } else {
+            return mockLedger.filter(log => 
+                log.id.toLowerCase().includes(query) || 
+                log.admin.toLowerCase().includes(query) ||
+                log.action.toLowerCase().includes(query) ||
+                log.reason.toLowerCase().includes(query)
+            );
+        }
+    };
+
+    const filteredData = getFilteredData();
+
+    // --- PAGINATION LOGIC (Applied TO Filtered Data) ---
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
+    // --- HANDLERS ---
+    const handleSearchChange = (e) => {
+        setSearchQuery(e.target.value);
+        setCurrentPage(1); // Reset to page 1 when searching
+        setExpandedRow(null); // Collapse rows
+    };
+
+    const goToPage = (pageNumber) => {
+        setCurrentPage(pageNumber);
+        setExpandedRow(null);
+    };
+
+    const handleNextPage = () => {
+        if (currentPage < totalPages) {
+            setCurrentPage(currentPage + 1);
+            setExpandedRow(null);
+        }
+    };
+
+    const handlePrevPage = () => {
+        if (currentPage > 1) {
+            setCurrentPage(currentPage - 1);
+            setExpandedRow(null);
+        }
+    };
 
     const toggleRow = (id) => {
         setExpandedRow(expandedRow === id ? null : id);
@@ -28,17 +100,18 @@ export default function MedicineInventory({ auth, inventory = [] }) {
         setSelectedMedicine(medicine);
         setIsEditModalOpen(true);
     };
+    
     const handleDeleteClick = (medicine) => {
         setMedicineToDelete(medicine);
         setIsDeleteModalOpen(true);
     };
+
     const confirmDelete = () => {
         if (medicineToDelete) {
             router.delete(route('inventory.destroy', medicineToDelete.id), {
                 onSuccess: () => {
                     setIsDeleteModalOpen(false);
                     setMedicineToDelete(null);
-                    // Optional: setExpandedRow(null) if you want to close any open rows
                 }
             });
         }
@@ -50,13 +123,13 @@ export default function MedicineInventory({ auth, inventory = [] }) {
             sectionTitle={
                 <div className="flex w-full">
                     <button 
-                        onClick={() => setActiveTab('manage')}
+                        onClick={() => { setActiveTab('manage'); setSearchQuery(''); setCurrentPage(1); }}
                         className={`flex-1 py-4 text-center transition-colors font-bold tracking-wider ${activeTab === 'manage' ? 'bg-slate-400/50 text-slate-100 hover:bg-slate-400' : 'bg-[#2E4696] text-white hover:bg-[#243776]'}`}
                     >
                         MANAGE STOCK
                     </button>
                     <button 
-                        onClick={() => setActiveTab('ledger')}
+                        onClick={() => { setActiveTab('ledger'); setSearchQuery(''); setCurrentPage(1); }}
                         className={`flex-1 py-4 text-center transition-colors font-bold tracking-wider ${activeTab === 'ledger' ? 'bg-slate-400/50 text-slate-100 hover:bg-slate-400' : 'bg-[#2E4696] text-white hover:bg-[#243776]'}`}
                     >
                         STOCK LEDGER (LOGS)
@@ -71,7 +144,7 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                 {[
                     { label: 'Total Items', value: inventory.length },
                     { label: 'Critical Stock', value: inventory.filter(i => i.totalStock < 20).length },
-                    { label: 'Expiring Soon', value: '0' }, // Placeholder until we calculate this in controller
+                    { label: 'Expiring Soon', value: '0' },
                     { label: 'Out of Stock', value: inventory.filter(i => i.totalStock === 0).length },
                 ].map((stat, i) => (
                     <div key={i} className="bg-white p-6 rounded-xl shadow-md border border-slate-100 flex flex-col items-center justify-center">
@@ -86,11 +159,12 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                 <div className="relative w-full md:w-96">
                     <input 
                         type="text" 
-                        placeholder={activeTab === 'manage' ? "Search Medicine by SKU or Name" : "Search Logs by ID or Admin"}
+                        value={searchQuery}
+                        onChange={handleSearchChange}
+                        placeholder={activeTab === 'manage' ? "Search all fields..." : "Search Logs..."}
                         className="w-full pl-5 pr-4 py-2 border border-slate-300 rounded shadow-sm focus:ring-1 focus:ring-blue-500 outline-none"
                     />
                 </div>
-                {/* Only show "Add New Medicine" on the Manage tab */}
                 {activeTab === 'manage' && (
                     <button
                         onClick={() => setIsAddModalOpen(true)}
@@ -100,8 +174,8 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                 )}
             </div>
 
-            {/* 3. Table Container (Conditional Content) */}
-            <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white">
+            {/* 3. Table Container */}
+            <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white min-h-[400px]">
                 {activeTab === 'manage' ? (
                     /* --- MANAGE STOCK TABLE --- */
                     <table className="w-full text-left text-sm border-collapse">
@@ -118,8 +192,7 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                             </tr>
                         </thead>
                         <tbody className="text-slate-600">
-                            {/* FIXED: Using 'inventory' instead of 'mockMedicines' */}
-                            {inventory.map((item) => (
+                            {currentItems.map((item) => (
                                 <React.Fragment key={item.id}>
                                     <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
                                         <td className="p-3 text-center border-r border-slate-200">
@@ -187,7 +260,7 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                                                             ))}
                                                             {item.batches.length === 0 && (
                                                                 <tr>
-                                                                    <td colSpan="4" className="p-4 text-center text-slate-400 italic">No batches found for this medicine.</td>
+                                                                    <td colSpan="4" className="p-4 text-center text-slate-400 italic">No batches found.</td>
                                                                 </tr>
                                                             )}
                                                         </tbody>
@@ -198,18 +271,17 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                                     )}
                                 </React.Fragment>
                             ))}
-                            {/* Show message if inventory is empty */}
-                            {inventory.length === 0 && (
+                            {filteredData.length === 0 && (
                                 <tr>
                                     <td colSpan="8" className="p-8 text-center text-slate-500">
-                                        No medicines found in database. Please run the seeder or add an item.
+                                        No medicines found matching "{searchQuery}".
                                     </td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
                 ) : (
-                    /* --- STOCK LEDGER TABLE (Using temporary mockLedger) --- */
+                    /* --- STOCK LEDGER TABLE --- */
                     <table className="w-full text-left text-sm border-collapse">
                         <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 uppercase text-[11px]">
                             <tr>
@@ -223,7 +295,7 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                             </tr>
                         </thead>
                         <tbody className="text-slate-600">
-                            {mockLedger.map((log, idx) => (
+                            {currentItems.map((log, idx) => (
                                 <tr key={idx} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
                                     <td className="p-3 font-bold border-r border-slate-200">{log.dateTime}</td>
                                     <td className="p-3 border-r border-slate-200">{log.id}</td>
@@ -236,23 +308,64 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                                     <td className="p-3 font-bold text-slate-800">{log.admin}</td>
                                 </tr>
                             ))}
+                            {filteredData.length === 0 && (
+                                <tr>
+                                    <td colSpan="7" className="p-8 text-center text-slate-500">
+                                        No logs found matching "{searchQuery}".
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 )}
             </div>
 
-            {/* 4. Pagination */}
-            <div className="mt-6 flex justify-end items-center gap-4 text-sm font-medium text-slate-500">
-                <button className="flex items-center gap-1 hover:text-[#2E4696] transition-colors">
-                    ← Previous
-                </button>
-                <div className="flex gap-2">
-                    <button className="w-8 h-8 rounded bg-[#2E4696] text-white">1</button>
+            {/* 4. Pagination Controls */}
+            {filteredData.length > 0 && (
+                <div className="mt-6 flex justify-end items-center gap-4 text-sm font-medium text-slate-500">
+                    <span className="text-xs text-slate-400 mr-2">
+                        Showing {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredData.length)} of {filteredData.length}
+                    </span>
+                    
+                    <button 
+                        onClick={handlePrevPage}
+                        disabled={currentPage === 1}
+                        className={`flex items-center gap-1 transition-colors ${
+                            currentPage === 1 ? 'text-slate-300 cursor-not-allowed' : 'hover:text-[#2E4696]'
+                        }`}
+                    >
+                        ← Previous
+                    </button>
+
+                    <div className="flex gap-2">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+                            <button
+                                key={number}
+                                onClick={() => goToPage(number)}
+                                className={`w-8 h-8 rounded transition-colors ${
+                                    currentPage === number 
+                                        ? 'bg-[#2E4696] text-white' 
+                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                                }`}
+                            >
+                                {number}
+                            </button>
+                        ))}
+                    </div>
+
+                    <button 
+                        onClick={handleNextPage}
+                        disabled={currentPage === totalPages}
+                        className={`flex items-center gap-1 transition-colors ${
+                            currentPage === totalPages ? 'text-slate-300 cursor-not-allowed' : 'hover:text-[#2E4696]'
+                        }`}
+                    >
+                        Next →
+                    </button>
                 </div>
-                <button className="flex items-center gap-1 hover:text-[#2E4696] transition-colors">
-                    Next →
-                </button>
-            </div>
+            )}
+
+            {/* Modals */}
             <AddMedicineModal 
                 isOpen={isAddModalOpen} 
                 onClose={() => setIsAddModalOpen(false)} 
@@ -269,7 +382,7 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={confirmDelete}
-                medicineName={medicineToDelete?.name} // Uses the name from the selected item
+                medicineName={medicineToDelete?.name}
             />
         </AuthenticatedLayout>
     );
