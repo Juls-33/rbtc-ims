@@ -23,6 +23,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/inventory', [MedicineController::class, 'store'])->name('inventory.store');
         Route::put('/inventory/{id}', [MedicineController::class, 'update'])->name('inventory.update');
         Route::delete('/inventory/{id}', [MedicineController::class, 'destroy'])->name('inventory.destroy');
+        Route::post('/inventory/{id}/batches', [MedicineController::class, 'updateBatches'])->name('inventory.batches.update');
         Route::get('/inventory', [MedicineController::class, 'index'])->name('inventory.index');
         Route::get('/patients', fn() => Inertia::render('Admin/PatientManagement'))->name('admin.patients');
         Route::get('/staff', fn() => Inertia::render('Admin/StaffManagement'))->name('admin.staff');

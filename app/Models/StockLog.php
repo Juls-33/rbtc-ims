@@ -6,21 +6,19 @@ use Illuminate\Database\Eloquent\Model;
 
 class StockLog extends Model
 {
+    // Syncing with your migration fields: batch_id, staff_id, change_amount, reason
     protected $fillable = [
-        'medicine_batch_id',
+        'batch_id',
         'staff_id',
-        'quantity_change',
-        'action_type', // e.g., Restock, Dispensed, Expired
-        'remarks'
+        'change_amount',
+        'reason'
     ];
 
-    public function batch()
-    {
-        return $this->belongsTo(MedicineBatch::class, 'medicine_batch_id');
+    public function batch() {
+        return $this->belongsTo(MedicineBatch::class, 'batch_id');
     }
 
-    public function staff()
-    {
-        return $this->belongsTo(Staff::class);
+    public function staff() {
+        return $this->belongsTo(Staff::class, 'staff_id');
     }
 }

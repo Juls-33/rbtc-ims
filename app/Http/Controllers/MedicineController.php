@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\MedicineCatalog;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
+use App\Models\MedicineBatch;
+use App\Models\StockLog;
+use Illuminate\Support\Facades\DB;
 
 class MedicineController extends Controller
 {
@@ -20,9 +23,8 @@ class MedicineController extends Controller
                 'price' => $medicine->price_per_unit,
                 'reorder_point' => $medicine->reorder_point,
                 'category' => $medicine->category,
-                'totalStock' => $medicine->batches->sum('stock_quantity'),
+                'totalStock' => $medicine->batches->sum('current_quantity'), // Fixed to current_quantity
                 'soonestExpiry' => $medicine->batches->min('expiry_date'),
-                'status' => $medicine->batches->sum('stock_quantity') < 50 ? 'LOW STOCK' : 'IN STOCK',
                 'batches' => $medicine->batches->map(fn($b) => [
                     'id' => $b->sku_batch_id,
                     'received' => $b->date_received,
@@ -32,8 +34,28 @@ class MedicineController extends Controller
             ];
         });
 
-        return Inertia::render('Admin/MedicineInventory', [
-            'inventory' => $inventory
+        // Fetch Logs (New logic)
+        // Assuming StockLog is your model name
+        $logs = \App\Models\StockLog::with(['batch.medicine', 'staff'])
+            ->latest()
+            ->get()
+            ->map(function($log) {
+                return [
+                    'dateTime' => $log->created_at->format('Y-m-d H:i'),
+                    'id' => $log->batch->sku_batch_id ?? 'N/A',
+                    'medicine_name' => $log->batch->medicine->generic_name ?? 'Unknown',
+                    'action' => $log->change_amount > 0 ? 'STOCK IN' : 'DISPENSE',
+                    'amount' => ($log->change_amount > 0 ? '+' : '') . $log->change_amount,
+                    // Resulting Qty: You can calculate this or add a column to the table later
+                    'newQty' => '---', 
+                    'reason' => $log->reason,
+                    'admin' => $log->staff ? $log->staff->first_name . ' ' . $log->staff->last_name : 'System',
+                ];
+            });
+
+       return Inertia::render('Admin/MedicineInventory', [
+            'inventory' => $inventory,
+            'logs' => $logs 
         ]);
     }
 
@@ -107,5 +129,66 @@ class MedicineController extends Controller
         $medicine = MedicineCatalog::findOrFail($id);
         $medicine->delete();
         return redirect()->back()->with('success', 'Medicine deleted successfully.');
+    }
+
+    public function updateBatches(Request $request, $id)
+    {
+        $medicine = \App\Models\MedicineCatalog::findOrFail($id);
+        $action = $request->input('action_type'); 
+        $batchData = $request->input('batch');
+        $reason = $request->input('reason', 'Manual Update');
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($medicine, $action, $batchData, $reason) {
+            // Find staff_id from the authenticated user
+            $staffId = auth()->user()->staff_id ?? 1; // Fallback to 1 for testing if needed
+
+            if ($action === 'add') {
+                $batch = $medicine->batches()->create([
+                    'sku_batch_id' => $batchData['id'],
+                    'current_quantity' => $batchData['stock'],
+                    'expiry_date' => $batchData['expiry'],
+                    'date_received' => $batchData['received'],
+                ]);
+
+                \App\Models\StockLog::create([
+                    'batch_id' => $batch->id,
+                    'staff_id' => $staffId,
+                    'change_amount' => $batchData['stock'],
+                    'reason' => $reason,
+                ]);
+            } 
+            
+            elseif ($action === 'adjust') {
+                // Find batch by the custom sku_batch_id
+                $batch = \App\Models\MedicineBatch::where('sku_batch_id', $batchData['id'])->firstOrFail();
+                $oldQty = $batch->current_quantity;
+                $newQty = $batchData['stock'];
+                $diff = $newQty - $oldQty;
+
+                $batch->update(['current_quantity' => $newQty]);
+
+                \App\Models\StockLog::create([
+                    'batch_id' => $batch->id,
+                    'staff_id' => $staffId,
+                    'change_amount' => $diff,
+                    'reason' => $reason,
+                ]);
+            }
+
+            elseif ($action === 'delete') {
+                $batch = \App\Models\MedicineBatch::where('sku_batch_id', $batchData['id'])->firstOrFail();
+                
+                \App\Models\StockLog::create([
+                    'batch_id' => $batch->id,
+                    'staff_id' => $staffId,
+                    'change_amount' => -$batch->current_quantity,
+                    'reason' => "Batch Deleted: " . $reason,
+                ]);
+
+                $batch->delete();
+            }
+        });
+
+        return redirect()->route('inventory.index')->with('success', 'Stock updated.');
     }
 }

@@ -4,53 +4,61 @@ import { Head, router } from '@inertiajs/react';
 import AddMedicineModal from './Partials/AddMedicineModal';
 import EditMedicineModal from './Partials/EditMedicineModal';
 import DeleteMedicineModal from './Partials/DeleteMedicineModal';
+import ManageBatchesModal from './Partials/ManageBatchesModal';
 
-export default function MedicineInventory({ auth, inventory = [] }) {
+export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
     const [activeTab, setActiveTab] = useState('manage'); // 'manage' or 'ledger'
-    
-    // --- SEARCH STATE ---
     const [searchQuery, setSearchQuery] = useState('');
-
-    // --- PAGINATION STATE ---
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
 
-    // --- MODAL & ROW STATE ---
+    // --- 1. DATA PREPROCESSING ---
+    const today = new Date().toISOString().split('T')[0];
+
+    const processedInventory = inventory.map(item => {
+        const validBatches = item.batches?.filter(batch => batch.expiry >= today) || [];
+        const calculatedTotal = validBatches.reduce((sum, batch) => sum + parseInt(batch.stock || 0), 0);
+        
+        const soonest = validBatches.length > 0 
+            ? validBatches.reduce((min, b) => (b.expiry < min ? b.expiry : min), validBatches[0].expiry)
+            : null;
+
+        return {
+            ...item,
+            calculatedTotal,
+            calculatedSoonest: soonest,
+            calculatedStatus: calculatedTotal === 0 ? 'OUT OF STOCK' : (calculatedTotal < 20 ? 'LOW STOCK' : 'IN STOCK')
+        };
+    });
+
+    // --- 2. MODAL & ROW STATE ---
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedMedicine, setSelectedMedicine] = useState(null);
     const [expandedRow, setExpandedRow] = useState(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [medicineToDelete, setMedicineToDelete] = useState(null);
+    const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+    const [batchMedicine, setBatchMedicine] = useState(null);
 
-    // TEMPORARY: Placeholder for the Ledger tab
-    const mockLedger = [
-        { dateTime: '2023-10-25 09:30', id: 'BATCH-001', action: 'STOCK IN', amount: '+50', newQty: 150, reason: 'New Shipment', admin: 'Nurse Joy' },
-        { dateTime: '2023-10-24 14:15', id: 'BATCH-002', action: 'DISPENSE', amount: '-2', newQty: 98, reason: 'Patient: John Doe', admin: 'Dr. House' },
-        { dateTime: '2023-10-23 10:00', id: 'BATCH-003', action: 'STOCK IN', amount: '+100', newQty: 200, reason: 'New Shipment', admin: 'Dr. Strange' },
-    ];
-
-    // --- FILTERING LOGIC (Updated to include all columns) ---
+    // --- 3. FILTERING LOGIC ---
     const getFilteredData = () => {
         const query = searchQuery.toLowerCase();
 
         if (activeTab === 'manage') {
-            return inventory.filter(item => 
-                // String fields
+            return processedInventory.filter(item => 
                 item.name.toLowerCase().includes(query) || 
                 item.sku.toLowerCase().includes(query) ||
                 item.category.toLowerCase().includes(query) ||
-                item.status.toLowerCase().includes(query) ||
-                
-                // Number fields (convert to string first)
-                item.totalStock.toString().includes(query) ||
-
-                // Nullable fields (check if exists first)
-                (item.soonestExpiry && item.soonestExpiry.toLowerCase().includes(query))
+                item.calculatedStatus.toLowerCase().includes(query) ||
+                item.calculatedTotal.toString().includes(query) ||
+                (item.calculatedSoonest && item.calculatedSoonest.toLowerCase().includes(query))
             );
         } else {
-            return mockLedger.filter(log => 
+            // Updated to filter real logs from the database
+            return logs.filter(log => 
                 log.id.toLowerCase().includes(query) || 
+                log.medicine_name.toLowerCase().includes(query) || // Search by Medicine Name
                 log.admin.toLowerCase().includes(query) ||
                 log.action.toLowerCase().includes(query) ||
                 log.reason.toLowerCase().includes(query)
@@ -60,17 +68,29 @@ export default function MedicineInventory({ auth, inventory = [] }) {
 
     const filteredData = getFilteredData();
 
-    // --- PAGINATION LOGIC (Applied TO Filtered Data) ---
+    // --- 4. PAGINATION LOGIC ---
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
+    // --- 5. STATS CALCULATION ---
+    const stats = {
+        totalItems: processedInventory.length,
+        critical: processedInventory.filter(i => i.calculatedTotal < 20 && i.calculatedTotal > 0).length,
+        outOfStock: processedInventory.filter(i => i.calculatedTotal === 0).length,
+        expiringSoon: processedInventory.filter(i => {
+            if (!i.calculatedSoonest) return false;
+            const diff = (new Date(i.calculatedSoonest) - new Date(today)) / (1000 * 60 * 60 * 24);
+            return diff <= 30 && diff >= 0; 
+        }).length
+    };
+
     // --- HANDLERS ---
     const handleSearchChange = (e) => {
         setSearchQuery(e.target.value);
-        setCurrentPage(1); // Reset to page 1 when searching
-        setExpandedRow(null); // Collapse rows
+        setCurrentPage(1);
+        setExpandedRow(null);
     };
 
     const goToPage = (pageNumber) => {
@@ -92,9 +112,7 @@ export default function MedicineInventory({ auth, inventory = [] }) {
         }
     };
 
-    const toggleRow = (id) => {
-        setExpandedRow(expandedRow === id ? null : id);
-    };
+    const toggleRow = (id) => setExpandedRow(expandedRow === id ? null : id);
 
     const handleEditClick = (medicine) => {
         setSelectedMedicine(medicine);
@@ -104,6 +122,11 @@ export default function MedicineInventory({ auth, inventory = [] }) {
     const handleDeleteClick = (medicine) => {
         setMedicineToDelete(medicine);
         setIsDeleteModalOpen(true);
+    };
+
+    const handleManageBatchesClick = (medicine) => {
+        setBatchMedicine(medicine);
+        setIsBatchModalOpen(true);
     };
 
     const confirmDelete = () => {
@@ -117,6 +140,8 @@ export default function MedicineInventory({ auth, inventory = [] }) {
         }
     };
 
+    const activeMedicine = inventory.find(m => m.id === batchMedicine?.id);
+
     return (
         <AuthenticatedLayout 
             header="Admin / Medicine Inventory" 
@@ -124,13 +149,13 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                 <div className="flex w-full">
                     <button 
                         onClick={() => { setActiveTab('manage'); setSearchQuery(''); setCurrentPage(1); }}
-                        className={`flex-1 py-4 text-center transition-colors font-bold tracking-wider ${activeTab === 'manage' ? 'bg-slate-400/50 text-slate-100 hover:bg-slate-400' : 'bg-[#2E4696] text-white hover:bg-[#243776]'}`}
+                        className={`flex-1 py-4 text-center transition-colors font-bold tracking-wider ${activeTab === 'manage' ? 'bg-slate-400/50 text-slate-100' : 'bg-[#2E4696] text-white hover:bg-[#243776]'}`}
                     >
                         MANAGE STOCK
                     </button>
                     <button 
                         onClick={() => { setActiveTab('ledger'); setSearchQuery(''); setCurrentPage(1); }}
-                        className={`flex-1 py-4 text-center transition-colors font-bold tracking-wider ${activeTab === 'ledger' ? 'bg-slate-400/50 text-slate-100 hover:bg-slate-400' : 'bg-[#2E4696] text-white hover:bg-[#243776]'}`}
+                        className={`flex-1 py-4 text-center transition-colors font-bold tracking-wider ${activeTab === 'ledger' ? 'bg-slate-400/50 text-slate-100' : 'bg-[#2E4696] text-white hover:bg-[#243776]'}`}
                     >
                         STOCK LEDGER (LOGS)
                     </button>
@@ -142,10 +167,10 @@ export default function MedicineInventory({ auth, inventory = [] }) {
             {/* 1. Top Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 {[
-                    { label: 'Total Items', value: inventory.length },
-                    { label: 'Critical Stock', value: inventory.filter(i => i.totalStock < 20).length },
-                    { label: 'Expiring Soon', value: '0' },
-                    { label: 'Out of Stock', value: inventory.filter(i => i.totalStock === 0).length },
+                    { label: 'Total Items', value: stats.totalItems },
+                    { label: 'Critical Stock', value: stats.critical },
+                    { label: 'Expiring Soon', value: stats.expiringSoon },
+                    { label: 'Out of Stock', value: stats.outOfStock },
                 ].map((stat, i) => (
                     <div key={i} className="bg-white p-6 rounded-xl shadow-md border border-slate-100 flex flex-col items-center justify-center">
                         <span className="text-4xl font-bold text-slate-800 mb-1">{stat.value}</span>
@@ -161,7 +186,7 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                         type="text" 
                         value={searchQuery}
                         onChange={handleSearchChange}
-                        placeholder={activeTab === 'manage' ? "Search all fields..." : "Search Logs..."}
+                        placeholder={activeTab === 'manage' ? "Search all fields..." : "Search Logs (ID, Medicine, Admin...)"}
                         className="w-full pl-5 pr-4 py-2 border border-slate-300 rounded shadow-sm focus:ring-1 focus:ring-blue-500 outline-none"
                     />
                 </div>
@@ -196,50 +221,43 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                                 <React.Fragment key={item.id}>
                                     <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
                                         <td className="p-3 text-center border-r border-slate-200">
-                                            <button 
-                                                onClick={() => toggleRow(item.id)}
-                                                className="font-bold text-lg text-slate-400 hover:text-slate-600"
-                                            >
+                                            <button onClick={() => toggleRow(item.id)} className="font-bold text-lg text-slate-400 hover:text-slate-600">
                                                 {expandedRow === item.id ? '-' : '+'}
                                             </button>
                                         </td>
                                         <td className="p-3 font-medium border-r border-slate-200">{item.sku}</td>
                                         <td className="p-3 font-bold text-slate-800 border-r border-slate-200">{item.name}</td>
                                         <td className="p-3 border-r border-slate-200">{item.category}</td>
-                                        <td className="p-3 text-center font-bold border-r border-slate-200">{item.totalStock}</td>
-                                        <td className="p-3 text-center border-r border-slate-200">{item.soonestExpiry || '-'}</td>
+                                        <td className="p-3 text-center font-bold border-r border-slate-200">{item.calculatedTotal}</td>
+                                        <td className="p-3 text-center border-r border-slate-200">{item.calculatedSoonest || '-'}</td>
                                         <td className="p-3 text-center border-r border-slate-200">
                                             <span className={`text-[10px] font-bold px-2 py-1 rounded ${
-                                                item.status === 'LOW STOCK' ? 'text-amber-600' : 'text-emerald-600'
+                                                item.calculatedStatus === 'OUT OF STOCK' ? 'bg-red-100 text-red-600' :
+                                                item.calculatedStatus === 'LOW STOCK' ? 'bg-amber-100 text-amber-600' : 
+                                                'bg-emerald-100 text-emerald-600'
                                             }`}>
-                                                {item.status}
+                                                {item.calculatedStatus}
                                             </span>
                                         </td>
                                         <td className="p-3">
                                             <div className="flex flex-col gap-1">
-                                                <button className="bg-[#3D52A0] text-white text-[10px] font-bold py-1 px-2 rounded hover:bg-[#2E4696]">
+                                                <button onClick={() => handleManageBatchesClick(item)} className="bg-[#3D52A0] text-white text-[10px] font-bold py-1 px-2 rounded hover:bg-[#2E4696]">
                                                     MANAGE BATCHES
                                                 </button>
-                                                <button 
-                                                    onClick={() => handleEditClick(item)}
-                                                    className="bg-[#E6AA68] text-white text-[10px] font-bold py-1 px-2 rounded hover:bg-[#d18e3a]">
+                                                <button onClick={() => handleEditClick(item)} className="bg-[#E6AA68] text-white text-[10px] font-bold py-1 px-2 rounded hover:bg-[#d18e3a]">
                                                     EDIT
                                                 </button>
-                                                <button 
-                                                    onClick={() => handleDeleteClick(item)}
-                                                    className="bg-red-500 text-white text-[10px] font-bold py-1 px-2 rounded hover:bg-red-600"
-                                                >
+                                                <button onClick={() => handleDeleteClick(item)} className="bg-red-500 text-white text-[10px] font-bold py-1 px-2 rounded hover:bg-red-600">
                                                     DELETE
                                                 </button>
                                             </div>
                                         </td>
                                     </tr>
                                     
-                                    {/* Nested Batch Rows */}
                                     {expandedRow === item.id && (
                                         <tr className="bg-slate-50">
                                             <td colSpan="8" className="p-0">
-                                                <div className="overflow-hidden transition-all duration-300">
+                                                <div className="overflow-hidden">
                                                     <table className="w-full bg-white border-l-8 border-[#2E4696]">
                                                         <thead className="bg-slate-100 text-[11px] font-bold uppercase text-slate-500">
                                                             <tr>
@@ -250,19 +268,16 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {item.batches.map((batch, idx) => (
-                                                                <tr key={idx} className="text-xs text-slate-600">
+                                                            {item.batches?.map((batch, idx) => (
+                                                                <tr key={idx} className={`text-xs ${batch.expiry < today ? 'bg-red-50 text-red-400' : 'text-slate-600'}`}>
                                                                     <td className="p-2 border border-slate-100">{batch.id}</td>
                                                                     <td className="p-2 border border-slate-100">{batch.received}</td>
-                                                                    <td className="p-2 border border-slate-100 font-bold">{batch.expiry}</td>
+                                                                    <td className={`p-2 border border-slate-100 font-bold ${batch.expiry < today ? 'text-red-600' : ''}`}>
+                                                                        {batch.expiry} {batch.expiry < today && '(EXPIRED)'}
+                                                                    </td>
                                                                     <td className="p-2 border border-slate-100 font-bold">{batch.stock}</td>
                                                                 </tr>
                                                             ))}
-                                                            {item.batches.length === 0 && (
-                                                                <tr>
-                                                                    <td colSpan="4" className="p-4 text-center text-slate-400 italic">No batches found.</td>
-                                                                </tr>
-                                                            )}
                                                         </tbody>
                                                     </table>
                                                 </div>
@@ -271,22 +286,16 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                                     )}
                                 </React.Fragment>
                             ))}
-                            {filteredData.length === 0 && (
-                                <tr>
-                                    <td colSpan="8" className="p-8 text-center text-slate-500">
-                                        No medicines found matching "{searchQuery}".
-                                    </td>
-                                </tr>
-                            )}
                         </tbody>
                     </table>
                 ) : (
-                    /* --- STOCK LEDGER TABLE --- */
+                    /* --- STOCK LEDGER TABLE (Real Data) --- */
                     <table className="w-full text-left text-sm border-collapse">
                         <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 uppercase text-[11px]">
                             <tr>
                                 <th className="p-3 border-r border-slate-200">Date and Time</th>
-                                <th className="p-3 border-r border-slate-200">ID</th>
+                                <th className="p-3 border-r border-slate-200">Batch ID</th>
+                                <th className="p-3 border-r border-slate-200">Medicine Name</th>
                                 <th className="p-3 border-r border-slate-200">Action</th>
                                 <th className="p-3 border-r border-slate-200 text-center">Amount</th>
                                 <th className="p-3 border-r border-slate-200 text-center">New Quantity</th>
@@ -298,21 +307,20 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                             {currentItems.map((log, idx) => (
                                 <tr key={idx} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
                                     <td className="p-3 font-bold border-r border-slate-200">{log.dateTime}</td>
-                                    <td className="p-3 border-r border-slate-200">{log.id}</td>
+                                    <td className="p-3 border-r border-slate-200 text-xs font-mono">{log.id}</td>
+                                    <td className="p-3 border-r border-slate-200 font-bold text-slate-800">{log.medicine_name}</td>
                                     <td className="p-3 border-r border-slate-200 font-bold text-slate-800">{log.action}</td>
                                     <td className={`p-3 border-r border-slate-200 text-center font-bold ${log.amount.startsWith('+') ? 'text-emerald-600' : 'text-rose-600'}`}>
                                         {log.amount}
                                     </td>
-                                    <td className="p-3 border-r border-slate-200 text-center font-bold">{log.newQty}</td>
+                                    <td className="p-3 border-r border-slate-200 text-center font-bold text-slate-400">{log.newQty}</td>
                                     <td className="p-3 border-r border-slate-200">{log.reason}</td>
                                     <td className="p-3 font-bold text-slate-800">{log.admin}</td>
                                 </tr>
                             ))}
-                            {filteredData.length === 0 && (
+                            {currentItems.length === 0 && (
                                 <tr>
-                                    <td colSpan="7" className="p-8 text-center text-slate-500">
-                                        No logs found matching "{searchQuery}".
-                                    </td>
+                                    <td colSpan="8" className="p-8 text-center text-slate-400 italic">No logs found.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -326,63 +334,34 @@ export default function MedicineInventory({ auth, inventory = [] }) {
                     <span className="text-xs text-slate-400 mr-2">
                         Showing {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredData.length)} of {filteredData.length}
                     </span>
-                    
-                    <button 
-                        onClick={handlePrevPage}
-                        disabled={currentPage === 1}
-                        className={`flex items-center gap-1 transition-colors ${
-                            currentPage === 1 ? 'text-slate-300 cursor-not-allowed' : 'hover:text-[#2E4696]'
-                        }`}
-                    >
+                    <button onClick={handlePrevPage} disabled={currentPage === 1} className={currentPage === 1 ? 'text-slate-300' : 'hover:text-[#2E4696]'}>
                         ← Previous
                     </button>
-
                     <div className="flex gap-2">
                         {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
-                            <button
-                                key={number}
-                                onClick={() => goToPage(number)}
-                                className={`w-8 h-8 rounded transition-colors ${
-                                    currentPage === number 
-                                        ? 'bg-[#2E4696] text-white' 
-                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                                }`}
-                            >
+                            <button key={number} onClick={() => goToPage(number)} className={`w-8 h-8 rounded ${currentPage === number ? 'bg-[#2E4696] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
                                 {number}
                             </button>
                         ))}
                     </div>
-
-                    <button 
-                        onClick={handleNextPage}
-                        disabled={currentPage === totalPages}
-                        className={`flex items-center gap-1 transition-colors ${
-                            currentPage === totalPages ? 'text-slate-300 cursor-not-allowed' : 'hover:text-[#2E4696]'
-                        }`}
-                    >
+                    <button onClick={handleNextPage} disabled={currentPage === totalPages} className={currentPage === totalPages ? 'text-slate-300' : 'hover:text-[#2E4696]'}>
                         Next →
                     </button>
                 </div>
             )}
 
             {/* Modals */}
-            <AddMedicineModal 
-                isOpen={isAddModalOpen} 
-                onClose={() => setIsAddModalOpen(false)} 
-            />
-            <EditMedicineModal
-                isOpen={isEditModalOpen}
+            <AddMedicineModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+            <EditMedicineModal isOpen={isEditModalOpen} onClose={() => { setIsEditModalOpen(false); setSelectedMedicine(null); }} medicine={selectedMedicine} />
+            <DeleteMedicineModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={confirmDelete} medicineName={medicineToDelete?.name} />
+            <ManageBatchesModal 
+                isOpen={isBatchModalOpen}
                 onClose={() => {
-                    setIsEditModalOpen(false);
-                    setSelectedMedicine(null);
-                }}
-                medicine={selectedMedicine}
-            />
-            <DeleteMedicineModal 
-                isOpen={isDeleteModalOpen}
-                onClose={() => setIsDeleteModalOpen(false)}
-                onConfirm={confirmDelete}
-                medicineName={medicineToDelete?.name}
+                    setIsBatchModalOpen(false);
+                    setBatchMedicine(null);
+                }} 
+                // PASS THE FRESH DATA HERE:
+                medicine={activeMedicine} 
             />
         </AuthenticatedLayout>
     );
