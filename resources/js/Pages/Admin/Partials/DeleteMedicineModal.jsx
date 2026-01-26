@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from '@/Components/Button'; // Import standardized button
 
 export default function DeleteMedicineModal({ isOpen, onClose, onConfirm, medicineName }) {
     if (!isOpen) return null;
@@ -9,7 +10,7 @@ export default function DeleteMedicineModal({ isOpen, onClose, onConfirm, medici
                 
                 {/* Header - Red for Danger */}
                 <div className="bg-red-600 px-6 py-4 flex justify-between items-center">
-                    <h2 className="text-white font-bold text-lg tracking-wide">CONFIRM DELETION</h2>
+                    <h2 className="text-white font-bold text-lg tracking-wide uppercase">Confirm Deletion</h2>
                     <button onClick={onClose} className="text-white/70 hover:text-white text-2xl font-bold leading-none">&times;</button>
                 </div>
 
@@ -33,18 +34,21 @@ export default function DeleteMedicineModal({ isOpen, onClose, onConfirm, medici
 
                 {/* Footer Actions */}
                 <div className="bg-slate-50 px-6 py-4 flex justify-center gap-3 border-t border-slate-100">
-                    <button 
-                        onClick={onClose} 
-                        className="px-4 py-2 text-slate-700 font-bold hover:bg-slate-200 rounded-md text-sm transition"
+                    {/* Standardized Gray Button */}
+                    <Button 
+                        variant="gray" 
+                        onClick={onClose}
                     >
                         CANCEL
-                    </button>
-                    <button 
-                        onClick={onConfirm} 
-                        className="px-4 py-2 bg-red-600 text-white font-bold rounded-md text-sm hover:bg-red-700 transition shadow-md"
+                    </Button>
+                    
+                    {/* Standardized Danger Button */}
+                    <Button 
+                        variant="danger" 
+                        onClick={onConfirm}
                     >
                         YES, DELETE IT
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>

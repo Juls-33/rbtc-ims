@@ -1,5 +1,6 @@
 import React from 'react';
 import { useForm } from '@inertiajs/react';
+import Button from '@/Components/Button';
 
 export default function AddMedicineModal({ isOpen, onClose }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -7,7 +8,7 @@ export default function AddMedicineModal({ isOpen, onClose }) {
         brand_name: '',
         category: '',
         dosage: '',
-        reorder_point: 10, // Default value from your DB schema
+        reorder_point: 10,
         price_per_unit: '',
     });
 
@@ -40,7 +41,6 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                 <form onSubmit={handleSubmit} className="p-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         
-                        {/* --- SECTION 1: IDENTITY --- */}
                         <div className="md:col-span-2 flex gap-4">
                             <div className="flex-1">
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Generic Name <span className="text-red-500">*</span></label>
@@ -66,7 +66,6 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                             </div>
                         </div>
 
-                        {/* --- SECTION 2: CLASSIFICATION --- */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Category <span className="text-red-500">*</span></label>
                             <select 
@@ -97,7 +96,6 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                             {errors.dosage && <div className="text-red-500 text-xs mt-1 font-medium">{errors.dosage}</div>}
                         </div>
 
-                        {/* --- SECTION 3: INVENTORY --- */}
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Price Per Unit (₱) <span className="text-red-500">*</span></label>
                             <div className="relative">
@@ -122,32 +120,32 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                                 onChange={e => setData('reorder_point', e.target.value)}
                                 className="w-full border-slate-300 rounded-md shadow-sm focus:ring-[#2E4696] focus:border-[#2E4696] text-sm py-2.5"
                             />
-                            <p className="text-[10px] text-slate-400 mt-1">System flags "Low Stock" when below this amount.</p>
                         </div>
                     </div>
 
-                    {/* Footer Actions */}
                     <div className="mt-8 flex justify-end gap-3 border-t pt-6">
-                        <button 
-                            type="button" 
-                            onClick={onClose} 
-                            className="px-5 py-2.5 text-slate-600 font-bold hover:bg-slate-100 rounded-md text-sm transition"
+                        {/* Gray Cancel Button */}
+                        <Button 
+                            variant="gray" 
+                            onClick={onClose}
                         >
                             CANCEL
-                        </button>
-                        <button 
+                        </Button>
+                        
+                        <Button 
                             type="submit" 
+                            variant="success"
                             disabled={processing}
-                            className="px-6 py-2.5 bg-[#5A9167] text-white font-bold rounded-md text-sm hover:bg-[#4a7a55] transition shadow-lg hover:shadow-xl disabled:opacity-50 flex items-center gap-2"
+                            className="flex items-center gap-2 px-6"
                         >
                             {processing && (
-                                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <svg className="animate-spin h-3 w-3 text-white" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
                             )}
                             {processing ? 'CREATING...' : 'CREATE MEDICINE'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>

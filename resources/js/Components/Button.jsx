@@ -1,3 +1,4 @@
+// resources/js/Components/Button.jsx
 import React from 'react';
 
 export default function Button({ 
@@ -8,11 +9,12 @@ export default function Button({
     children, 
     ...props 
 }) {
-    // Styling mapping to match your UI
     const variants = {
-        primary: 'bg-[#2E4696] hover:bg-[#2d3a75] text-white', //blue
-        success: 'bg-[#2E8B57] hover:bg-[#4a824e] text-white', //green
-        danger: 'bg-[#D63E3E] hover:bg-red-700 text-white', //custom red
+        primary: 'bg-[#2E4696] hover:bg-[#243776] text-white',
+        success: 'bg-[#5A9167] hover:bg-[#4a7a55] text-white',
+        danger: 'bg-[#D63E3E] hover:bg-red-700 text-white',
+        warning: 'bg-[#E6AA68] hover:bg-[#d18e3a] text-white',
+        gray: 'bg-slate-500 hover:bg-slate-600 text-white', // Added Gray variant
         outline: 'border-2 border-[#2E4696] text-[#2E4696] hover:bg-[#2E4696] hover:text-white',
     };
 
@@ -22,8 +24,8 @@ export default function Button({
             type={type}
             disabled={disabled}
             className={
-                `inline-flex items-center px-4 py-2 rounded-md font-bold text-xs uppercase tracking-widest transition ease-in-out duration-150 ${
-                    disabled && 'opacity-25'
+                `inline-flex items-center justify-center px-4 py-2 rounded font-bold text-[10px] uppercase tracking-widest transition ease-in-out duration-150 shadow-sm ${
+                    disabled ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'
                 } ${variants[variant]} ${className}`
             }
         >

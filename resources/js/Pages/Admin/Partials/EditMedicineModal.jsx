@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
+import Button from '@/Components/Button'; // Added standardized import
 
 export default function EditMedicineModal({ isOpen, onClose, medicine }) {
-    // Initialize form with defaults, but we will update them in useEffect
+    // Initialize form with defaults
     const { data, setData, put, processing, errors, reset } = useForm({
         generic_name: '',
         brand_name: '',
@@ -16,10 +17,10 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
     useEffect(() => {
         if (medicine) {
             setData({
-                generic_name: medicine.name || '', // Note: In your Index controller you mapped 'generic_name' to 'name'
-                brand_name: medicine.brand_name || '', // You need to make sure 'brand_name' is passed from the controller!
+                generic_name: medicine.name || '',
+                brand_name: medicine.brand_name || '',
                 category: medicine.category || '',
-                dosage: medicine.dosage || '', // Check if your Index controller passes 'dosage'
+                dosage: medicine.dosage || '',
                 reorder_point: medicine.reorder_point || 0,
                 price_per_unit: medicine.price || 0,
             });
@@ -28,7 +29,6 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // We use the medicine.id for the route
         put(route('inventory.update', medicine.id), {
             onSuccess: () => {
                 reset();
@@ -135,14 +135,23 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
                     </div>
 
                     <div className="mt-8 flex justify-end gap-3 border-t pt-6">
-                        <button type="button" onClick={onClose} className="px-5 py-2.5 text-slate-600 font-bold hover:bg-slate-100 rounded-md text-sm">CANCEL</button>
-                        <button 
+                        {/* Gray Cancel Button */}
+                        <Button 
+                            variant="gray" 
+                            onClick={onClose}
+                        >
+                            CANCEL
+                        </Button>
+
+                        {/* Amber/Warning Save Button */}
+                        <Button 
                             type="submit" 
+                            variant="warning" 
                             disabled={processing}
-                            className="px-6 py-2.5 bg-[#E6AA68] text-[#5c3a00] font-bold rounded-md text-sm hover:bg-[#d49a5b] transition shadow-md disabled:opacity-50"
+                            className="px-6"
                         >
                             {processing ? 'SAVING...' : 'SAVE CHANGES'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>
