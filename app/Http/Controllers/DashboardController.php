@@ -9,10 +9,6 @@ use App\Models\MedicineCatalog;
 use App\Models\MedicineBatch;
 use App\Models\BillDetail;
 use Illuminate\Http\Request;
-// Added the missing EncryptedField import
-use ParagonIE\CipherSweet\EncryptedField;
-use ParagonIE\CipherSweet\BlindIndex;
-use ParagonIE\CipherSweet\CipherSweet;
 
 class DashboardController extends Controller
 {
@@ -21,29 +17,19 @@ class DashboardController extends Controller
         $search = $request->input('search');
         $query = Staff::query();
 
+        // Standard plain-text search logic
         if ($search) {
-            $engine = app(CipherSweet::class);
-
-            // 1. Calculate Blind Index for First Name
-            $firstNameField = (new EncryptedField($engine, 'staff', 'first_name'))
-                ->addBlindIndex(new BlindIndex('first_name_index'));
-            $firstNameHash = $firstNameField->getBlindIndex($search, 'first_name_index');
-
-            // 2. Calculate Blind Index for Last Name
-            $lastNameField = (new EncryptedField($engine, 'staff', 'last_name'))
-                ->addBlindIndex(new BlindIndex('last_name_index'));
-            $lastNameHash = $lastNameField->getBlindIndex($search, 'last_name_index');
-
-            // 3. Filter the query
-            $query->where('first_name_index', $firstNameHash)
-                  ->orWhere('last_name_index', $lastNameHash);
+            $query->where(function($q) use ($search) {
+                $q->where('first_name', 'LIKE', "%{$search}%")
+                  ->orWhere('last_name', 'LIKE', "%{$search}%")
+                  ->orWhere('email', 'LIKE', "%{$search}%");
+            });
         }
 
         return Inertia::render('Dashboard', [
-            // Use the $query we built above
+            // Apply the search filters to both doctors and nurses
             'doctors' => (clone $query)->where('role', 'Doctor')->get(),
-            
-            'nurses'  => Staff::where('role', 'Nurse')->limit(5)->get(),
+            'nurses'  => (clone $query)->where('role', 'Nurse')->get(),
             
             'filters' => $request->only(['search']),
             

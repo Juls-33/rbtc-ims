@@ -15,6 +15,8 @@ return new class extends Migration
         $table->id();
         $table->string('first_name');
         $table->string('last_name');
+        $table->string('first_name_index')->nullable()->index();
+        $table->string('last_name_index')->nullable()->index();
         $table->date('birth_date')->nullable();
 
         $table->enum('gender', ['Male', 'Female', 'Other']);
@@ -30,6 +32,7 @@ return new class extends Migration
         $table->string('emergency_contact_name')->nullable();
         $table->string('emergency_contact_relation')->nullable();
         $table->string('emergency_contact_number')->nullable();
+        
         
         $table->timestamps();
     });
