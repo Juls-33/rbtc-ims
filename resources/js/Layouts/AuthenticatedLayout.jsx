@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
-//import MedicineInventory from '@/Pages/admin/MedicineInventory';
 
 export default function AuthenticatedLayout({ children, header, sectionTitle }) {
     const { auth } = usePage().props;
@@ -19,16 +18,24 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
             { name: 'Staff Management', routeName: 'admin.staff', href: route('admin.staff'), icon: '🆔' },
         ],
         Doctor: [
-            { name: 'Dashboard', routeName: 'doctor.dashboard', href: '#', icon: '📊' },
-            { name: 'Patient Records', routeName: 'doctor.patients', href: '#', icon: '📋' },
+            { name: 'Dashboard', routeName: 'doctor.dashboard', href: route('doctor.dashboard'), icon: '📊' },
+            { name: 'Patient Management', routeName: 'doctor.patients', href: route('doctor.patients'), icon: '📋' },
         ],
         Nurse: [
-            { name: 'Dashboard', routeName: 'nurse.dashboard', href: '#', icon: '📊' },
-            { name: 'Patient Vitals', routeName: 'nurse.patients', href: '#', icon: '🌡️' },
+            { name: 'Dashboard', routeName: 'nurse.dashboard', href: route('nurse.dashboard'), icon: '📊' },
+            { name: 'Patient Management', routeName: 'nurse.patients', href: route('nurse.patients'), icon: '📋' },
         ],
     };
 
     const links = navigation[auth.user.role] || [];
+
+    // Helper to determine profile route based on role to avoid errors
+    const getProfileRoute = () => {
+        if (auth.user.role === 'Doctor') return route('doctor.profile');
+        if (auth.user.role === 'Nurse') return route('nurse.profile');
+        // Add other roles here later, e.g., route('admin.profile')
+        return '#'; 
+    };
 
     return (
         <div className="flex h-screen bg-slate-200 overflow-hidden font-sans">
@@ -50,9 +57,7 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
                 {/* Navigation Links */}
                 <nav className="flex-1 mt-4">
                     {links.map((item) => {
-                        // Use routeName to check active state
                         const isActive = item.routeName && route().current(item.routeName);
-                        
                         return (
                             <Link
                                 key={item.name}
@@ -71,19 +76,32 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
 
                 {/* Bottom Profile & Logout Section */}
                 <div className="p-6 mt-auto border-t border-white/10 bg-black/10">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-slate-300 flex-shrink-0 flex items-center justify-center text-[#2E4696] shadow-inner">
-                           <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                        </div>
-                        <div className="overflow-hidden">
-                            <p className="text-sm font-bold truncate leading-none mb-1">{auth.user.first_name} {auth.user.last_name}</p>
-                            <button 
-                                onClick={handleLogout}
-                                className="text-xs text-slate-300 flex items-center gap-1 hover:text-white transition-colors"
-                            >
-                                <span className="text-base">↪</span> Logout
-                            </button>
-                        </div>
+                    <div className="flex flex-col gap-2">
+                        {/* 1. Clickable Profile Link */}
+                        <Link 
+                            href={getProfileRoute()} 
+                            className="flex items-center gap-3 hover:bg-white/10 p-2 -ml-2 rounded-lg transition-colors group cursor-pointer"
+                        >
+                            <div className="w-12 h-12 rounded-full bg-slate-300 flex-shrink-0 flex items-center justify-center text-[#2E4696] shadow-inner group-hover:scale-105 transition-transform">
+                               <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                            </div>
+                            <div className="overflow-hidden">
+                                <p className="text-sm font-bold truncate leading-none mb-0.5 group-hover:text-blue-200 transition-colors">
+                                    {auth.user.first_name} {auth.user.last_name}
+                                </p>
+                                <p className="text-[10px] text-slate-400 uppercase tracking-widest group-hover:text-white transition-colors">
+                                    View Profile
+                                </p>
+                            </div>
+                        </Link>
+
+                        {/* 2. Logout Button (Separate) */}
+                        <button 
+                            onClick={handleLogout}
+                            className="text-xs text-slate-400 flex items-center gap-1 hover:text-red-300 transition-colors ml-14 -mt-1"
+                        >
+                            <span className="text-base">↪</span> Logout
+                        </button>
                     </div>
                 </div>
             </aside>
@@ -114,7 +132,6 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
                                     {sectionTitle}
                                 </h2>
                             ) : (
-                                /* This allows the Tabs component to take up the full bar */
                                 <div className="w-full h-full flex">
                                     {sectionTitle}
                                 </div>
