@@ -31,6 +31,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         //Route::get('/patients', fn() => Inertia::render('Admin/PatientManagement'))->name('admin.patients');
         Route::get('/patients', [PatientController::class, 'index'])->name('admin.patients');
         Route::post('/patients', [PatientController::class, 'store'])->name('admin.patients.store');
+        Route::put('/patients/{patient}', [PatientController::class, 'update'])->name('admin.patients.update');
+        Route::delete('/patients/{patient}', [PatientController::class, 'destroy'])->name('admin.patients.destroy');
         //CRUD for staff management
         Route::get('/staff', fn() => Inertia::render('Admin/StaffManagement'))->name('admin.staff');
         Route::post('/staff', [StaffController::class, 'store'])->name('admin.staff.store');

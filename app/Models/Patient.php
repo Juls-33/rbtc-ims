@@ -17,8 +17,8 @@ class Patient extends Model implements CipherSweetEncrypted
     protected $fillable = [
         'first_name', 
         'last_name', 
-        'first_name_index',
-        'last_name_index', 
+        // 'first_name_index',
+        // 'last_name_index', 
         'birth_date', 
         'contact_no', 
         'address', 

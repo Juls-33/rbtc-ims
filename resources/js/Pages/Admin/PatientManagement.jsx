@@ -1,53 +1,83 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
-import { debounce } from 'lodash';
+
+// Shared Components
 import Button from '@/Components/Button';
 import Pagination from '@/Components/Pagination';
+import AddPatientModal from './Partials/AddPatientModal';
+import EditPatientModal from './Partials/EditPatientModal';
+import DeletePatientModal from './Partials/DeletePatientModal';
 
-export default function PatientManagement({ auth, patients, filters }) {
-    // 1. Initialize state from server-side filters
-    const [searchQuery, setSearchQuery] = useState(filters.search || '');
-    
-    // Extract variables from the Pagination Object sent by the controller
-    const currentItems = patients.data || [];
-    const activeTab = filters.tab || 'all';
+export default function PatientManagement({ auth, patients = [] }) {
+    // 1. LOCAL STATE (Medicine-Style)
+    // 'patients' is now expected as a simple array for this client-side approach
+    const allPatients = Array.isArray(patients) ? patients : (patients.data || []);
+    const [activeTab, setActiveTab] = useState('all'); 
+    const [searchQuery, setSearchQuery] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedPatient, setSelectedPatient] = useState(null);
+
+    // NEW: Delete States
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [patientToDelete, setPatientToDelete] = useState(null);
     const itemsPerPage = 10;
 
-    // 2. SERVER-SIDE SEARCH: Debounced function to update the URL
-    const debouncedSearch = useCallback(
-        debounce((value) => {
-            router.get(route('admin.patients.index'), 
-                { ...filters, search: value, page: 1 }, 
-                { preserveState: true, replace: true }
+    // --- LOGIC: CLIENT-SIDE FILTERING (Medicine-Style) ---
+    const filteredData = useMemo(() => {
+        let data = allPatients;
+
+        // 1. Tab Filter
+        if (activeTab !== 'all') {
+            data = data.filter(p => p.type?.toLowerCase() === activeTab);
+        }
+
+        // 2. Search Filter
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            data = data.filter(p => 
+                p.name.toLowerCase().includes(query) || 
+                p.patient_id.toLowerCase().includes(query) ||
+                p.bill_status.toLowerCase().includes(query)
             );
-        }, 300),
-        [filters]
-    );
+        }
 
-    const onSearchChange = (e) => {
-        const value = e.target.value;
-        setSearchQuery(value);
-        debouncedSearch(value);
-    };
+        return data;
+    }, [activeTab, searchQuery, allPatients]);
 
-    // 3. SERVER-SIDE TABBING: Update the URL when tabs change
-    const handleTabChange = (tab) => {
-        router.get(route('admin.patients.index'), 
-            { ...filters, tab: tab, page: 1 }, 
-            { preserveState: true }
-        );
-    };
+    // --- PAGINATION LOGIC ---
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
     const renderActionButton = () => {
-        const btnProps = { variant: "success", className: "px-6 py-2" };
+        const btnProps = { variant: "success", className: "px-6 py-2" , onClick: () => setIsAddModalOpen(true)};
         switch (activeTab) {
             case 'inpatient': return <Button {...btnProps}>ADMIT PATIENT</Button>;
             case 'outpatient': return <Button {...btnProps}>ADD PATIENT VISIT</Button>;
             default: return <Button {...btnProps}>+ ADD NEW PATIENT</Button>;
         }
     };
-
+    const handleDelete = () => {
+        router.delete(route('admin.patients.destroy', patientToDelete.id), {
+            onBefore: () => confirm('Are you sure you want to delete this encrypted record? This cannot be undone.'),
+            onSuccess: () => setIsDeleteModalOpen(false),
+        });
+    };
+    const confirmDelete = () => {
+        if (patientToDelete) {
+            router.delete(route('admin.patients.destroy', patientToDelete.id), {
+                onSuccess: () => {
+                    setIsDeleteModalOpen(false);
+                    setPatientToDelete(null);
+                }
+            });
+        }
+    };
+    
     return (
         <AuthenticatedLayout 
             header="Admin / Patient Management" 
@@ -56,9 +86,15 @@ export default function PatientManagement({ auth, patients, filters }) {
                     {['all', 'inpatient', 'outpatient'].map((tab) => (
                         <button 
                             key={tab}
-                            onClick={() => handleTabChange(tab)}
+                            onClick={() => { 
+                                setActiveTab(tab); 
+                                setCurrentPage(1); 
+                                setSearchQuery(''); // Clear search on tab switch
+                            }} 
                             className={`flex-1 py-4 text-center transition-colors font-bold tracking-wider uppercase ${
-                                activeTab === tab ? 'bg-slate-400/50 text-slate-100' : 'bg-[#2E4696] text-white hover:bg-[#243776]'
+                                activeTab === tab 
+                                    ? 'bg-slate-400/50 text-slate-100' 
+                                    : 'bg-[#2E4696] text-white hover:bg-[#243776]'
                             }`}
                         >
                             {tab === 'all' ? 'All Patients' : tab}
@@ -77,7 +113,7 @@ export default function PatientManagement({ auth, patients, filters }) {
                         <input 
                             type="text" 
                             value={searchQuery}
-                            onChange={onSearchChange}
+                            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                             placeholder="Search by ID, Name, or Bill Status..."
                             className="w-full md:w-96 pl-5 pr-4 py-2 border border-slate-300 rounded shadow-sm focus:ring-1 focus:ring-blue-500 outline-none text-sm"
                         />
@@ -109,7 +145,28 @@ export default function PatientManagement({ auth, patients, filters }) {
                                             {patient.bill_status}
                                         </td>
                                         <td className="p-3 text-center">
-                                            <Button variant="success" className="text-[9px] px-2 py-1">VIEW PROFILE</Button>
+                                            <div className="flex justify-center gap-2">
+                                                <Button 
+                                                    variant="primary" 
+                                                    className="text-[9px] px-2 py-1"
+                                                    onClick={() => {
+                                                        setSelectedPatient(patient);
+                                                        setIsEditModalOpen(true);
+                                                    }}
+                                                >
+                                                    EDIT
+                                                </Button>
+                                                <Button 
+                                                    variant="danger" 
+                                                    className="text-[9px] px-2 py-1"
+                                                    onClick={() => {
+                                                        setPatientToDelete(patient);
+                                                        setIsDeleteModalOpen(true);
+                                                    }}
+                                                >
+                                                    DELETE  
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -124,13 +181,36 @@ export default function PatientManagement({ auth, patients, filters }) {
                         </table>
                     </div>
 
-                    {/* Use the Inertia Pagination component with the server-side links */}
                     <Pagination 
-                        links={patients.links}
-                        meta={patients} // Pass the whole object if your component needs current_page, total, etc.
+                        currentPage={currentPage} 
+                        totalPages={totalPages} 
+                        filteredLength={filteredData.length} 
+                        indexOfFirstItem={indexOfFirstItem} 
+                        indexOfLastItem={indexOfLastItem} 
+                        onPageChange={setCurrentPage} 
                     />
                 </div>
             </div>
+            <AddPatientModal 
+                isOpen={isAddModalOpen} 
+                onClose={() => setIsAddModalOpen(false)} 
+            />
+
+            <EditPatientModal 
+                isOpen={isEditModalOpen} 
+                onClose={() => {
+                    setIsEditModalOpen(false);
+                    setSelectedPatient(null);
+                }}
+                patient={selectedPatient} 
+            />
+
+            <DeletePatientModal 
+                isOpen={isDeleteModalOpen} 
+                onClose={() => setIsDeleteModalOpen(false)} 
+                onConfirm={confirmDelete}
+                patientName={patientToDelete?.name} 
+            />
         </AuthenticatedLayout>
     );
 }
