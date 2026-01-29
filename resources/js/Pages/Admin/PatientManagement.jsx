@@ -8,8 +8,9 @@ import Pagination from '@/Components/Pagination';
 import AddPatientModal from './Partials/AddPatientModal';
 import EditPatientModal from './Partials/EditPatientModal';
 import DeletePatientModal from './Partials/DeletePatientModal';
+import AdmitPatientModal from './Partials/AdmitPatientModal';
 
-export default function PatientManagement({ auth, patients = [] }) {
+export default function PatientManagement({ auth, patients = [], selectablePatients, rooms, doctors }) {
     // 1. LOCAL STATE (Medicine-Style)
     // 'patients' is now expected as a simple array for this client-side approach
     const allPatients = Array.isArray(patients) ? patients : (patients.data || []);
@@ -18,6 +19,7 @@ export default function PatientManagement({ auth, patients = [] }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isAdmitModalOpen, setIsAdmitModalOpen] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState(null);
 
     // NEW: Delete States
@@ -56,7 +58,7 @@ export default function PatientManagement({ auth, patients = [] }) {
     const renderActionButton = () => {
         const btnProps = { variant: "success", className: "px-6 py-2" , onClick: () => setIsAddModalOpen(true)};
         switch (activeTab) {
-            case 'inpatient': return <Button {...btnProps}>ADMIT PATIENT</Button>;
+            case 'inpatient': return <Button {...btnProps} onClick={() => setIsAdmitModalOpen(true)}>ADMIT PATIENT</Button>;
             case 'outpatient': return <Button {...btnProps}>ADD PATIENT VISIT</Button>;
             default: return <Button {...btnProps}>+ ADD NEW PATIENT</Button>;
         }
@@ -210,6 +212,13 @@ export default function PatientManagement({ auth, patients = [] }) {
                 onClose={() => setIsDeleteModalOpen(false)} 
                 onConfirm={confirmDelete}
                 patientName={patientToDelete?.name} 
+            />
+            <AdmitPatientModal 
+                isOpen={isAdmitModalOpen} 
+                onClose={() => setIsAdmitModalOpen(false)}
+                patients={selectablePatients || []} 
+                rooms={rooms || []}
+                doctors={doctors || []}
             />
         </AuthenticatedLayout>
     );

@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MedicineController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\DoctorController;
+use App\Http\Controllers\AdmissionController;
 
 
 Route::get('/', function () {
@@ -36,6 +37,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         //CRUD for staff management
         Route::get('/staff', fn() => Inertia::render('Admin/StaffManagement'))->name('admin.staff');
         Route::post('/staff', [StaffController::class, 'store'])->name('admin.staff.store');
+        //CRUD for admission
+        Route::post('/admissions', [AdmissionController::class, 'store'])->name('admin.admissions.store');
     });
 
     // Doctor Routes

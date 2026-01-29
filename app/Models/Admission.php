@@ -20,7 +20,7 @@ class Admission extends Model
         'diagnosis',
         'status',
         'admission_date',
-        'discharge_date',
+        'discharge_date'
     ];
 
     /**
