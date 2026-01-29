@@ -23,6 +23,10 @@ Before running the application, you **must** enable the following extensions in 
 3. Find and remove the semicolon (`;`) from the start of these lines:
 * `extension=sodium`
 * `extension=intl`
+* `extension=zip`
+* `extension=fileinfo`
+* `extension=openssl`
+* `extension=pdo_mysql`    
 
 
 4. **Save and Restart Apache.**
