@@ -40,7 +40,7 @@ Download composer from Google and npm.
 ```bash
 composer install
 npm install
-php artisan ciphersweet:generate-key
+php artisan ciphersweet:generate-key # IMPORTANT: Copy this output to .env!
 ```
 
 
@@ -63,7 +63,6 @@ DB_PASSWORD=
 ```bash
 php artisan key:generate
 php artisan migrate:fresh --seed
-php artisan db:seed --class=MedicineSeeder 
 
 ```
 
