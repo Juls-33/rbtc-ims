@@ -40,13 +40,22 @@ Download composer from Google and npm.
 ```bash
 composer install
 npm install
-
+php artisan ciphersweet:generate-key
 ```
 
 
 2. **Environment:** * Create a database named `rbtc_ims` in PHPMyAdmin.
 * Copy `.env.example` to `.env` and update your database credentials.
+```
+Default example of database credentials:
 
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=rbtc_ims
+DB_USERNAME=root
+DB_PASSWORD=
+```
 
 
 
