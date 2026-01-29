@@ -9,6 +9,7 @@ import AddPatientModal from './Partials/AddPatientModal';
 import EditPatientModal from './Partials/EditPatientModal';
 import DeletePatientModal from './Partials/DeletePatientModal';
 import AdmitPatientModal from './Partials/AdmitPatientModal';
+import PatientProfile from './Partials/PatientProfile';
 
 export default function PatientManagement({ auth, patients = [], selectablePatients, rooms, doctors }) {
     // 1. LOCAL STATE (Medicine-Style)
@@ -21,10 +22,10 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isAdmitModalOpen, setIsAdmitModalOpen] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState(null);
-
-    // NEW: Delete States
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [patientToDelete, setPatientToDelete] = useState(null);
+    const [viewMode, setViewMode] = useState('list'); // 'list' or 'profile'
+    const [selectedProfile, setSelectedProfile] = useState(null);
     const itemsPerPage = 10;
 
     // --- LOGIC: CLIENT-SIDE FILTERING (Medicine-Style) ---
@@ -79,6 +80,22 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
             });
         }
     };
+    const handleViewProfile = (patient) => {
+        setSelectedProfile(patient);
+        setViewMode('profile');
+    };
+    if (viewMode === 'profile') {
+        return (
+            <AuthenticatedLayout header={`Admin / Patient Profile: ${selectedProfile.name}`}>
+                <PatientProfile 
+                    patient={selectedProfile} 
+                    onBack={() => setViewMode('list')} 
+                    doctors={doctors} 
+                    rooms={rooms}
+                />
+            </AuthenticatedLayout>
+        );
+    }
     
     return (
         <AuthenticatedLayout 
@@ -125,60 +142,83 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                     <div className="overflow-x-auto border border-slate-200 rounded">
                         <table className="w-full text-left text-sm border-collapse">
                             <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase text-[11px]">
-                                <tr>
-                                    <th className="p-3 border-r">Patient ID</th>
-                                    <th className="p-3 border-r">Full Name</th>
-                                    <th className="p-3 border-r">Date of Birth</th>
-                                    <th className="p-3 border-r">Contact Number</th>
-                                    <th className="p-3 border-r">Status</th>
-                                    <th className="p-3 border-r">Bill Status</th>
-                                    <th className="p-3 text-center">Action</th>
-                                </tr>
+                                {activeTab === 'all' ? (
+                                    /* 1. ALL PATIENTS HEADER (Matches image_3011be.png) */
+                                    <tr>
+                                        <th className="p-3 border-r">Name</th>
+                                        <th className="p-3 border-r">Date of Birth</th>
+                                        <th className="p-3 border-r">Gender</th>
+                                        <th className="p-3 border-r">Civil Status</th>
+                                        <th className="p-3 border-r text-[9px]">Phone Number</th>
+                                        <th className="p-3 border-r text-[9px]">Home Address</th>
+                                        <th className="p-3 border-r text-[9px]">Emergency Contact</th>
+                                        <th className="p-3 border-r text-[9px]">Relationship</th>
+                                        <th className="p-3 border-r text-[9px]">Emergency Contact No.</th>
+                                        <th className="p-3 text-center">Action</th>
+                                    </tr>
+                                ) : (
+                                    /* 2. INPATIENT/OUTPATIENT HEADER (Matches image_301c7f.png) */
+                                    <tr>
+                                        <th className="p-3 border-r">Patient ID</th>
+                                        <th className="p-3 border-r">Full Name</th>
+                                        <th className="p-3 border-r">Date of Birth</th>
+                                        <th className="p-3 border-r">Contact Number</th>
+                                        <th className="p-3 border-r">Status</th>
+                                        <th className="p-3 border-r">Bill Status</th>
+                                        <th className="p-3 text-center">Action</th>
+                                    </tr>
+                                )}
                             </thead>
                             <tbody className="text-slate-600">
-                                {currentItems.map((patient) => (
-                                    <tr key={patient.id} className="border-b hover:bg-slate-50 transition-colors">
-                                        <td className="p-3 font-bold border-r">{patient.patient_id}</td>
-                                        <td className="p-3 font-bold text-slate-800 border-r">{patient.name}</td>
-                                        <td className="p-3 border-r">{patient.dob}</td>
-                                        <td className="p-3 border-r">{patient.contact}</td>
-                                        <td className="p-3 border-r font-bold text-xs">{patient.status}</td>
-                                        <td className={`p-3 border-r font-bold ${patient.bill_status === 'PAID' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                            {patient.bill_status}
-                                        </td>
-                                        <td className="p-3 text-center">
-                                            <div className="flex justify-center gap-2">
-                                                <Button 
-                                                    variant="primary" 
-                                                    className="text-[9px] px-2 py-1"
-                                                    onClick={() => {
-                                                        setSelectedPatient(patient);
-                                                        setIsEditModalOpen(true);
-                                                    }}
-                                                >
-                                                    EDIT
-                                                </Button>
-                                                <Button 
-                                                    variant="danger" 
-                                                    className="text-[9px] px-2 py-1"
-                                                    onClick={() => {
-                                                        setPatientToDelete(patient);
-                                                        setIsDeleteModalOpen(true);
-                                                    }}
-                                                >
-                                                    DELETE  
-                                                </Button>
-                                            </div>
-                                        </td>
+                                {currentItems.length > 0 ? (
+                                    currentItems.map((patient) => (
+                                        <tr key={patient.id} className="border-b hover:bg-slate-50 transition-colors">
+                                            {activeTab === 'all' ? (
+                                                /* ALL PATIENTS ROW */
+                                                <>
+                                                    <td className="p-3 font-bold text-slate-800 border-r">{patient.name}</td>
+                                                    <td className="p-3 border-r text-xs">{patient.dob}</td>
+                                                    <td className="p-3 border-r text-xs">{patient.gender}</td>
+                                                    <td className="p-3 border-r text-xs">{patient.civil_status}</td>
+                                                    <td className="p-3 border-r text-xs">{patient.contact_no}</td>
+                                                    <td className="p-3 border-r text-[10px] truncate max-w-[100px]">{patient.address}</td>
+                                                    <td className="p-3 border-r text-[10px]">{patient.emergency_contact_name}</td>
+                                                    <td className="p-3 border-r text-[10px]">{patient.emergency_contact_relation}</td>
+                                                    <td className="p-3 border-r text-[10px]">{patient.emergency_contact_number}</td>
+                                                    <td className="p-4 text-center">
+                                                        <div className="flex flex-col gap-1">
+                                                            <Button variant="success" className="text-[8px] py-1" onClick={() => { setSelectedPatient(patient); setIsEditModalOpen(true); }}>EDIT</Button>
+                                                            <Button variant="danger" className="text-[8px] py-1" onClick={() => { setPatientToDelete(patient); setIsDeleteModalOpen(true); }}>DELETE</Button>
+                                                        </div>
+                                                    </td>
+                                                </>
+                                            ) : (
+                                                /* INPATIENT/OUTPATIENT ROW (Matches image_301c7f.png) */
+                                                <>
+                                                    <td className="p-3 font-bold border-r">{patient.patient_id}</td>
+                                                    <td className="p-3 font-bold text-slate-800 border-r">{patient.name}</td>
+                                                    <td className="p-3 border-r">{patient.dob}</td>
+                                                    <td className="p-3 border-r">{patient.contact_no}</td>
+                                                    <td className="p-3 border-r">
+                                                        <span className={`font-bold text-[10px] px-2 py-0.5 rounded ${patient.status === 'ADMITTED' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                                            {patient.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className={`p-3 border-r font-bold text-xs ${patient.bill_status.includes('UNPAID') ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                        {patient.bill_status}
+                                                    </td>
+                                                    <td className="p-3 text-center">
+                                                        <Button variant="success" className="text-[9px] px-2 py-1 shadow-sm uppercase font-bold" onClick={() => handleViewProfile(patient)}>VIEW PROFILE</Button>
+                                                    </td>
+                                                </>
+                                            )}
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={activeTab === 'all' ? 10 : 7} className="p-8 text-center text-slate-400">No records found.</td>
                                     </tr>
-                                ))}
-                                {/* Empty Row Fillers */}
-                                {currentItems.length < itemsPerPage && [...Array(itemsPerPage - currentItems.length)].map((_, i) => (
-                                    <tr key={`empty-${i}`} className="border-b border-slate-100 h-[52px]">
-                                        {[...Array(6)].map((_, j) => <td key={j} className="p-4 text-center text-slate-300">—</td>)}
-                                        <td className="p-3 text-center"><Button disabled variant="success" className="opacity-30 text-[9px]">VIEW PROFILE</Button></td>
-                                    </tr>
-                                ))}
+                                )}
                             </tbody>
                         </table>
                     </div>

@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/staff', [StaffController::class, 'store'])->name('admin.staff.store');
         //CRUD for admission
         Route::post('/admissions', [AdmissionController::class, 'store'])->name('admin.admissions.store');
+        Route::put('/admissions/{admission}', [AdmissionController::class, 'update'])->name('admin.admissions.update');
     });
 
     // Doctor Routes

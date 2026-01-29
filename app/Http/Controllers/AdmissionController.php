@@ -44,4 +44,28 @@ class AdmissionController extends Controller
             return redirect()->back()->with('success', 'Patient has been admitted successfully.');
         });
     }
+    // app/Http/Controllers/AdmissionController.php
+    public function update(Request $request, Admission $admission)
+    {
+        $validated = $request->validate([
+            'admission_date' => 'required|date',
+            'staff_id'       => 'required|exists:staff,id',
+            'room_id'        => 'required|exists:rooms,id',
+            'diagnosis'      => 'required|string|max:100',
+        ]);
+
+        return DB::transaction(function () use ($validated, $admission) {
+            // If the patient is assigned to a NEW room
+            if ($admission->room_id != $validated['room_id']) {
+                // Free up the old room
+                \App\Models\Room::where('id', $admission->room_id)->update(['status' => 'Available']);
+                // Occupy the new room
+                \App\Models\Room::where('id', $validated['room_id'])->update(['status' => 'Occupied']);
+            }
+
+            $admission->update($validated);
+
+            return redirect()->back()->with('success', 'Admission record updated successfully.');
+        });
+    }
 }

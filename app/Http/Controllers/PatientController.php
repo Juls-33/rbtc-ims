@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Patient;
+use App\Models\Room;
+use App\Models\Staff;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -11,18 +13,17 @@ class PatientController extends Controller
 {
     public function index()
     {
+        // 1. Fetch selection data for Admitting/Editing admissions
         $selectablePatients = Patient::orderBy('last_name')->get()->map(fn ($p) => [
             'id' => $p->id,
             'name' => $p->full_name,
         ]);
 
-        // 2. Fetch Rooms using your migration columns
-        $rooms = \App\Models\Room::select('id', 'room_location', 'room_rate', 'status')
-            ->where('status', 'Available') // Only show available rooms for new admissions
-            ->get();
+        // Fetch ALL rooms (including status) so the Edit modal can show current vs other rooms
+        $rooms = Room::select('id', 'room_location', 'room_rate', 'status')->get();
 
-        // 3. Fetch Doctors (Staff)
-        $doctors = \App\Models\Staff::where('role', 'Doctor')
+        // Fetch Doctors for attending physician dropdowns
+        $doctors = Staff::where('role', 'Doctor')
             ->select('id', 'first_name', 'last_name')
             ->get();
 
@@ -30,33 +31,50 @@ class PatientController extends Controller
             ->latest()
             ->get() 
             ->map(function ($patient) {
-                $latestAdmission = $patient->admissions->sortByDesc('admission_date')->first();
+                // Get the current active admission
+                $active = $patient->admissions->where('status', 'Admitted')->first();
+                
                 return [
                     'id'         => $patient->id,
                     'patient_id' => $patient->patient_id,
-                    'name'       => $patient->full_name, // For the table display
-                    'contact_no'   => $patient->contact_no,
-                    // Individual fields added for Edit Modal autofill
+                    'name'       => $patient->full_name,
+                    'contact_no' => $patient->contact_no,
+                    
+                    // Personal Information (for EditPatientModal)
                     'first_name'   => $patient->first_name, 
                     'last_name'    => $patient->last_name,
                     'dob'          => $patient->birth_date,
                     'gender'       => $patient->gender,
                     'civil_status' => $patient->civil_status,
-                    'contact'      => $patient->contact_no,
                     'address'      => $patient->address,
+                    
+                    // Emergency Contact Details
                     'emergency_contact_name'     => $patient->emergency_contact_name,
                     'emergency_contact_relation' => $patient->emergency_contact_relation,
                     'emergency_contact_number'   => $patient->emergency_contact_number,
                     
-                    'status'       => 'Stable',
-                    'bill_status'  => 'PAID',
-                    'type'         => $patient->admissions->isNotEmpty() ? 'inpatient' : 'outpatient',
-                    // Admission Details for display
-                    'current_room' => $latestAdmission?->room?->room_location ?? 'N/A',
-                    'attending_physician' => $latestAdmission?->staff ? $latestAdmission->staff->first_name . ' ' . $latestAdmission->staff->last_name : 'N/A',
+                    // Status Logic for Inpatient Table
+                    'status'      => $active ? 'ADMITTED' : 'OUTPATIENT',
+                    'bill_status' => 'PAID', // Placeholder: Update when Billing module is ready
+                    'type'        => $active ? 'inpatient' : 'outpatient',
+                    
+                    // Clinical Details for Inpatient View/Profile
+                    'current_room'        => $active?->room?->room_location ?? 'N/A',
+                    'admission_date'      => $active?->admission_date,
+                    'attending_physician' => $active?->staff ? "Dr. {$active->staff->first_name} {$active->staff->last_name}" : 'N/A',
+
+                    // DATA OBJECT FOR EditAdmissionModal
+                    'active_admission' => $active ? [
+                        'id'                 => $active->id,
+                        'patient_name'       => $patient->full_name,
+                        'patient_id_display' => $patient->patient_id,
+                        'admission_date'     => date('Y-m-d\TH:i', strtotime($active->admission_date)),
+                        'staff_id'           => $active->staff_id,
+                        'room_id'            => $active->room_id,
+                        'diagnosis'          => $active->diagnosis,
+                    ] : null,
                 ];
             });
-                
 
         return Inertia::render('Admin/PatientManagement', [
             'patients'           => $patients,
@@ -76,8 +94,6 @@ class PatientController extends Controller
             'contact_no' => 'nullable|string|max:20',
             'address' => 'nullable|string',
             'civil_status' => 'nullable|string',
-            'medical_history' => 'nullable|string',
-            'diagnosis_notes' => 'nullable|string',
             'emergency_contact_name' => 'nullable|string|max:255',
             'emergency_contact_relation' => 'nullable|string|max:100',
             'emergency_contact_number' => 'nullable|string|max:20',
@@ -91,7 +107,6 @@ class PatientController extends Controller
 
     public function update(Request $request, Patient $patient)
     {
-        // Validation now matches the store logic exactly
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -100,14 +115,11 @@ class PatientController extends Controller
             'contact_no' => 'nullable|string|max:20',
             'address' => 'nullable|string',
             'civil_status' => 'nullable|string',
-            'medical_history' => 'nullable|string',
-            'diagnosis_notes' => 'nullable|string',
             'emergency_contact_name' => 'nullable|string|max:255',
             'emergency_contact_relation' => 'nullable|string|max:100',
             'emergency_contact_number' => 'nullable|string|max:20',
         ]);
 
-        // CipherSweet trait triggers automatically to re-encrypt and re-hash modified fields
         $patient->update($validated); 
 
         return redirect()->back()->with('success', 'Patient updated successfully.');
@@ -115,7 +127,6 @@ class PatientController extends Controller
 
     public function destroy(Patient $patient)
     {
-        // Deleting the model automatically cleans up entries in the blind_indexes table
         $patient->delete(); 
         return redirect()->back()->with('success', 'Patient record deleted.');
     }
