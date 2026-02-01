@@ -16,6 +16,7 @@ export default function Button({
         warning: 'bg-[#E6AA68] hover:bg-[#d18e3a] text-white',
         gray: 'bg-slate-500 hover:bg-slate-600 text-white', // Added Gray variant
         outline: 'border-2 border-[#2E4696] text-[#2E4696] hover:bg-[#2E4696] hover:text-white',
+        blue: 'bg-[#2E4696] text-white text-[8px] py-1 rounded w-24 font-bold uppercase shadow-sm hover:bg-[#1E2E63]',
     };
 
     return (

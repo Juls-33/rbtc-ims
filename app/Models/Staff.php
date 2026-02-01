@@ -17,15 +17,16 @@ class Staff extends Authenticatable ///implements CipherSweetEncrypted
 
     protected $table = 'staff';
 
-    
     protected $fillable = [
-        'first_name', 
-        'last_name', 
-        'email', 
-        'contact_no', 
-        'address', 
-        'gender', 
-        'role', 
+        'staff_id',
+        'first_name',
+        'last_name',
+        'email',
+        'contact_no',
+        'address',
+        'gender',
+        'role',
+        'status', // Added
         'password',
     ];
 

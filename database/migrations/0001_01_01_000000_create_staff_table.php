@@ -9,13 +9,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('staff', function (Blueprint $table) {
-            $table->id();
+            $table->id(); 
+            $table->string('staff_id')->unique();
             $table->text('first_name'); 
             $table->text('last_name');
             
             // Index columns can stay as strings
-            $table->text('first_name_index')->nullable()->index();
-            $table->text('last_name_index')->nullable()->index();
+            // $table->text('first_name_index')->nullable()->index();
+            // $table->text('last_name_index')->nullable()->index();
+            $table->string('status')->default('ACTIVE');
             
             $table->string('email')->unique();
             $table->string('contact_no');

@@ -26,7 +26,7 @@ class MasterSeeder extends Seeder
         DB::table('rooms')->truncate();
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-        // ================= STAFF (PLAIN TEXT) =================
+        // ================= STAFF (WITH AUTO-ID GENERATION) =================
         $staffData = [
             ['first_name' => 'Coco', 'last_name' => 'Martin', 'role' => 'Admin', 'email' => 'admin@rbtc.com'],
             ['first_name' => 'Doctor', 'last_name' => 'Martin', 'role' => 'Doctor', 'email' => 'doctor@rbtc.com'],
@@ -36,14 +36,19 @@ class MasterSeeder extends Seeder
             ['first_name' => 'Jean Vi', 'last_name' => 'Logue', 'role' => 'Doctor', 'email' => 'jean@rbtc.com'],
             ['first_name' => 'Mark', 'last_name' => 'Zuckerberg', 'role' => 'Nurse', 'email' => 'mark@rbtc.com'],
         ];
-
+        $counters = ['Admin' => 1, 'Doctor' => 1, 'Nurse' => 1];
         foreach ($staffData as $data) {
+            // 1. Generate the Staff ID
+            $prefix = strtoupper(substr($data['role'], 0, 1)); // A, D, or N
+            $data['staff_id'] = $prefix . '-' . str_pad($counters[$data['role']]++, 3, '0', STR_PAD_LEFT);
+
+            // 2. Set other defaults
             $data['password'] = Hash::make('password');
             $data['contact_no'] = '09123456789';
             $data['address'] = 'Manila, Philippines';
-            $data['gender'] = $data['gender'] ?? 'Male';
+            $data['gender'] = 'Male';
+            $data['status'] = 'ACTIVE';
             
-            // Standard create: saves as plain text since Staff model no longer has encryption traits
             Staff::create($data);
         }
 

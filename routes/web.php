@@ -37,8 +37,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/patients/{patient}', [PatientController::class, 'destroy'])->name('admin.patients.destroy');
         
         //CRUD for staff management
-        Route::get('/staff', fn() => Inertia::render('Admin/StaffManagement'))->name('admin.staff');
+        // 1. Directory List & Search
+        Route::get('/staff', [StaffController::class, 'index'])->name('admin.staff');
+
+        // 2. Create New Personnel
         Route::post('/staff', [StaffController::class, 'store'])->name('admin.staff.store');
+
+        // 3. Update Existing Personnel Details
+        Route::put('/staff/{staff}', [StaffController::class, 'update'])->name('admin.staff.update');
+
+        // 4. Deactivate/Activate Toggle (using PUT for state change)
+        Route::put('/staff/{staff}/deactivate', [StaffController::class, 'deactivate'])->name('admin.staff.deactivate');
+
+        // 5. Permanent Deletion
+        Route::delete('/staff/{staff}', [StaffController::class, 'destroy'])->name('admin.staff.destroy');
+
+        // 6. Password Reset (Optional - pointing to a method we can build next)
+        Route::put('/staff/{staff}/reset-password', [StaffController::class, 'resetPassword'])->name('admin.staff.reset-password');
+
+
+        
         //CRUD for admission
         Route::post('/admissions', [AdmissionController::class, 'store'])->name('admin.admissions.store');
         Route::put('/admissions/{admission}', [AdmissionController::class, 'update'])->name('admin.admissions.update');        
