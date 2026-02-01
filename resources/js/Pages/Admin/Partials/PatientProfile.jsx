@@ -1,7 +1,8 @@
 // resources/js/Pages/Admin/Partials/PatientProfile.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Button from '@/Components/Button';
+import Pagination from '@/Components/Pagination';
 import EditAdmissionModal from './EditAdmissionModal';
 import ViewBillModal from './ViewBillModal';
 import DischargeModal from './DischargeModal';
@@ -21,6 +22,16 @@ export default function PatientProfile({ patient, onBack, doctors, rooms }) {
     const [selectedVisit, setSelectedVisit] = useState(null);
     const [isEditVisitOpen, setIsEditVisitOpen] = useState(false);
     const [isVisitBillOpen, setIsVisitBillOpen] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+    const visitHistory = patient.visit_history || [];
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentVisits = useMemo(() => {
+        return visitHistory.slice(indexOfFirstItem, indexOfLastItem);
+    }, [currentPage, visitHistory]);
+
+    const totalPages = Math.ceil(visitHistory.length / itemsPerPage);
 
     const handleViewBill = (admissionId) => {
         setActiveAdmissionId(admissionId);
@@ -121,16 +132,15 @@ export default function PatientProfile({ patient, onBack, doctors, rooms }) {
                                 )}
                             </tbody>
                         </table>
-                        {/* Pagination Placeholder */}
-                        <div className="flex justify-end items-center gap-2 mt-4 text-xs text-slate-600">
-                            <button disabled className="opacity-50 cursor-not-allowed">&larr; Previous</button>
-                            <button className="bg-[#3D52A0] text-white px-2 py-1 rounded font-bold">1</button>
-                            <button className="hover:bg-slate-100 px-2 py-1 rounded">2</button>
-                            <button className="hover:bg-slate-100 px-2 py-1 rounded">3</button>
-                            <span>...</span>
-                            <button className="hover:bg-slate-100 px-2 py-1 rounded">67</button>
-                            <button className="hover:bg-slate-100 px-2 py-1 rounded">68</button>
-                            <button className="hover:text-[#3D52A0]">Next &rarr;</button>
+                        <div className="mt-4">
+                            <Pagination 
+                                currentPage={currentPage} 
+                                totalPages={totalPages} 
+                                filteredLength={visitHistory.length} 
+                                indexOfFirstItem={indexOfFirstItem} 
+                                indexOfLastItem={Math.min(indexOfLastItem, visitHistory.length)} 
+                                onPageChange={setCurrentPage} 
+                            />
                         </div>
                     </div>
                 </div>
