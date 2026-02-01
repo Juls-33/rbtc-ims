@@ -9,6 +9,7 @@ use App\Http\Controllers\MedicineController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\DoctorController;
 use App\Http\Controllers\AdmissionController;
+use App\Http\Controllers\PatientVisitController;
 
 
 Route::get('/', function () {
@@ -34,12 +35,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/patients', [PatientController::class, 'store'])->name('admin.patients.store');
         Route::put('/patients/{patient}', [PatientController::class, 'update'])->name('admin.patients.update');
         Route::delete('/patients/{patient}', [PatientController::class, 'destroy'])->name('admin.patients.destroy');
+        
         //CRUD for staff management
         Route::get('/staff', fn() => Inertia::render('Admin/StaffManagement'))->name('admin.staff');
         Route::post('/staff', [StaffController::class, 'store'])->name('admin.staff.store');
         //CRUD for admission
         Route::post('/admissions', [AdmissionController::class, 'store'])->name('admin.admissions.store');
-        Route::put('/admissions/{admission}', [AdmissionController::class, 'update'])->name('admin.admissions.update');
+        Route::put('/admissions/{admission}', [AdmissionController::class, 'update'])->name('admin.admissions.update');        
+        //  Discharge Route
+        Route::post('/admissions/discharge', [AdmissionController::class, 'discharge'])->name('admin.admissions.discharge');
+
+        Route::post('/visits', [PatientVisitController::class, 'store'])->name('admin.visits.store');
+        
+
     });
 
     // Doctor Routes

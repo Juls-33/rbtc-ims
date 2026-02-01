@@ -69,4 +69,8 @@ class Patient extends Model implements CipherSweetEncrypted
     {
         return 'P-' . str_pad($this->id, 5, '0', STR_PAD_LEFT);
     }
+    public function visits()
+    {
+        return $this->hasMany(PatientVisit::class);
+    }
 }

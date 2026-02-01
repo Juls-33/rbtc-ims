@@ -36,7 +36,13 @@ Before running the application, you **must** enable the following extensions in 
 ## 🚀 First-Time Setup
 
 1. **Install Dependencies:**
-Download composer from Google and npm.
+Download composer from Google and npm:
+Composer:
+https://getcomposer.org/download/ 
+
+Npm or node.js:
+https://nodejs.org/en/download
+
 ```bash
 composer install
 npm install

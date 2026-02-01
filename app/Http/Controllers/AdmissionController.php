@@ -68,4 +68,48 @@ class AdmissionController extends Controller
             return redirect()->back()->with('success', 'Admission record updated successfully.');
         });
     }
+
+    public function discharge(Request $request)
+    {
+        $validated = $request->validate([
+            'admission_id'  => 'required|exists:admissions,id',
+            'payment_type'  => 'required|in:full,none', // 'full' = Pay, 'none' = Discharge Only
+            'amount_to_pay' => 'nullable|numeric|min:0', // Now nullable
+        ]);
+
+        return DB::transaction(function () use ($validated) {
+            $admission = Admission::with('latest_bill')->findOrFail($validated['admission_id']);
+            $bill = $admission->latest_bill;
+
+            // 1. Clinical Cleanup: Always happens regardless of payment
+            $admission->update([
+                'status' => 'Discharged',
+                'discharge_date' => now(),
+            ]);
+
+            // 2. Room Availability: Always freed up
+            \App\Models\Room::where('id', $admission->room_id)->update(['status' => 'Available']);
+
+            // 3. Conditional Financial Logic
+            if ($validated['payment_type'] === 'full' && $validated['amount_to_pay'] > 0) {
+                
+                // Check for overpayment
+                if ($validated['amount_to_pay'] > $bill->total_amount) {
+                    return redirect()->back()->withErrors(['amount_to_pay' => 'Payment exceeds balance.']);
+                }
+
+                $newBalance = $bill->total_amount - $validated['amount_to_pay'];
+                
+                $bill->update([
+                    'total_amount' => $newBalance,
+                    'status'    => ($newBalance <= 0) ? 'PAID' : 'UNPAID',
+                    'date_paid' => ($newBalance <= 0) ? now() : null,
+                ]);
+            } 
+            // If payment_type is 'none', we do nothing to the bill. 
+            // It stays as 'UNPAID' with the original total.
+
+            return redirect()->route('admin.patients.index')->with('success', 'Patient status updated.');
+        });
+    }
 }

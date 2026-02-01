@@ -19,28 +19,30 @@ class PatientController extends Controller
             'name' => $p->full_name,
         ]);
 
-        // Fetch ALL rooms (including status) so the Edit modal can show current vs other rooms
         $rooms = Room::select('id', 'room_location', 'room_rate', 'status')->get();
 
-        // Fetch Doctors for attending physician dropdowns
         $doctors = Staff::where('role', 'Doctor')
             ->select('id', 'first_name', 'last_name')
             ->get();
 
-        $patients = Patient::with(['admissions.room', 'admissions.staff'])
+        $patients = Patient::with(['admissions.room', 'admissions.staff', 'visits'])
             ->latest()
             ->get() 
             ->map(function ($patient) {
-                // Get the current active admission
-                $active = $patient->admissions->where('status', 'Admitted')->first();
+                // Get the most recent admission record (active or historical)
+                $latest = $patient->admissions->sortByDesc('admission_date')->first();
                 
+                // Specifically find the ACTIVE one for the Edit Modal
+                $active = $patient->admissions->where('status', 'Admitted')->first();
+                $type = $latest ? 'inpatient' : 'outpatient';
+
                 return [
                     'id'         => $patient->id,
                     'patient_id' => $patient->patient_id,
                     'name'       => $patient->full_name,
                     'contact_no' => $patient->contact_no,
                     
-                    // Personal Information (for EditPatientModal)
+                    // Personal Information
                     'first_name'   => $patient->first_name, 
                     'last_name'    => $patient->last_name,
                     'dob'          => $patient->birth_date,
@@ -53,17 +55,18 @@ class PatientController extends Controller
                     'emergency_contact_relation' => $patient->emergency_contact_relation,
                     'emergency_contact_number'   => $patient->emergency_contact_number,
                     
-                    // Status Logic for Inpatient Table
-                    'status'      => $active ? 'ADMITTED' : 'OUTPATIENT',
-                    'bill_status' => 'PAID', // Placeholder: Update when Billing module is ready
-                    'type'        => $active ? 'inpatient' : 'outpatient',
+        
+                    'status'     => $latest ? strtoupper($latest->status) : 'OUTPATIENT',
+                    'bill_status' => 'UNPAID', // Placeholder: logic for unpaid bills here
+                    'type'       => $latest ? 'inpatient' : 'outpatient',
                     
-                    // Clinical Details for Inpatient View/Profile
-                    'current_room'        => $active?->room?->room_location ?? 'N/A',
-                    'admission_date'      => $active?->admission_date,
-                    'attending_physician' => $active?->staff ? "Dr. {$active->staff->first_name} {$active->staff->last_name}" : 'N/A',
+                    // Clinical Details (Shows info for the most recent stay)
+                    'current_room'        => $latest?->room?->room_location ?? 'N/A',
+                    'admission_date'      => $latest?->admission_date,
+                    'discharge_date'      => $latest?->discharge_date, // Added for historical view
+                    'attending_physician' => $latest?->staff ? "Dr. {$latest->staff->first_name} {$latest->staff->last_name}" : 'N/A',
 
-                    // DATA OBJECT FOR EditAdmissionModal
+                    // DATA OBJECT FOR EditAdmissionModal (Only if currently admitted)
                     'active_admission' => $active ? [
                         'id'                 => $active->id,
                         'patient_name'       => $patient->full_name,
@@ -73,8 +76,16 @@ class PatientController extends Controller
                         'room_id'            => $active->room_id,
                         'diagnosis'          => $active->diagnosis,
                     ] : null,
+                    'visit_history' => $patient->visits->sortByDesc('visit_date')->map(fn($visit) => [
+                        'id'         => $visit->id,
+                        'visit_id' => 'V-' . str_pad($visit->id, 5, '0', STR_PAD_LEFT),
+                        'date'     => $visit->visit_date,
+                        'weight'   => $visit->weight ? "{$visit->weight}KG" : 'N/A',
+                        'reason'   => $visit->reason,
+                ]),
                 ];
             });
+            
 
         return Inertia::render('Admin/PatientManagement', [
             'patients'           => $patients,
@@ -125,9 +136,18 @@ class PatientController extends Controller
         return redirect()->back()->with('success', 'Patient updated successfully.');
     }
 
-    public function destroy(Patient $patient)
+    public function destroy(Request $request, Patient $patient)
     {
-        $patient->delete(); 
-        return redirect()->back()->with('success', 'Patient record deleted.');
+        $request->validate([
+            'password' => ['required', 'current_password'], // Laravel helper to check auth user password
+            'reason'   => 'required|string',
+        ]);
+
+        // Log the deletion reason for accountability
+        \Log::info("Patient {$patient->id} deleted by " . auth()->user()->name . ". Reason: " . $request->reason);
+
+        $patient->delete();
+
+        return redirect()->route('admin.patients')->with('success', 'Record removed.');
     }
 }

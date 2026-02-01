@@ -10,6 +10,7 @@ import EditPatientModal from './Partials/EditPatientModal';
 import DeletePatientModal from './Partials/DeletePatientModal';
 import AdmitPatientModal from './Partials/AdmitPatientModal';
 import PatientProfile from './Partials/PatientProfile';
+import AddVisitModal from './Partials/AddVisitModal';
 
 export default function PatientManagement({ auth, patients = [], selectablePatients, rooms, doctors }) {
     // 1. LOCAL STATE (Medicine-Style)
@@ -26,6 +27,7 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
     const [patientToDelete, setPatientToDelete] = useState(null);
     const [viewMode, setViewMode] = useState('list'); // 'list' or 'profile'
     const [selectedProfile, setSelectedProfile] = useState(null);
+    const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
     const itemsPerPage = 10;
 
     // --- LOGIC: CLIENT-SIDE FILTERING (Medicine-Style) ---
@@ -33,8 +35,17 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
         let data = allPatients;
 
         // 1. Tab Filter
-        if (activeTab !== 'all') {
-            data = data.filter(p => p.type?.toLowerCase() === activeTab);
+        if (activeTab === 'inpatient') {
+        // Show patients who have admission records (active or historical)
+        data = data.filter(p => p.type?.toLowerCase() === 'inpatient');
+        } else if (activeTab === 'outpatient') {
+            /** * FIX: Filter for patients who are 'outpatient' AND have records 
+             * in their visit history
+             */
+            data = data.filter(p => 
+                p.type?.toLowerCase() === 'outpatient' && 
+                p.visit_history?.length > 0
+            );
         }
 
         // 2. Search Filter
@@ -60,9 +71,12 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
         const btnProps = { variant: "success", className: "px-6 py-2" , onClick: () => setIsAddModalOpen(true)};
         switch (activeTab) {
             case 'inpatient': return <Button {...btnProps} onClick={() => setIsAdmitModalOpen(true)}>ADMIT PATIENT</Button>;
-            case 'outpatient': return <Button {...btnProps}>ADD PATIENT VISIT</Button>;
+            case 'outpatient': return <Button {...btnProps} onClick={() => setIsAddVisitModalOpen(true)}>ADD PATIENT VISIT</Button>;
             default: return <Button {...btnProps}>+ ADD NEW PATIENT</Button>;
         }
+    };
+    const handleAddVisit = () => {
+        setIsAddVisitModalOpen(true);
     };
     const handleDelete = () => {
         router.delete(route('admin.patients.destroy', patientToDelete.id), {
@@ -193,14 +207,20 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                                                     </td>
                                                 </>
                                             ) : (
-                                                /* INPATIENT/OUTPATIENT ROW (Matches image_301c7f.png) */
+                        
                                                 <>
                                                     <td className="p-3 font-bold border-r">{patient.patient_id}</td>
                                                     <td className="p-3 font-bold text-slate-800 border-r">{patient.name}</td>
                                                     <td className="p-3 border-r">{patient.dob}</td>
                                                     <td className="p-3 border-r">{patient.contact_no}</td>
                                                     <td className="p-3 border-r">
-                                                        <span className={`font-bold text-[10px] px-2 py-0.5 rounded ${patient.status === 'ADMITTED' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                                        <span className={`font-bold text-[10px] px-2 py-0.5 rounded ${
+                                                            patient.status === 'ADMITTED' 
+                                                                ? 'bg-emerald-100 text-emerald-700' 
+                                                                : patient.status === 'DISCHARGED'
+                                                                ? 'bg-amber-100 text-amber-700'
+                                                                : 'bg-slate-100 text-slate-600'
+                                                        }`}>
                                                             {patient.status}
                                                         </span>
                                                     </td>
@@ -259,6 +279,11 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                 patients={selectablePatients || []} 
                 rooms={rooms || []}
                 doctors={doctors || []}
+            />
+            <AddVisitModal 
+                isOpen={isAddVisitModalOpen} 
+                onClose={() => setIsAddVisitModalOpen(false)}
+                patients={selectablePatients || []} 
             />
         </AuthenticatedLayout>
     );

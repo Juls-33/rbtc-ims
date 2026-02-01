@@ -3,12 +3,162 @@
 import React, { useState } from 'react';
 import Button from '@/Components/Button';
 import EditAdmissionModal from './EditAdmissionModal';
+import ViewBillModal from './ViewBillModal';
+import DischargeModal from './DischargeModal';
+import DeletePatientModal from './DeletePatientModal';
+import EditPatientModal from './EditPatientModal';
+import EditVisitModal from './EditVisitModal';
+import ViewOutpatientBillModal from './ViewOutpatientBillModal';
 
 export default function PatientProfile({ patient, onBack, doctors, rooms }) {
     const [activeSubTab, setActiveSubTab] = useState('admission');
     const [isEditAdmissionOpen, setIsEditAdmissionOpen] = useState(false);
+    const [isBillModalOpen, setIsBillModalOpen] = useState(false);
+    const [activeAdmissionId, setActiveAdmissionId] = useState(null);
+    const [isDischargeModalOpen, setIsDischargeModalOpen] = useState(false); // New State
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedVisit, setSelectedVisit] = useState(null);
+    const [isEditVisitOpen, setIsEditVisitOpen] = useState(false);
+    const [isVisitBillOpen, setIsVisitBillOpen] = useState(false);
 
-    return (
+    const handleViewBill = (admissionId) => {
+        setActiveAdmissionId(admissionId);
+        setIsBillModalOpen(true);
+    };
+    const handleEditVisit = (visit) => {
+        setSelectedVisit(visit);
+        setIsEditVisitOpen(true);
+    };
+
+    const handleViewVisitBill = (visit) => {
+        setSelectedVisit(visit);
+        setIsVisitBillOpen(true);
+    };
+    if (patient.type !== 'inpatient') {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-300 font-sans">
+                {/* Header & Personal Info Card */}
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="bg-[#3D52A0] text-white p-3 flex justify-between items-center font-bold">
+                        <span>Patient Information (Outpatient)</span>
+                        <div className="flex gap-2">
+                            <Button 
+                                variant="danger" 
+                                className="text-[10px] px-4"
+                                onClick={() => setIsDeleteModalOpen(true)} // Trigger modal
+                            >
+                                DELETE PATIENT RECORD
+                            </Button>
+                            <Button
+                                variant='success'
+                                onClick={() => setIsEditModalOpen(true)}
+                                className="text-[10px] px-4 "
+                            >
+                                EDIT DETAILS
+                            </Button>
+                            <button onClick={onBack} className="text-sm hover:underline ml-4">{"< Back"}</button>
+                        </div>
+                    </div>
+                    
+                    <div className="p-6 grid grid-cols-2 gap-y-2 text-sm text-slate-700">
+                        <p><span className="font-bold">Date of Birth:</span> {patient.dob}</p>
+                        <p><span className="font-bold">Phone:</span> {patient.contact_no}</p>
+                        <p><span className="font-bold">Gender:</span> {patient.gender}</p>
+                        <p><span className="font-bold">Email:</span> {patient.email || 'N/A'}</p>
+                        <p className="col-span-2"><span className="font-bold">Address:</span> {patient.address}</p>
+                        <p className="col-span-2"><span className="font-bold">Emergency Contact:</span> {patient.emergency_contact_name} ({patient.emergency_contact_number})</p>
+                    </div>
+                </div>
+
+                {/* Visit History Table Card */}
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="bg-[#3D52A0] text-white p-2 font-bold text-sm text-center uppercase">
+                        PATIENT RECORD
+                    </div>
+                    <div className="p-6">
+                        <h4 className="font-bold text-slate-700 mb-4">Admission History</h4>
+                        <table className="w-full text-left text-xs border border-slate-200">
+                            <thead className="bg-slate-50 border-b font-bold text-slate-700">
+                                <tr>
+                                    <th className="p-3 border-r">Visit ID</th>
+                                    <th className="p-3 border-r">Visit Date</th>
+                                    <th className="p-3 border-r">Reason for Checkup (Weight)</th>
+                                    <th className="p-3 border-r">Reason for Checkup</th>
+                                    <th className="p-3 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-slate-600">
+                                {patient.visit_history && patient.visit_history.length > 0 ? (
+                                    patient.visit_history.map((visit) => (
+                                        <tr key={visit.id} className="border-b hover:bg-slate-50 transition-colors">
+                                            <td className="p-3 border-r font-bold text-slate-800">{visit.visit_id}</td>
+                                            <td className="p-3 border-r">{visit.date}</td>
+                                            <td className="p-3 border-r font-bold">{visit.weight}</td>
+                                            <td className="p-3 border-r">{visit.reason}</td>
+                                            <td className="p-3 text-center flex justify-center gap-2">
+                                                <Button
+                                                    variant="success"
+                                                    onClick={() => handleEditVisit(visit)}
+                                                    className="px-2 py-1 rounded font-bold uppercase"
+                                                >
+                                                    EDIT DETAILS
+                                                </Button>
+                                                <Button 
+                                                    variant="danger"
+                                                    onClick={() => handleViewVisitBill(visit)}
+                                                    className="px-2 py-1 rounded font-bold uppercase"
+                                                >
+                                                    VIEW BILL
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="5" className="p-8 text-center text-slate-400 italic">No visit history found.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                        {/* Pagination Placeholder */}
+                        <div className="flex justify-end items-center gap-2 mt-4 text-xs text-slate-600">
+                            <button disabled className="opacity-50 cursor-not-allowed">&larr; Previous</button>
+                            <button className="bg-[#3D52A0] text-white px-2 py-1 rounded font-bold">1</button>
+                            <button className="hover:bg-slate-100 px-2 py-1 rounded">2</button>
+                            <button className="hover:bg-slate-100 px-2 py-1 rounded">3</button>
+                            <span>...</span>
+                            <button className="hover:bg-slate-100 px-2 py-1 rounded">67</button>
+                            <button className="hover:bg-slate-100 px-2 py-1 rounded">68</button>
+                            <button className="hover:text-[#3D52A0]">Next &rarr;</button>
+                        </div>
+                    </div>
+                </div>
+                <DeletePatientModal 
+                    isOpen={isDeleteModalOpen}
+                    onClose={() => setIsDeleteModalOpen(false)}
+                    patient={patient}
+                />
+                <EditPatientModal 
+                    isOpen={isEditModalOpen} 
+                    onClose={() => setIsEditModalOpen(false)} 
+                    patient={patient} 
+                />
+                <EditVisitModal 
+                    isOpen={isEditVisitOpen} 
+                    onClose={() => setIsEditVisitOpen(false)} 
+                    visit={selectedVisit} 
+                />
+                <ViewOutpatientBillModal 
+                    isOpen={isVisitBillOpen} 
+                    onClose={() => setIsVisitBillOpen(false)} 
+                    patient={patient}
+                    visit={selectedVisit}
+                />
+            </div>
+        );
+    }else{
+        return (
         <div className="space-y-6 animate-in fade-in duration-300">
             {/* Top Header Section */}
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
@@ -29,8 +179,20 @@ export default function PatientProfile({ patient, onBack, doctors, rooms }) {
                             <p className="col-span-2"><span className="font-bold">Emergency Contact:</span> {patient.emergency_contact_name}</p>
                         </div>
                         <div className="flex gap-2">
-                            <Button variant="danger" className="text-[10px] px-4">DELETE PATIENT RECORD</Button>
-                            <Button variant="success" className="text-[10px] px-4">EDIT DETAILS</Button>
+                            <Button 
+                                variant="danger" 
+                                className="text-[10px] px-4"
+                                onClick={() => setIsDeleteModalOpen(true)} // Trigger modal
+                            >
+                                DELETE PATIENT RECORD
+                            </Button>
+                            <Button
+                                variant='success'
+                                onClick={() => setIsEditModalOpen(true)}
+                                className="text-[10px] px-4 "
+                            >
+                                EDIT DETAILS
+                            </Button>
                         </div>
                     </div>
 
@@ -75,8 +237,12 @@ export default function PatientProfile({ patient, onBack, doctors, rooms }) {
                 <div className="text-center space-y-4">
                     <p className="text-rose-600 font-bold text-sm">1 Unpaid Bill: Click "View Bill" to see more details</p>
                     <div className="flex justify-center gap-4">
-                        <Button variant="success" className="px-8 py-2">VIEW BILL</Button>
-                        <Button variant="success" className="px-8 py-2">DISCHARGE AND PAY THE REMAINING BALANCE</Button>
+                        <Button variant="success" className="px-8 py-2" onClick={() => handleViewBill('A-00234')}>
+                            VIEW BILL
+                        </Button>
+                        <Button variant="success" className="px-8 py-2" onClick={() => setIsDischargeModalOpen(true)}>
+                            DISCHARGE AND PAY THE REMAINING BALANCE
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -115,6 +281,30 @@ export default function PatientProfile({ patient, onBack, doctors, rooms }) {
                 doctors={doctors}
                 rooms={rooms}
             />
+            <ViewBillModal 
+                isOpen={isBillModalOpen}
+                onClose={() => setIsBillModalOpen(false)}
+                admissionId={activeAdmissionId}
+                bills={patient.billing_history || []} // Ensure controller provides this
+            />
+            <DischargeModal 
+                isOpen={isDischargeModalOpen}
+                onClose={() => setIsDischargeModalOpen(false)}
+                patient={patient}
+                bill={patient.active_admission?.latest_bill} // Ensure this is sent from controller
+            />
+            <DeletePatientModal 
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                patient={patient}
+            />
+            <EditPatientModal 
+                isOpen={isEditModalOpen} 
+                onClose={() => setIsEditModalOpen(false)} 
+                patient={patient} 
+            />
         </div>
     );
+    }
+    
 }
