@@ -3,46 +3,14 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import Modal from '@/Components/Modal';
 
-export default function DoctorPatientProfile({ auth }) {
+export default function DoctorPatientProfile({ auth, patient, admissionHistory, prescriptions = [] }) {
     const [activeTab, setActiveTab] = useState('admission');
     
     // Modal States
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
 
-    // Mock Data
-    const patient = {
-        id: 'P-00123',
-        name: 'Juan Dela Cruz',
-        dob: '1985-04-10',
-        gender: 'Male',
-        phone: '0917-123-4567',
-        email: 'juan.cruz@gmail.com',
-        address: '123 Sampaguita St., Quezon City',
-        emergencyContact: 'Maria Dela Cruz',
-        emergencyPhone: '0920-123-4567',
-        status: 'ADMITTED',
-        admissionDate: '2025-11-15',
-        doctor: 'Dr. Quack Reyes',
-        room: 'Room 204 (Private)',
-        diagnosis: 'Persistent Migraine (ICD-10 G43) & Chronic Lower Back Pain.',
-        latestNote: 'Patient reported dizziness upon standing. BP checked immediately, found normal. Advised to stand slowly.',
-        bp: '128/82',
-        hr: '72 bpm',
-        temp: '37.0°',
-        weight: '85 kg'
-    };
-
-    const admissionHistory = [
-        { id: 'A-00234', admitted: '2025-03-01', discharged: '2025-03-05', reason: 'Dengue Fever' },
-        { id: 'A-00109', admitted: '2022-10-10', discharged: '2022-10-11', reason: 'Minor Observation' },
-    ];
-
-    const prescriptions = [
-        { name: 'Lisinopril', dose: '10mg QD', status: 'Active' },
-        { name: 'Ibuprofen', dose: '800mg PRN', status: 'Active' }
-    ];
-
+    if (!patient) return <div>Loading...</div>;
     return (
         <AuthenticatedLayout
             auth={auth}
@@ -52,7 +20,7 @@ export default function DoctorPatientProfile({ auth }) {
                     <span className="text-white font-semibold text-lg">
                         Patient Profile: {patient.name} ({patient.id})
                     </span>
-                    <Link href={route('doctor.dashboard')} className="text-xs uppercase hover:underline">
+                    <Link href={route('doctor.patients')} className="text-xs uppercase hover:underline">
                         &lt; Back to List
                     </Link>
                 </div>

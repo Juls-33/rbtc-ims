@@ -2,14 +2,9 @@ import React from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 
-export default function Patients({ auth }) {
-    // Static data based on your mockup
-    const patients = [
-        { id: 'P-00123', name: 'Juan Dela Cruz', dob: '1985-04-10', contact: '0917-123-4567', status: 'ADMITTED' },
-        { id: 'P-00124', name: 'Maria Lim', dob: '1992-11-22', contact: '0920-123-4567', status: 'DISCHARGED' },
-        { id: 'P-00125', name: 'Robert Santos', dob: '1970-1-15', contact: '0918-123-14567', status: 'DISCHARGED' },
-    ];
 
+export default function Patients({ auth, patients }) {
+    
     return (
         <AuthenticatedLayout 
             auth={auth} 
@@ -54,14 +49,14 @@ export default function Patients({ auth }) {
                         <tbody>
                             {patients.map((p, i) => (
                                 <tr key={i} className="hover:bg-gray-50">
-                                    <td className="p-3 border font-semibold">{p.id}</td>
+                                    <td className="p-3 border font-semibold">{p.p_id}</td>
                                     <td className="p-3 border font-semibold">{p.name}</td>
                                     <td className="p-3 border">{p.dob}</td>
                                     <td className="p-3 border">{p.contact}</td>
                                     <td className="p-3 border font-bold text-xs">{p.status}</td>
                                     <td className="p-3 border">
                                         <Link 
-                                            href={route('doctor.patients.profile', { id: p.id })} 
+                                            href={route('doctor.patients.profile', p.id)} // Change 'patient.id' to 'p.id'
                                             className="bg-[#4CAF50] text-white px-4 py-1 rounded text-xs hover:bg-green-700 transition"
                                         >
                                             VIEW PROFILE
@@ -84,5 +79,7 @@ export default function Patients({ auth }) {
                 </div>
             </div>
         </AuthenticatedLayout>
+        
     );
+    
 }

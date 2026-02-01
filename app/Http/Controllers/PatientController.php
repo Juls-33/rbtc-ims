@@ -150,4 +150,49 @@ class PatientController extends Controller
 
         return redirect()->route('admin.patients')->with('success', 'Record removed.');
     }
+
+    public function show($id)
+    {
+        // Load patient with all necessary history
+        $patient = Patient::with(['admissions.room', 'admissions.staff', 'visits'])->findOrFail($id);
+
+        // Get the most recent admission for "Current Status"
+        $latestAdmission = $patient->admissions->sortByDesc('admission_date')->first();
+        
+        // Get latest vitals from PatientVisit model
+        $latestVisit = $patient->visits->sortByDesc('visit_date')->first();
+
+        return Inertia::render('Doctor/PatientProfile', [
+            'patient' => [
+                'id'               => $patient->patient_id, // Accessor from your model
+                'name'             => $patient->full_name,  // Accessor from your model
+                'dob'              => $patient->birth_date,
+                'gender'           => $patient->gender,
+                'phone'            => $patient->contact_no,
+                'email'            => $patient->email ?? 'N/A', // Suggestion: add 'email' to migration later
+                'address'          => $patient->address,
+                'emergencyContact' => $patient->emergency_contact_name,
+                'emergencyPhone'   => $patient->emergency_contact_number,
+                'status'           => $latestAdmission ? strtoupper($latestAdmission->status) : 'OUTPATIENT',
+                'admissionDate'    => $latestAdmission?->admission_date ?? 'N/A',
+                'doctor'           => $latestAdmission?->staff ? "Dr. {$latestAdmission->staff->last_name}" : 'N/A',
+                'room'             => $latestAdmission?->room?->room_location ?? 'N/A',
+                'diagnosis'        => $latestAdmission?->diagnosis ?? 'No active diagnosis.',
+                'latestNote'       => $patient->medical_history ?? 'No recent notes.',
+                
+                // Mapping Vitals from the visits table
+                'bp'     => $latestVisit->blood_pressure ?? '—', 
+                'hr'     => $latestVisit->heart_rate ?? '—',
+                'temp'   => $latestVisit->temperature ?? '—',
+                'weight' => $latestVisit->weight ?? '—',
+            ],
+            'admissionHistory' => $patient->admissions->map(fn($adm) => [
+                'id'         => 'A-' . str_pad($adm->id, 5, '0', STR_PAD_LEFT),
+                'admitted'   => $adm->admission_date,
+                'discharged' => $adm->discharge_date ?? 'Active',
+                'reason'     => $adm->diagnosis,
+            ]),
+            'prescriptions' => $patient->prescriptions // Assuming you have this table/relation
+        ]);
+    }
 }
