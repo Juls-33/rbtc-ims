@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
-import NotificationModal from '../Components/NotificationModal';
 import LogoutModal from '../Components/LogoutModal';
+import NotificationPopover from '../Components/NotificationPopover';
 
 export default function AuthenticatedLayout({ children, header, sectionTitle }) {
-    const { auth } = usePage().props;
+    const { auth, notifications = [] } = usePage().props;
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -160,11 +160,10 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
             <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Top Bar */}
                 <header className="bg-[#2E4696] h-16 flex items-center justify-between px-8 z-20 shadow-md">
-                    <div className="text-white font-medium text-sm tracking-wide">
+                    <div className="text-white font-medium text-sm uppercase">
                         {header}
                     </div>
 
-                    {/* Anchor Container for Popover */}
                     <div className="relative">
                         <button 
                             onClick={() => setIsNotificationOpen(!isNotificationOpen)}
@@ -173,8 +172,22 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
                             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                             </svg>
-                            <span className="absolute top-2 right-2 w-3 h-3 bg-red-500 border-2 border-[#2E4696] rounded-full"></span>
+                            
+                            {/* 2. DYNAMIC COUNTER: Only show if there are alerts */}
+                            {notifications.length > 0 && (
+                                <span className="absolute top-2 right-2 flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-[#2E4696]"></span>
+                                </span>
+                            )}
                         </button>
+
+                        {/* 3. Pass the real data to the popover */}
+                        <NotificationPopover 
+                            isOpen={isNotificationOpen} 
+                            onClose={() => setIsNotificationOpen(false)} 
+                            notifications={notifications} 
+                        />
                     </div>
                 </header>
 
@@ -202,11 +215,6 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
                     </div>
                 </main>
             </div>
-            <NotificationModal 
-                isOpen={isNotificationOpen} 
-                onClose={() => setIsNotificationOpen(false)} 
-                notifications={mockNotifications}
-            />
             <LogoutModal 
                 isOpen={isLogoutModalOpen} 
                 onClose={() => setIsLogoutModalOpen(false)} 

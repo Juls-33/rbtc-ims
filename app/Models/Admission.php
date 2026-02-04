@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Admission extends Model
 {
@@ -45,5 +46,10 @@ class Admission extends Model
     public function room()
     {
         return $this->belongsTo(Room::class);
+    }
+    public function billing(): HasOne
+    {
+        // 'admission_id' is the foreign key in the bill_details table
+        return $this->hasOne(BillDetail::class, 'admission_id');
     }
 }

@@ -10,6 +10,7 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\DoctorController;
 use App\Http\Controllers\AdmissionController;
 use App\Http\Controllers\PatientVisitController;
+use App\Http\Controllers\NotificationController;
 
 
 Route::get('/', function () {
@@ -29,7 +30,8 @@ Route::get('/', function () {
 //Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    
+    Route::post('/notifications/dismiss', [NotificationController::class, 'dismiss'])->name('notifications.dismiss');
+    Route::post('/notifications/dismiss-all', [NotificationController::class, 'dismissAll'])->name('notifications.dismiss_all');
     // Admin Routes
     Route::prefix('admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');

@@ -67,7 +67,6 @@ class MedicineController extends Controller
             'price_per_unit' => 'required|numeric|min:0',
         ]);
 
-        // Generate SKU
         $clean = fn($str) => strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $str));
         $baseSku = $clean($validated['generic_name']) . ($validated['brand_name'] ? '-' . $clean($validated['brand_name']) : '') . '-' . $clean($validated['dosage']);
         
@@ -84,7 +83,7 @@ class MedicineController extends Controller
 
             StockLog::create([
                 'medicine_id'   => $medicine->id,
-                'staff_id'      => auth()->user()->staff_id ?? 1,
+                'staff_id'      => auth()->id(), // FIX: Use auth id (integer)
                 'batch_id'      => null, 
                 'change_amount' => 0,
                 'reason'        => "CATALOG: New medicine entry created.",
@@ -111,7 +110,7 @@ class MedicineController extends Controller
 
             StockLog::create([
                 'medicine_id'   => $medicine->id,
-                'staff_id'      => auth()->user()->staff_id ?? 1,
+                'staff_id'      => auth()->id(), // FIX: Use auth id (integer)
                 'batch_id'      => null,
                 'change_amount' => 0,
                 'reason'        => "CATALOG: Medicine details updated.",
@@ -126,11 +125,9 @@ class MedicineController extends Controller
         $medicine = MedicineCatalog::findOrFail($id);
 
         return DB::transaction(function () use ($medicine) {
-            // Note: medicine_id will be set to null by DB automatically if deleted due to 'cascade' 
-            // but we log the text here for the record.
             StockLog::create([
                 'medicine_id'   => null,
-                'staff_id'      => auth()->user()->staff_id ?? 1,
+                'staff_id'      => auth()->id(), // FIX: Use auth id (integer)
                 'batch_id'      => null,
                 'change_amount' => 0,
                 'reason'        => "CATALOG: Deleted medicine '{$medicine->generic_name}' and all its batches.",
@@ -149,7 +146,7 @@ class MedicineController extends Controller
         $reason = $request->input('reason', 'Manual Update');
 
         DB::transaction(function () use ($medicine, $action, $batchData, $reason) {
-            $staffId = auth()->user()->staff_id ?? 1;
+            $staffId = auth()->id(); // FIX: Use numeric ID directly
 
             if ($action === 'add') {
                 $batch = $medicine->batches()->create([
