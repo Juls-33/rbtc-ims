@@ -13,7 +13,17 @@ use App\Http\Controllers\PatientVisitController;
 
 
 Route::get('/', function () {
-    return Inertia::render('Welcome');
+    // If already logged in, send them to their dashboard
+    if (auth()->check()) {
+        $role = auth()->user()->role;
+        return redirect()->route($role === 'Admin' ? 'dashboard' : strtolower($role) . '.dashboard');
+    }
+
+    // Otherwise, render the integrated Welcome/Login page
+    return Inertia::render('Welcome', [
+        'canResetPassword' => Route::has('password.request'),
+        'status' => session('status'),
+    ]);
 })->name('welcome');
 
 //Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
