@@ -109,6 +109,21 @@ class HandleInertiaRequests extends Middleware
                 ];
             }
         }
+        $requests = \App\Models\Staff::where('reset_requested', true)->get();
+
+        foreach ($requests as $req) {
+            $notifId = "reset_{$req->id}";
+            
+            // We don't snooze reset requests for safety; they stay until resolved
+            $alerts[] = [
+                'id' => $notifId,
+                'group' => 'Security',
+                'title' => 'Password Reset Request',
+                'description' => "{$req->first_name} {$req->last_name} needs a password reset.",
+                'buttonText' => 'MANAGE STAFF',
+                'link' => route('admin.staff'), // Redirects to where the Admin can reset it
+            ];
+        }
 
         return $alerts;
     }

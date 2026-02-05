@@ -2,13 +2,13 @@
 
 import React, { useState, useMemo } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import Button from '@/Components/Button';
 import Pagination from '@/Components/Pagination';
 import AddStaffModal from './Partials/AddStaffModal'; 
 import StaffManagementTable from '@/Components/StaffManagementTable';
 
-export default function StaffManagement({ auth, staff = [] }) {
+export default function StaffManagement({ auth, staff = [], flash }) {
     const [activeTab, setActiveTab] = useState('all'); // 'all', 'doctors', 'nurses', 'admins'
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -44,6 +44,17 @@ export default function StaffManagement({ auth, staff = [] }) {
     const currentItems = filteredStaff.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(filteredStaff.length / itemsPerPage);
 
+    const handleResetPassword = (id) => {
+        if (confirm('Are you sure you want to reset this staff member\'s password to the default?')) {
+            router.put(route('admin.staff.reset-password', id), {}, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    // You could trigger a toast here if you have one
+                }
+            });
+        }
+    };
+
     return (
         <AuthenticatedLayout 
             header="Admin / Staff Management" 
@@ -70,7 +81,11 @@ export default function StaffManagement({ auth, staff = [] }) {
             }
         >
             <Head title="Staff Management" />
-
+            {flash?.success && (
+                <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-500 text-green-700 text-xs font-bold uppercase tracking-widest shadow-sm animate-in fade-in slide-in-from-top-2">
+                    {flash.success}
+                </div>
+            )}
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-h-[600px]">
                 <div className="bg-[#3D52A0] text-white p-4 font-bold text-lg uppercase tracking-tight">
                     Personnel Directory

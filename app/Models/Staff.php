@@ -29,6 +29,7 @@ class Staff extends Authenticatable ///implements CipherSweetEncrypted
         'status', // Added
         'password',
         'dismissed_notifications',
+        'reset_requested',
     ];
 
     protected $hidden = [

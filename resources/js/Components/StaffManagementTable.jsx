@@ -18,23 +18,22 @@ export default function StaffManagementTable({ staff = [], activeTab }) {
     const [selectedForActivate, setSelectedForActivate] = useState(null);
     const itemsPerPage = 10;
 
-    // 1. Client-side Filtering Logic
     const filteredStaff = useMemo(() => {
         if (activeTab === 'all') return staff;
         const targetRole = activeTab.endsWith('s') ? activeTab.slice(0, -1) : activeTab;
         return staff.filter(s => s.role.toLowerCase() === targetRole.toLowerCase());
     }, [activeTab, staff]);
+
     const triggerStatusToggle = (member) => {
         if (member.status === 'INACTIVE') {
             setSelectedForActivate(member);
             setIsActivateOpen(true);
         } else {
-            setSelectedForDeactivate(member); // Your existing deactivation state
+            setSelectedMember(member); 
             setIsDeactivateOpen(true);
         }
     };
 
-    // 2. Pagination Logic
     const currentItems = filteredStaff.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     return (
@@ -62,9 +61,7 @@ export default function StaffManagementTable({ staff = [], activeTab }) {
                                     <tr 
                                         key={member.id} 
                                         className={`border-b transition-colors ${
-                                            isDeactivated 
-                                                ? 'bg-rose-50 hover:bg-rose-100' // Red mark on row
-                                                : 'hover:bg-slate-50'
+                                            isDeactivated ? 'bg-rose-50 hover:bg-rose-100' : 'hover:bg-slate-50'
                                         }`}
                                     >
                                         <td className="p-3 border-r font-bold">{member.staff_id}</td>
@@ -89,7 +86,6 @@ export default function StaffManagementTable({ staff = [], activeTab }) {
                                                     EDIT
                                                 </Button>
 
-                                                {/* Guard: Default admin cannot be deactivated */}
                                                 {!isDefaultAdmin && (
                                                     <Button 
                                                         variant={isDeactivated ? "success" : "danger"} 
@@ -100,14 +96,14 @@ export default function StaffManagementTable({ staff = [], activeTab }) {
                                                     </Button>
                                                 )}
                                                 
-                                                {/* Guard: No reset pass if inactive or on 'all staff' tab */}
-                                                {activeTab !== 'all' && !isDeactivated && (
+                                                {/* PASSWORD RESET LOGIC */}
+                                                {member.reset_requested && !isDeactivated && (
                                                     <Button 
-                                                        variant="blue"
+                                                        variant="danger"
                                                         onClick={() => { setSelectedMember(member); setIsResetPassOpen(true); }}
-                                                        className="text-[8px] py-1 px-4 w-24"
+                                                        className="text-[8px] py-1 px-4 w-24 bg-red-600 animate-pulse border-2 border-red-200"
                                                     >
-                                                        RESET PASS
+                                                        RESET REQ!
                                                     </Button>
                                                 )}
                                             </div>
@@ -126,27 +122,11 @@ export default function StaffManagementTable({ staff = [], activeTab }) {
                 </table>
             </div>
 
-            {/* Modal Components */}
-            <EditStaffModal 
-                isOpen={isEditOpen} 
-                onClose={() => setIsEditOpen(false)} 
-                member={selectedMember} 
-            />
-            <DeactivateStaffModal 
-                isOpen={isDeactivateOpen} 
-                onClose={() => setIsDeactivateOpen(false)} 
-                member={selectedMember} 
-            />
-            <ResetStaffPasswordModal 
-                isOpen={isResetPassOpen} 
-                onClose={() => setIsResetPassOpen(false)} 
-                member={selectedMember} 
-            />
-            <ActivateStaffModal 
-                isOpen={isActivateOpen} 
-                onClose={() => setIsActivateOpen(false)} 
-                member={selectedForActivate} 
-            />
+            {/* Modals */}
+            <EditStaffModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} member={selectedMember} />
+            <DeactivateStaffModal isOpen={isDeactivateOpen} onClose={() => setIsDeactivateOpen(false)} member={selectedMember} />
+            <ResetStaffPasswordModal isOpen={isResetPassOpen} onClose={() => setIsResetPassOpen(false)} member={selectedMember} />
+            <ActivateStaffModal isOpen={isActivateOpen} onClose={() => setIsActivateOpen(false)} member={selectedForActivate} />
         </div>
     );
 }

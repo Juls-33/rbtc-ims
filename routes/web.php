@@ -11,6 +11,7 @@ use App\Http\Controllers\DoctorController;
 use App\Http\Controllers\AdmissionController;
 use App\Http\Controllers\PatientVisitController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Auth\RecoveryController;
 
 
 Route::get('/', function () {
@@ -28,7 +29,8 @@ Route::get('/', function () {
 })->name('welcome');
 
 //Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
+Route::post('/recover-admin', [RecoveryController::class, 'recoverAdmin'])->name('admin.recover');
+Route::post('/request-reset', [RecoveryController::class, 'requestReset'])->name('staff.request_reset');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/notifications/dismiss', [NotificationController::class, 'dismiss'])->name('notifications.dismiss');
     Route::post('/notifications/dismiss-all', [NotificationController::class, 'dismissAll'])->name('notifications.dismiss_all');

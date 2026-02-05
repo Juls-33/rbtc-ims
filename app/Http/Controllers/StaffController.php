@@ -29,6 +29,7 @@ class StaffController extends Controller
                 'phone'      => $member->contact_no,
                 'gender'     => $member->gender,
                 'status'     => strtoupper($member->status),
+                'reset_requested'  => (bool) $member->reset_requested,
             ]);
 
         return Inertia::render('Admin/StaffManagement', [
@@ -78,6 +79,7 @@ class StaffController extends Controller
                     'address'    => $validated['address'],
                     'status'     => 'ACTIVE',
                     'password'   => Hash::make($validated['password']),
+                    
                 ]);
 
                 return redirect()->back()->with('success', "New {$validated['role']} added as {$staffId}.");
@@ -136,15 +138,14 @@ class StaffController extends Controller
     public function resetPassword(Request $request, Staff $staff)
     {
         $validated = $request->validate([
-            'password' => 'required|string|min:8|confirmed', // Must match password_confirmation
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
         $staff->update([
             'password' => Hash::make($validated['password']),
+            'reset_requested' => false, // ADDED: Clear the flag once reset is successful
         ]);
 
-        \Log::info("Admin reset password for staff member: {$staff->staff_id}");
-
-        return redirect()->back()->with('success', "Password for {$staff->first_name} has been reset.");
+        return redirect()->back()->with('success', "Password for {$staff->first_name} has been updated.");
     }
 }
