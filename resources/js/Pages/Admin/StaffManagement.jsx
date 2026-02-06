@@ -6,6 +6,7 @@ import { Head, router } from '@inertiajs/react';
 import Button from '@/Components/Button';
 import Pagination from '@/Components/Pagination';
 import AddStaffModal from './Partials/AddStaffModal'; 
+
 import StaffManagementTable from '@/Components/StaffManagementTable';
 
 export default function StaffManagement({ auth, staff = [], flash }) {

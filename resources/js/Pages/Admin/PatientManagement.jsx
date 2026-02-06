@@ -153,42 +153,41 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                         {renderActionButton()}
                     </div>
 
-                    <div className="overflow-x-auto border border-slate-200 rounded">
-                        <table className="w-full text-left text-sm border-collapse">
+                    <div className="overflow-x-auto border border-slate-200 rounded relative">
+                        <table className="w-full text-left text-sm border-collapse table-auto">
                             <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase text-[11px]">
                                 {activeTab === 'all' ? (
-                                    /* 1. ALL PATIENTS HEADER (Matches image_3011be.png) */
                                     <tr>
-                                        <th className="p-3 border-r">Name</th>
-                                        <th className="p-3 border-r">Date of Birth</th>
+                                        <th className="p-3 border-r min-w-[150px]">Name</th>
+                                        <th className="p-3 border-r min-w-[100px]">Date of Birth</th>
                                         <th className="p-3 border-r">Gender</th>
-                                        <th className="p-3 border-r">Civil Status</th>
-                                        <th className="p-3 border-r text-[9px]">Phone Number</th>
-                                        <th className="p-3 border-r text-[9px]">Home Address</th>
-                                        <th className="p-3 border-r text-[9px]">Emergency Contact</th>
-                                        <th className="p-3 border-r text-[9px]">Relationship</th>
-                                        <th className="p-3 border-r text-[9px]">Emergency Contact No.</th>
-                                        <th className="p-3 text-center">Action</th>
+                                        <th className="p-3 border-r min-w-[100px]">Civil Status</th>
+                                        <th className="p-3 border-r min-w-[120px]">Phone Number</th>
+                                        <th className="p-3 border-r min-w-[150px]">Home Address</th>
+                                        <th className="p-3 border-r min-w-[150px]">Emergency Contact</th>
+                                        <th className="p-3 border-r">Relationship</th>
+                                        <th className="p-3 border-r min-w-[120px]">Emergency Contact No.</th>
+                                        {/* FIXED ACTION HEADER */}
+                                        <th className="p-3 text-center sticky right-0 bg-slate-100 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-20">Action</th>
                                     </tr>
                                 ) : (
-                                    /* 2. INPATIENT/OUTPATIENT HEADER (Matches image_301c7f.png) */
                                     <tr>
                                         <th className="p-3 border-r">Patient ID</th>
-                                        <th className="p-3 border-r">Full Name</th>
-                                        <th className="p-3 border-r">Date of Birth</th>
-                                        <th className="p-3 border-r">Contact Number</th>
+                                        <th className="p-3 border-r min-w-[150px]">Full Name</th>
+                                        <th className="p-3 border-r min-w-[100px]">Date of Birth</th>
+                                        <th className="p-3 border-r min-w-[120px]">Contact Number</th>
                                         <th className="p-3 border-r">Status</th>
                                         <th className="p-3 border-r">Bill Status</th>
-                                        <th className="p-3 text-center">Action</th>
+                                        {/* FIXED ACTION HEADER */}
+                                        <th className="p-3 text-center sticky right-0 bg-slate-100 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-20">Action</th>
                                     </tr>
                                 )}
                             </thead>
                             <tbody className="text-slate-600">
                                 {currentItems.length > 0 ? (
                                     currentItems.map((patient) => (
-                                        <tr key={patient.id} className="border-b hover:bg-slate-50 transition-colors">
+                                        <tr key={patient.id} className="border-b hover:bg-slate-50 transition-colors group">
                                             {activeTab === 'all' ? (
-                                                /* ALL PATIENTS ROW */
                                                 <>
                                                     <td className="p-3 font-bold text-slate-800 border-r">{patient.name}</td>
                                                     <td className="p-3 border-r text-xs">{patient.dob}</td>
@@ -199,7 +198,8 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                                                     <td className="p-3 border-r text-[10px]">{patient.emergency_contact_name}</td>
                                                     <td className="p-3 border-r text-[10px]">{patient.emergency_contact_relation}</td>
                                                     <td className="p-3 border-r text-[10px]">{patient.emergency_contact_number}</td>
-                                                    <td className="p-4 text-center">
+                                                    {/* FIXED ACTION CELL */}
+                                                    <td className="p-4 text-center sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-10">
                                                         <div className="flex flex-col gap-1">
                                                             <Button variant="success" className="text-[8px] py-1" onClick={() => { setSelectedPatient(patient); setIsEditModalOpen(true); }}>EDIT</Button>
                                                             <Button variant="danger" className="text-[8px] py-1" onClick={() => { setPatientToDelete(patient); setIsDeleteModalOpen(true); }}>DELETE</Button>
@@ -207,19 +207,16 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                                                     </td>
                                                 </>
                                             ) : (
-                        
                                                 <>
                                                     <td className="p-3 font-bold border-r">{patient.patient_id}</td>
                                                     <td className="p-3 font-bold text-slate-800 border-r">{patient.name}</td>
-                                                    <td className="p-3 border-r">{patient.dob}</td>
-                                                    <td className="p-3 border-r">{patient.contact_no}</td>
+                                                    <td className="p-3 border-r text-xs">{patient.dob}</td>
+                                                    <td className="p-3 border-r text-xs">{patient.contact_no}</td>
                                                     <td className="p-3 border-r">
                                                         <span className={`font-bold text-[10px] px-2 py-0.5 rounded ${
-                                                            patient.status === 'ADMITTED' 
-                                                                ? 'bg-emerald-100 text-emerald-700' 
-                                                                : patient.status === 'DISCHARGED'
-                                                                ? 'bg-amber-100 text-amber-700'
-                                                                : 'bg-slate-100 text-slate-600'
+                                                            patient.status === 'ADMITTED' ? 'bg-emerald-100 text-emerald-700' : 
+                                                            patient.status === 'DISCHARGED' ? 'bg-amber-100 text-amber-700' : 
+                                                            'bg-slate-100 text-slate-600'
                                                         }`}>
                                                             {patient.status}
                                                         </span>
@@ -227,7 +224,8 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                                                     <td className={`p-3 border-r font-bold text-xs ${patient.bill_status.includes('UNPAID') ? 'text-rose-600' : 'text-emerald-600'}`}>
                                                         {patient.bill_status}
                                                     </td>
-                                                    <td className="p-3 text-center">
+                                                    {/* FIXED ACTION CELL */}
+                                                    <td className="p-3 text-center sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-10">
                                                         <Button variant="success" className="text-[9px] px-2 py-1 shadow-sm uppercase font-bold" onClick={() => handleViewProfile(patient)}>VIEW PROFILE</Button>
                                                     </td>
                                                 </>
@@ -269,9 +267,11 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
 
             <DeletePatientModal 
                 isOpen={isDeleteModalOpen} 
-                onClose={() => setIsDeleteModalOpen(false)} 
-                onConfirm={confirmDelete}
-                patientName={patientToDelete?.name} 
+                onClose={() => {
+                    setIsDeleteModalOpen(false);
+                    setPatientToDelete(null); 
+                }} 
+                patient={patientToDelete} 
             />
             <AdmitPatientModal 
                 isOpen={isAdmitModalOpen} 

@@ -38,17 +38,22 @@ export default function StaffManagementTable({ staff = [], activeTab }) {
 
     return (
         <div className="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+            <div className="overflow-x-auto relative">
+                {/* table-fixed or min-w is used to ensure horizontal scroll exists */}
+                <table className="w-full text-left text-xs border-collapse min-w-[1000px]">
                     <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 uppercase">
                         <tr>
-                            <th className="p-3 border-r">Staff ID</th>
-                            <th className="p-3 border-r">Full Name</th>
-                            {activeTab === 'all' && <th className="p-3 border-r">Role</th>}
-                            <th className="p-3 border-r">Email</th>
-                            <th className="p-3 border-r">Phone Number</th>
-                            {activeTab === 'all' && <th className="p-3 border-r">Status</th>}
-                            <th className="p-3 text-center">Actions</th>
+                            <th className="p-3 border-r w-[120px]">Staff ID</th>
+                            <th className="p-3 border-r min-w-[200px]">Full Name</th>
+                            {activeTab === 'all' && <th className="p-3 border-r w-[100px]">Role</th>}
+                            <th className="p-3 border-r min-w-[200px]">Email</th>
+                            <th className="p-3 border-r w-[150px]">Phone Number</th>
+                            {activeTab === 'all' && <th className="p-3 border-r w-[100px]">Status</th>}
+                            
+                            {/* --- FIXED ACTIONS HEADER --- */}
+                            <th className="p-3 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-20 w-[150px]">
+                                Actions
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="text-slate-600">
@@ -60,7 +65,7 @@ export default function StaffManagementTable({ staff = [], activeTab }) {
                                 return (
                                     <tr 
                                         key={member.id} 
-                                        className={`border-b transition-colors ${
+                                        className={`border-b transition-colors group ${
                                             isDeactivated ? 'bg-rose-50 hover:bg-rose-100' : 'hover:bg-slate-50'
                                         }`}
                                     >
@@ -76,7 +81,11 @@ export default function StaffManagementTable({ staff = [], activeTab }) {
                                                 </span>
                                             </td>
                                         )}
-                                        <td className="p-3">
+
+                                        {/* --- FIXED ACTIONS CELL --- */}
+                                        <td className={`p-3 sticky right-0 z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] transition-colors ${
+                                            isDeactivated ? 'bg-rose-50 group-hover:bg-rose-100' : 'bg-white group-hover:bg-slate-50'
+                                        }`}>
                                             <div className="flex flex-col gap-1 items-center">
                                                 <Button 
                                                     variant="success" 
@@ -96,7 +105,6 @@ export default function StaffManagementTable({ staff = [], activeTab }) {
                                                     </Button>
                                                 )}
                                                 
-                                                {/* PASSWORD RESET LOGIC */}
                                                 {member.reset_requested && !isDeactivated && (
                                                     <Button 
                                                         variant="danger"
