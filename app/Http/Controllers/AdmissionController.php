@@ -24,9 +24,7 @@ class AdmissionController extends Controller
         ]);
 
         // 2. Use a transaction to ensure both records update or neither do
-        return DB::transaction(function () use ($validated) {
-            
-            // Create the Admission record
+        return DB::transaction(function () use ($validated) {  
             Admission::create([
                 'patient_id'     => $validated['patient_id'],
                 'staff_id'       => $validated['staff_id'],
@@ -109,7 +107,7 @@ class AdmissionController extends Controller
             // If payment_type is 'none', we do nothing to the bill. 
             // It stays as 'UNPAID' with the original total.
 
-            return redirect()->route('admin.patients.index')->with('success', 'Patient status updated.');
+            return redirect()->back()->with('success', 'Patient status updated.');
         });
     }
 }

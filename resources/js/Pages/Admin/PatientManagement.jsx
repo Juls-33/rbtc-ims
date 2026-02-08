@@ -30,36 +30,32 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
     const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
     const itemsPerPage = 10;
 
-    // --- LOGIC: CLIENT-SIDE FILTERING (Medicine-Style) ---
-    const filteredData = useMemo(() => {
+    const listHeaderTitle = useMemo(() => {
+        if (activeTab === 'inpatient') return 'Patient List (Admission | Inpatient)';
+        if (activeTab === 'outpatient') return 'Patient List (Visits | Outpatient)';
+        return 'Patient List (General Directory)';
+    }, [activeTab]);
+   const filteredData = useMemo(() => {
         let data = allPatients;
 
-        // 1. Tab Filter
         if (activeTab === 'inpatient') {
-        // Show patients who have admission records (active or historical)
-        data = data.filter(p => p.type?.toLowerCase() === 'inpatient');
-        } else if (activeTab === 'outpatient') {
-            /** * FIX: Filter for patients who are 'outpatient' AND have records 
-             * in their visit history
-             */
-            data = data.filter(p => 
-                p.type?.toLowerCase() === 'outpatient' && 
-                p.visit_history?.length > 0
-            );
+            data = data.filter(p => p.status?.toLowerCase() === 'admitted');
+        } 
+        else if (activeTab === 'outpatient') {
+
+            data = data.filter(p => p.visit_history && p.visit_history.length > 0);
         }
 
-        // 2. Search Filter
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             data = data.filter(p => 
                 p.name.toLowerCase().includes(query) || 
-                p.patient_id.toLowerCase().includes(query) ||
-                p.bill_status.toLowerCase().includes(query)
+                p.patient_id?.toLowerCase().includes(query)
             );
         }
 
         return data;
-    }, [activeTab, searchQuery, allPatients]);
+    }, [activeTab, searchQuery, patients]);
 
     // --- PAGINATION LOGIC ---
     const indexOfLastItem = currentPage * itemsPerPage;
@@ -68,11 +64,11 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
     const renderActionButton = () => {
-        const btnProps = { variant: "success", className: "px-6 py-2" , onClick: () => setIsAddModalOpen(true)};
+        const btnProps = { variant: "success", className: "px-6 py-2" };
         switch (activeTab) {
             case 'inpatient': return <Button {...btnProps} onClick={() => setIsAdmitModalOpen(true)}>ADMIT PATIENT</Button>;
             case 'outpatient': return <Button {...btnProps} onClick={() => setIsAddVisitModalOpen(true)}>ADD PATIENT VISIT</Button>;
-            default: return <Button {...btnProps}>+ ADD NEW PATIENT</Button>;
+            default: return <Button {...btnProps} onClick={() => setIsAddModalOpen(true)}>+ ADD NEW PATIENT</Button>;
         }
     };
     const handleAddVisit = () => {
@@ -98,19 +94,25 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
         setSelectedProfile(patient);
         setViewMode('profile');
     };
-    if (viewMode === 'profile') {
-        return (
-            <AuthenticatedLayout header={`Admin / Patient Profile: ${selectedProfile.name}`}>
-                <PatientProfile 
-                    patient={selectedProfile} 
-                    onBack={() => setViewMode('list')} 
-                    doctors={doctors} 
-                    rooms={rooms}
-                />
-            </AuthenticatedLayout>
-        );
-    }
-    
+    const activePatient = useMemo(() => {
+        if (!selectedProfile) return null;
+        return allPatients.find(p => p.id === selectedProfile.id);
+    }, [allPatients, selectedProfile]);
+    if (viewMode === 'profile' && activePatient) {
+    return (
+        <AuthenticatedLayout header={`Admin / Patient Profile: ${activePatient.name}`}>
+            <PatientProfile 
+                patient={activePatient} // Use the live version here!
+                onBack={() => {
+                    setViewMode('list');
+                    setSelectedProfile(null);
+                }} 
+                doctors={doctors} 
+                rooms={rooms}
+            />
+        </AuthenticatedLayout>
+    );
+}
     return (
         <AuthenticatedLayout 
             header="Admin / Patient Management" 
@@ -139,8 +141,10 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
             <Head title="Patient Management" />
 
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-h-[600px]">
-                <div className="bg-[#3D52A0] text-white p-3 font-bold text-lg">Patient List</div>
-
+                <div className="bg-[#3D52A0] text-white p-4 font-black text-sm uppercase tracking-widest flex justify-between items-center">
+                    <span>{listHeaderTitle}</span>
+                    <span className="bg-white/20 px-2 py-0.5 rounded text-[10px]">Records: {filteredData.length}</span>
+                </div>
                 <div className="p-6">
                     <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <input 

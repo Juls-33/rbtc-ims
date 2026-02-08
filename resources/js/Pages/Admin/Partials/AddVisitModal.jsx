@@ -20,17 +20,28 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
 
-    // Filter patients based on name or ID
     const filteredPatients = useMemo(() => {
-        if (!searchTerm) return patients;
-        return patients.filter(p => 
-            p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            p.patient_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.id_no?.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        let results = patients;
+        if (searchTerm) {
+            const query = searchTerm.toLowerCase();
+            results = patients.filter(p => 
+                p.name.toLowerCase().includes(query) || 
+                p.patient_id?.toLowerCase().includes(query) ||
+                p.id_no?.toLowerCase().includes(query)
+            );
+        }
+        return [...results].sort((a, b) => {
+            const aAdmitted = a.status?.toLowerCase() === 'admitted';
+            const bAdmitted = b.status?.toLowerCase() === 'admitted';
+            if (aAdmitted !== bAdmitted) {
+                return aAdmitted ? 1 : -1;
+            }
+
+            // Secondary Sort: Alphabetical by Name
+            return a.name.localeCompare(b.name);
+        });
     }, [searchTerm, patients]);
 
-    // --- CLICK OUTSIDE HANDLER ---
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -53,10 +64,7 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
         if (!data.visit_date) {
             setError('visit_date', 'Visit date is required.');
             isValid = false;
-        } else if (new Date(data.visit_date) > new Date()) {
-            setError('visit_date', 'Visit date cannot be in the future.');
-            isValid = false;
-        }
+        } 
 
         if (!data.reason || data.reason.trim() === '') {
             setError('reason', 'Reason for visit is required.');
@@ -116,13 +124,7 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
 
     return (
         <>
-            {toastInfo.show && (
-                <Toast 
-                    message={toastInfo.message} 
-                    type={toastInfo.type} 
-                    onClose={() => setToastInfo({ ...toastInfo, show: false })} 
-                />
-            )}
+            {toastInfo.show && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo({ ...toastInfo, show: false })} />}
 
             {isOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
@@ -136,8 +138,6 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-slate-800">
-                            
-                            {/* --- SEARCHABLE PATIENT SELECTION --- */}
                             <div className="relative" ref={dropdownRef}>
                                 <Label text="Select Patient" required fieldError={errors.patient_id} />
                                 
@@ -169,27 +169,45 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
                                 </div>
 
                                 {isDropdownOpen && (
-                                    <div className="absolute z-[110] w-full mt-1 bg-white border border-slate-200 rounded shadow-xl max-h-48 overflow-y-auto scrollbar-thin animate-in slide-in-from-top-1 duration-150">
+                                    <div className="absolute z-[110] w-full mt-1 bg-white border border-slate-200 rounded shadow-xl max-h-56 overflow-y-auto scrollbar-thin animate-in slide-in-from-top-1 duration-150">
                                         {filteredPatients.length > 0 ? (
-                                            filteredPatients.map(p => (
-                                                <button
-                                                    key={p.id}
-                                                    type="button"
-                                                    className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 flex justify-between items-center group transition-colors"
-                                                    onClick={() => {
-                                                        setData('patient_id', p.id);
-                                                        setSearchTerm(p.name);
-                                                        setIsDropdownOpen(false);
-                                                    }}
-                                                >
-                                                    <span className="font-bold text-slate-700 group-hover:text-[#3D52A0]">{p.name}</span>
-                                                    <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded group-hover:bg-[#3D52A0] group-hover:text-white transition-all">
-                                                        {p.patient_id || p.id_no || `ID: ${p.id}`}
-                                                    </span>
-                                                </button>
-                                            ))
+                                            filteredPatients.map(p => {
+                                                // --- THE FIX: Define status check here ---
+                                                const isAdmitted = p.status?.toLowerCase() === 'admitted';
+                                                
+                                                return (
+                                                    <button
+                                                        key={p.id}
+                                                        type="button"
+                                                        disabled={isAdmitted}
+                                                        className={`w-full text-left px-4 py-3 text-sm flex justify-between items-center border-b border-slate-50 last:border-0 transition-colors ${
+                                                            isAdmitted ? 'bg-slate-50 cursor-not-allowed' : 'hover:bg-blue-50'
+                                                        }`}
+                                                        onClick={() => {
+                                                            setData('patient_id', p.id);
+                                                            setSearchTerm(p.name);
+                                                            setIsDropdownOpen(false);
+                                                        }}
+                                                    >
+                                                        <div className="flex flex-col">
+                                                            <span className={`font-bold ${isAdmitted ? 'text-slate-400' : 'text-slate-700'}`}>{p.name}</span>
+                                                            <span className="text-[10px] text-slate-400 font-mono">{p.patient_id || p.id_no}</span>
+                                                        </div>
+                                                        
+                                                        {isAdmitted ? (
+                                                            <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-2 py-1 rounded border border-amber-200 uppercase tracking-tighter">
+                                                                Inpatient (Admitted)
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[9px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded border border-emerald-100 uppercase tracking-tighter">
+                                                                Selectable
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })
                                         ) : (
-                                            <div className="p-4 text-center text-xs text-slate-400 italic">No matching patients.</div>
+                                            <div className="p-4 text-center text-xs text-slate-400 italic">No patients found.</div>
                                         )}
                                     </div>
                                 )}
@@ -199,48 +217,25 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label text="Visit Date" required fieldError={errors.visit_date} />
-                                    <input 
-                                        type="date" 
-                                        max={today}
-                                        value={data.visit_date} 
-                                        onChange={e => setData('visit_date', e.target.value)} 
-                                        className={inputClass(errors.visit_date)} 
-                                    />
+                                    <input type="date" value={data.visit_date} onChange={e => setData('visit_date', e.target.value)} className={inputClass(errors.visit_date)} />
                                     {errors.visit_date && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.visit_date}</p>}
                                 </div>
                                 <div>
                                     <Label text="Weight (KG)" fieldError={errors.weight} />
-                                    <input 
-                                        type="number" 
-                                        step="0.1"
-                                        placeholder="0.0"
-                                        value={data.weight} 
-                                        onChange={e => setData('weight', e.target.value)} 
-                                        className={inputClass(errors.weight)} 
-                                    />
+                                    <input type="number" step="0.1" placeholder="0.0" value={data.weight} onChange={e => setData('weight', e.target.value)} className={inputClass(errors.weight)} />
                                     {errors.weight && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.weight}</p>}
                                 </div>
                             </div>
 
                             <div>
                                 <Label text="Reason for Visit" current={data.reason.length} max={250} required fieldError={errors.reason} />
-                                <textarea 
-                                    maxLength={250}
-                                    value={data.reason} 
-                                    onChange={e => setData('reason', e.target.value)} 
-                                    className={`${inputClass(errors.reason)} h-24 resize-none`} 
-                                    placeholder="Brief description of the consultation..."
-                                />
+                                <textarea maxLength={250} value={data.reason} onChange={e => setData('reason', e.target.value)} className={`${inputClass(errors.reason)} h-24 resize-none`} placeholder="Brief description..." />
                                 {errors.reason && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.reason}</p>}
                             </div>
 
                             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                                 <button type="button" onClick={handleModalClose} className="px-6 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded font-bold text-[11px] uppercase tracking-widest transition-all">Cancel</button>
-                                <button 
-                                    type="submit" 
-                                    disabled={processing} 
-                                    className="px-8 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[11px] uppercase tracking-widest transition-all shadow-md active:scale-95 disabled:opacity-50"
-                                >
+                                <button type="submit" disabled={processing} className="px-8 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[11px] uppercase tracking-widest transition-all shadow-md active:scale-95 disabled:opacity-50">
                                     {processing ? 'Saving...' : 'Save Visit'}
                                 </button>
                             </div>
