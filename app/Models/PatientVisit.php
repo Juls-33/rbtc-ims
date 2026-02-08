@@ -23,8 +23,11 @@ class PatientVisit extends Model
     protected $fillable = [
         'patient_id',
         'visit_date',
+        'blood_pressure',
+        'heart_rate', 
+        'temperature', 
         'weight',
-        'reason',
+        'reason'
     ];
 
     /**

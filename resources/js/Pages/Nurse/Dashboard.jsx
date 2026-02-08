@@ -74,13 +74,6 @@ export default function NurseDashboard({ auth }) {
         <AuthenticatedLayout
             auth={auth}
             header="Nurse / Dashboard"
-            sectionTitle={
-                <div className="flex justify-between items-center w-full px-6 text-white">
-                    <span className="text-white font-semibold text-lg">
-                        Nurse / Dashboard
-                    </span>
-                </div>
-            }
         >
             <Head title="Nurse Dashboard" />
 

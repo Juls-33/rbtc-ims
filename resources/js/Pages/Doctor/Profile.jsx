@@ -30,11 +30,6 @@ export default function DoctorProfile({ auth }) {
         <AuthenticatedLayout
             auth={auth}
             header="Doctor / Profile"
-            sectionTitle={
-                <div className="flex justify-between items-center w-full px-6 text-white">
-                    <span className="font-bold uppercase tracking-widest text-sm">Doctor / Profile</span>
-                </div>
-            }
         >
             <Head title="My Profile" />
 

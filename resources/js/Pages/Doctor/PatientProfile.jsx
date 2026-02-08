@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import Modal from '@/Components/Modal';
 
 export default function DoctorPatientProfile({ auth, patient, admissionHistory, prescriptions = [] }) {
@@ -9,6 +9,31 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
     // Modal States
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+    const [showVitals, setShowVitals] = useState(false);
+
+    const { data, setData, post, processing, reset, errors } = useForm({
+        blood_pressure: '',
+        heart_rate: '',
+        temperature: '',
+        weight: '',
+        visit_date: new Date().toISOString().split('T')[0],
+        reason: '',
+    });
+
+    const submitVitals = (e) => {
+        e.preventDefault();
+        console.log("Submitting to ID:", patient.db_id); // Check your console (F12) for this!
+        
+        post(route('doctor.patients.vitals.update', patient.db_id), {
+            onSuccess: () => {
+                setShowVitals(false);
+                reset();
+            },
+            onError: (err) => {
+                console.error("Submission failed:", err); // This will tell us exactly what Laravel rejected
+            }
+        });
+    };
 
     if (!patient) return <div>Loading...</div>;
     return (
@@ -195,6 +220,12 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                                 <div className="flex items-center gap-2 mb-4 border-t border-gray-100 pt-8">
                                     <div className="w-1 h-4 bg-[#30499B] rounded-full"></div>
                                     <h3 className="text-[#30499B] font-bold text-sm uppercase tracking-wider">Current Vital Signs</h3>
+                                    <button 
+                                        onClick={() => setShowVitals(true)} // Changed from setShowModal
+                                        className="bg-[#30499B] text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-800 transition text-xs uppercase"
+                                    >
+                                        Update Vitals
+                                    </button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div className="bg-white border border-blue-100 rounded-lg p-4 shadow-sm text-center">
@@ -309,6 +340,121 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                         <button onClick={() => setShowPrescriptionModal(false)} className="bg-[#4CAF50] text-white px-10 py-2 rounded font-bold text-xs uppercase shadow hover:bg-green-600">Save</button>
                     </div>
                 </div>
+            </Modal>
+
+            {/* 3. Update Vitals Modal */}
+            <Modal show={showVitals} onClose={() => setShowVitals(false)} maxWidth="md">
+                <div className="bg-[#30499B] text-white px-6 py-4 flex justify-between items-center">
+                    <h3 className="font-bold uppercase tracking-wide">Update Patient Vitals</h3>
+                    <button onClick={() => setShowVitals(false)} className="text-xl hover:text-gray-200">&times;</button>
+                </div>
+
+                <form onSubmit={submitVitals} className="p-8 space-y-4">
+                    {/* Debug Info: If you see "Missing ID" here, that's why it won't save */}
+                    {!patient.db_id && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+                            Warning: Patient Database ID is missing.
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="text-xs font-bold text-gray-600 block mb-1">Patient's ID</label>
+                        <input 
+                            type="text" 
+                            className="w-full border-gray-300 rounded-md shadow-sm text-sm bg-gray-50" 
+                            value={patient.id} 
+                            disabled 
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-gray-600 block mb-1">Date of Visit</label>
+                            <input 
+                                type="date" 
+                                className={`w-full border rounded-md shadow-sm text-sm ${errors.visit_date ? 'border-red-500' : 'border-gray-300'}`} 
+                                value={data.visit_date}
+                                onChange={e => setData('visit_date', e.target.value)}
+                            />
+                            {errors.visit_date && <div className="text-red-500 text-[10px] mt-1 font-bold">{errors.visit_date}</div>}
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-600 block mb-1">Weight (kg)</label>
+                            <input 
+                                type="text" 
+                                className={`w-full border rounded-md shadow-sm text-sm ${errors.weight ? 'border-red-500' : 'border-gray-300'}`} 
+                                placeholder="e.g. 70kg" 
+                                value={data.weight}
+                                onChange={e => setData('weight', e.target.value)}
+                            />
+                            {errors.weight && <div className="text-red-500 text-[10px] mt-1 font-bold">{errors.weight}</div>}
+                        </div>
+                    </div>
+                    
+                    <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700">Reason / Nurse's Notes</label>
+                        <textarea
+                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                            rows="3"
+                            value={data.reason}
+                            onChange={e => setData('reason', e.target.value)}
+                            placeholder="Enter observations or reason for visit..."
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-gray-600 block mb-1">Blood Pressure</label>
+                            <input 
+                                type="text" 
+                                className={`w-full border rounded-md shadow-sm text-sm ${errors.blood_pressure ? 'border-red-500' : 'border-gray-300'}`} 
+                                placeholder="120/80" 
+                                value={data.blood_pressure}
+                                onChange={e => setData('blood_pressure', e.target.value)}
+                            />
+                            {errors.blood_pressure && <div className="text-red-500 text-[10px] mt-1 font-bold">{errors.blood_pressure}</div>}
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-600 block mb-1">Heart Rate</label>
+                            <input 
+                                type="text" 
+                                className={`w-full border rounded-md shadow-sm text-sm ${errors.heart_rate ? 'border-red-500' : 'border-gray-300'}`} 
+                                placeholder="72 bpm" 
+                                value={data.heart_rate}
+                                onChange={e => setData('heart_rate', e.target.value)}
+                            />
+                            {errors.heart_rate && <div className="text-red-500 text-[10px] mt-1 font-bold">{errors.heart_rate}</div>}
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-600 block mb-1">Temp (°C)</label>
+                            <input 
+                                type="text" 
+                                className={`w-full border rounded-md shadow-sm text-sm ${errors.temperature ? 'border-red-500' : 'border-gray-300'}`} 
+                                placeholder="36.5" 
+                                value={data.temperature}
+                                onChange={e => setData('temperature', e.target.value)}
+                            />
+                            {errors.temperature && <div className="text-red-500 text-[10px] mt-1 font-bold">{errors.temperature}</div>}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-center gap-4 mt-6">
+                        <button 
+                            type="button"
+                            onClick={() => setShowVitals(false)} 
+                            className="bg-slate-500 text-white px-8 py-2 rounded font-bold text-xs uppercase shadow hover:bg-slate-600 transition"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            type="submit" 
+                            disabled={processing}
+                            className="bg-[#4CAF50] text-white px-10 py-2 rounded font-bold text-xs uppercase shadow hover:bg-green-600 transition disabled:opacity-50"
+                        >
+                            {processing ? 'Saving...' : 'Save Vitals'}
+                        </button>
+                    </div>
+                </form>
             </Modal>
 
         </AuthenticatedLayout>

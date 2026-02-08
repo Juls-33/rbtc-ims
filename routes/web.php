@@ -88,6 +88,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/patients', [DoctorController::class, 'patients'])->name('doctor.patients');
         Route::get('/patients/{id}', [DoctorController::class, 'showPatient'])->name('doctor.patients.profile');
         Route::get('/profile', fn() => Inertia::render('Doctor/Profile'))->name('doctor.profile');
+        Route::post('/patients/{id}/vitals', [DoctorController::class, 'updateVitals'])->name('doctor.patients.vitals.update');
     });
 
     // Nurse Routes

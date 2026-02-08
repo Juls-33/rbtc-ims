@@ -9,13 +9,6 @@ export default function Patients({ auth, patients }) {
         <AuthenticatedLayout 
             auth={auth} 
             header="Doctor / Patient Management"
-            sectionTitle={
-                    <div className="flex justify-between items-center w-full px-6 text-white">
-                        <span className="text-white font-semibold text-lg">
-                            Doctor / Patient Management
-                        </span>
-                    </div>
-            }
         >
         
             <Head title="Patient Management" />

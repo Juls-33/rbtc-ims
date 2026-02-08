@@ -14,13 +14,6 @@ export default function DoctorDashboard({ auth }) {
         <AuthenticatedLayout 
             auth={auth}
             header="Doctor / Dashboard"
-            sectionTitle={
-                <div className="flex justify-between items-center w-full px-6 text-white">
-                    <span className="text-white font-semibold text-lg">
-                        Doctor / Dashboard
-                    </span>
-                </div>
-            }
         >
             <Head title="Doctor Dashboard" />
 

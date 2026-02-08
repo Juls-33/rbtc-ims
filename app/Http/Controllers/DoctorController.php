@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PatientVisit;
 use App\Models\Patient;
 use App\Models\Room;
 use App\Models\Staff;
@@ -47,13 +48,14 @@ class DoctorController extends Controller
         $numericId = is_numeric($id) ? (int)$id : (int)str_replace('P-', '', $id);
 
         $patient = Patient::with(['admissions.room', 'admissions.staff', 'visits'])
-                    ->findOrFail($numericId);
+                ->findOrFail($numericId);
 
         $latestAdmission = $patient->admissions->sortByDesc('admission_date')->first();
-        $latestVisit = $patient->visits->sortByDesc('visit_date')->first();
+        $latestVisit = $patient->visits()->latest()->first();
 
         return Inertia::render('Doctor/PatientProfile', [
             'patient' => [
+                'db_id'            => $patient->id,
                 'id'               => $patient->patient_id, 
                 'name'             => $patient->full_name,
                 'dob'              => $patient->birth_date,
@@ -70,9 +72,10 @@ class DoctorController extends Controller
                 'latestNote'       => $patient->medical_history ?? 'No consultation notes available.',
                 // Safeguard the vitals so React doesn't crash on undefined properties
                 'weight' => $latestVisit->weight ?? '—',
-                'bp'     => '—', 
-                'hr'     => '—', 
-                'temp'   => '—',
+                'bp'     => $latestVisit->blood_pressure ?? '—', 
+                'hr'     => $latestVisit->heart_rate ?? '—', 
+                'temp'   => $latestVisit->temperature ?? '—',
+                'latestNote' => $latestVisit ? $latestVisit->reason : 'No consultation notes available.',
             ],
             'admissionHistory' => $patient->admissions->map(fn($adm) => [
                 'id'         => 'A-' . str_pad($adm->id, 5, '0', STR_PAD_LEFT),
@@ -81,5 +84,38 @@ class DoctorController extends Controller
                 'reason'     => $adm->diagnosis,
             ])->toArray(),
         ]);
+    }
+
+    public function updateVitals(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'blood_pressure' => [
+            'required', 
+            'string', 
+            'regex:/^([7-9][0-9]|1[0-9]{2})\/([4-9][0-9]|1[0-3][0-9])$/'
+            ],
+
+            'heart_rate' => [
+            'required', 
+            'numeric', 
+            'between:30,220'
+            ],
+            'temperature'    => 'required|numeric|between:30,45',
+            'weight'         => 'required|numeric|between:1,500',
+            'visit_date'     => 'required|date',
+            'reason'         => 'required|string|max:255',
+        ]);
+
+        PatientVisit::create([
+            'patient_id'     => $id, 
+            'visit_date'     => $validated['visit_date'],
+            'blood_pressure' => $validated['blood_pressure'],
+            'heart_rate'     => $validated['heart_rate'],
+            'temperature'    => $validated['temperature'],
+            'weight'         => $validated['weight'],
+            'reason'         => $validated['reason'], 
+        ]);
+
+        return back()->with('message', 'Vitals updated successfully!');
     }
 }

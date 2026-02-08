@@ -31,13 +31,6 @@ export default function NurseProfile({ auth }) {
         <AuthenticatedLayout
             auth={auth}
             header="Nurse / Profile"
-            sectionTitle={
-                <div className="flex justify-between items-center w-full px-6 text-white">
-                    <span className="text-white font-semibold text-lg">
-                        Nurse / Profile
-                    </span>
-                </div>
-            }
         >
             <Head title="My Profile" />
 
