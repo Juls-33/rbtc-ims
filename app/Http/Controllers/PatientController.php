@@ -14,9 +14,18 @@ class PatientController extends Controller
     public function index()
     {
         // 1. Fetch selection data
-        $selectablePatients = Patient::orderBy('last_name')->get()->map(fn ($p) => [
-            'id' => $p->id,
+        $selectablePatients = Patient::with(['admissions' => function($query) {
+            $query->latest('admission_date');
+        }])
+        ->orderBy('last_name')
+        ->get()
+        ->map(fn ($p) => [
+            'id'   => $p->id,
             'name' => $p->full_name,
+            'patient_id' => $p->patient_id,
+            'status' => ($p->admissions->first() && strtolower($p->admissions->first()->status) === 'admitted') 
+                        ? 'ADMITTED' 
+                        : 'OUTPATIENT',
         ]);
 
         $rooms = Room::select('id', 'room_location', 'room_rate', 'status')->get();
