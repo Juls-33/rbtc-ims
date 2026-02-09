@@ -1,12 +1,12 @@
 // resources/js/Pages/Admin/Partials/EditMedicineModal.jsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
 import Toast from '@/Components/Toast'; 
 
 export default function EditMedicineModal({ isOpen, onClose, medicine }) {
-    const { data, setData, put, processing, errors, reset, setError, clearErrors } = useForm({
+    const { data, setData, put, processing, errors, reset, setError, clearErrors, transform } = useForm({
         generic_name: '',
         brand_name: '',
         category: '',
@@ -17,6 +17,24 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
 
     const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' });
 
+    const generatedSkuPrefix = useMemo(() => {
+        const cleanText = (str) => (str || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    
+        const getNumbers = (str) => (str || '').replace(/[^0-9]/g, '');
+
+        const g = cleanText(data.generic_name).substring(0, 4);
+        const b = cleanText(data.brand_name).substring(0, 3);
+        const d = getNumbers(data.dosage);
+        
+        return g + "-" + b + "-" + d;
+    }, [data.generic_name, data.brand_name, data.dosage]);
+
+    useEffect(() => {
+        transform((data) => ({
+            ...data,
+            sku_id: generatedSkuPrefix, 
+        }));
+    }, [generatedSkuPrefix]);
     // --- Data Loading Logic ---
     useEffect(() => {
         if (medicine && isOpen) {
@@ -116,9 +134,11 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
                         <div className="bg-[#E6AA68] px-6 py-4 flex justify-between items-center border-b border-[#ca8a04] shadow-sm">
                             <div>
                                 <h2 className="text-[#5c3a00] font-black text-lg tracking-tight uppercase leading-none">Edit Medicine</h2>
-                                <p className="text-[#78350f] text-[10px] font-mono mt-1 font-bold uppercase">SKU: {medicine?.sku || '---'}</p>
+                                <p className="text-[#78350f] text-[10px] font-mono mt-1 font-bold uppercase">
+                                    Current SKU: {medicine?.sku} | <span className="bg-white/50 px-1 rounded">New Prefix: {generatedSkuPrefix}</span>
+                                </p>
                             </div>
-                            <button onClick={handleModalClose} className="text-[#5c3a00] hover:text-black text-2xl font-bold leading-none transition-transform hover:scale-110">&times;</button>
+                            <button onClick={handleModalClose} className="text-[#5c3a00] hover:text-black text-2xl font-bold leading-none">&times;</button>
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-8 text-slate-800">

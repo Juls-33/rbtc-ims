@@ -1,12 +1,12 @@
 // resources/js/Pages/Admin/Partials/AddMedicineModal.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react'; 
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
 import Toast from '@/Components/Toast'; 
 
 export default function AddMedicineModal({ isOpen, onClose }) {
-    const { data, setData, post, processing, errors, reset, setError, clearErrors } = useForm({
+    const { data, setData, post, processing, errors, reset, setError, clearErrors, transform } = useForm({
         generic_name: '',
         brand_name: '',
         category: '',
@@ -16,8 +16,27 @@ export default function AddMedicineModal({ isOpen, onClose }) {
     });
 
     const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' });
+    const today = new Date().toISOString().split('T')[0];
 
-    // --- Passive Validation on Submit ---
+   const generatedSku = useMemo(() => {
+        const cleanText = (str) => (str || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    
+        const getNumbers = (str) => (str || '').replace(/[^0-9]/g, '');
+
+        const g = cleanText(data.generic_name).substring(0, 4);
+        const b = cleanText(data.brand_name).substring(0, 3);
+        const d = getNumbers(data.dosage);
+        
+        return g + "-" + b + "-" + d;
+    }, [data.generic_name, data.brand_name, data.dosage]);
+
+    useEffect(() => {
+        transform((data) => ({
+            ...data,
+            sku_id: generatedSku, 
+        }));
+    }, [generatedSku]);
+
     const validate = () => {
         let isValid = true;
         clearErrors();
@@ -32,11 +51,6 @@ export default function AddMedicineModal({ isOpen, onClose }) {
 
         if (data.price_per_unit && parseFloat(data.price_per_unit) < 0) {
             setError('price_per_unit', 'Price cannot be negative.');
-            isValid = false;
-        }
-
-        if (data.reorder_point && parseInt(data.reorder_point) < 0) {
-            setError('reorder_point', 'Must be 0 or higher.');
             isValid = false;
         }
 
@@ -83,24 +97,19 @@ export default function AddMedicineModal({ isOpen, onClose }) {
 
     return (
         <>
-            {/* Persistent Toast */}
-            {toastInfo.show && (
-                <Toast 
-                    message={toastInfo.message} 
-                    type={toastInfo.type} 
-                    onClose={() => setToastInfo({ ...toastInfo, show: false })} 
-                />
-            )}
+            {toastInfo.show && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo({ ...toastInfo, show: false })} />}
 
             {isOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                     <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all animate-in zoom-in duration-200">
                         
-                        {/* Header */}
+                        {/* Header with SKU Preview */}
                         <div className="bg-[#2E4696] px-6 py-4 flex justify-between items-center border-b border-[#1e3a8a] shadow-sm">
                             <div>
                                 <h2 className="text-white font-black text-lg tracking-tight uppercase leading-none">Add New Medicine</h2>
-                                <p className="text-blue-100 text-[10px] font-bold mt-1 uppercase tracking-widest text-opacity-80">Inventory Creation Entry</p>
+                                <p className="text-blue-100 text-[10px] font-bold mt-1 uppercase tracking-widest">
+                                    SKU Prefix: <span className="bg-blue-900 px-2 py-0.5 rounded text-white font-mono tracking-normal">{generatedSku || '---'}</span>
+                                </p>
                             </div>
                             <button onClick={handleModalClose} className="text-white/70 hover:text-white text-2xl font-bold leading-none transition-transform hover:scale-110">&times;</button>
                         </div>
@@ -108,8 +117,7 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                         <form onSubmit={handleSubmit} className="p-8 text-slate-800">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
                                 
-                                {/* Generic Name */}
-                                <div className="md:col-span-1">
+                                <div>
                                     <Label text="Generic Name" current={data.generic_name.length} max={100} fieldError={errors.generic_name} />
                                     <input 
                                         type="text" 
@@ -122,8 +130,7 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                                     {errors.generic_name && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.generic_name}</p>}
                                 </div>
                                 
-                                {/* Brand Name */}
-                                <div className="md:col-span-1">
+                                <div>
                                     <Label text="Brand Name" current={data.brand_name.length} max={100} required={false} fieldError={errors.brand_name} />
                                     <input 
                                         type="text" 
@@ -135,14 +142,9 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                                     />
                                 </div>
 
-                                {/* Category */}
                                 <div>
                                     <Label text="Medical Classification" fieldError={errors.category} />
-                                    <select 
-                                        value={data.category} 
-                                        onChange={e => setData('category', e.target.value)}
-                                        className={inputClass(errors.category)}
-                                    >
+                                    <select value={data.category} onChange={e => setData('category', e.target.value)} className={inputClass(errors.category)}>
                                         <option value="">Select Category...</option>
                                         <option value="Antibiotic">Antibiotic</option>
                                         <option value="Analgesic">Analgesic (Painkiller)</option>
@@ -151,10 +153,8 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                                         <option value="Anti-Inflammatory">Anti-Inflammatory</option>
                                         <option value="Other">Other</option>
                                     </select>
-                                    {errors.category && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.category}</p>}
                                 </div>
 
-                                {/* Dosage */}
                                 <div>
                                     <Label text="Dosage / Form" current={data.dosage.length} max={50} fieldError={errors.dosage} />
                                     <input 
@@ -165,56 +165,25 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                                         className={inputClass(errors.dosage)}
                                         placeholder="e.g. 500mg Tablet"
                                     />
-                                    {errors.dosage && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.dosage}</p>}
                                 </div>
 
-                                {/* Price */}
                                 <div>
                                     <Label text="Price Per Unit" fieldError={errors.price_per_unit} />
                                     <div className="relative">
                                         <span className="absolute left-3 top-2.5 text-slate-400 font-bold text-sm">₱</span>
-                                        <input 
-                                            type="number" 
-                                            step="0.01"
-                                            value={data.price_per_unit}
-                                            onChange={e => setData('price_per_unit', e.target.value)}
-                                            className={`${inputClass(errors.price_per_unit)} pl-7`}
-                                            placeholder="0.00"
-                                        />
+                                        <input type="number" step="0.01" value={data.price_per_unit} onChange={e => setData('price_per_unit', e.target.value)} className={`${inputClass(errors.price_per_unit)} pl-7`} placeholder="0.00" />
                                     </div>
-                                    {errors.price_per_unit && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.price_per_unit}</p>}
                                 </div>
 
-                                {/* Reorder Point */}
                                 <div>
                                     <Label text="Low Stock Alert Level" fieldError={errors.reorder_point} />
-                                    <input 
-                                        type="number" 
-                                        value={data.reorder_point}
-                                        onChange={e => setData('reorder_point', e.target.value)}
-                                        className={inputClass(errors.reorder_point)}
-                                    />
-                                    <p className="text-[9px] text-slate-400 mt-1 font-bold uppercase tracking-tighter">System flags when stock hits this level.</p>
-                                    {errors.reorder_point && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.reorder_point}</p>}
+                                    <input type="number" value={data.reorder_point} onChange={e => setData('reorder_point', e.target.value)} className={inputClass(errors.reorder_point)} />
                                 </div>
                             </div>
 
                             <div className="mt-10 flex justify-end gap-3 border-t pt-6">
-                                <Button 
-                                    type="button" 
-                                    variant="gray" 
-                                    onClick={handleModalClose}
-                                    className="px-6 py-2 bg-slate-500 hover:bg-slate-600 text-white font-black text-[10px] uppercase tracking-widest transition-all"
-                                >
-                                    Cancel
-                                </Button>
-                                
-                                <Button 
-                                    type="submit" 
-                                    variant="success"
-                                    disabled={processing}
-                                    className="flex items-center gap-2 px-8 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest shadow-md active:scale-95 disabled:opacity-50 transition-all"
-                                >
+                                <Button type="button" variant="gray" onClick={handleModalClose} className="px-6 py-2 bg-slate-500 hover:bg-slate-600 text-white font-black text-[10px] uppercase tracking-widest transition-all">Cancel</Button>
+                                <Button type="submit" variant="success" disabled={processing} className="flex items-center gap-2 px-8 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest shadow-md active:scale-95 disabled:opacity-50 transition-all">
                                     {processing ? 'CREATING...' : 'CREATE MEDICINE'}
                                 </Button>
                             </div>

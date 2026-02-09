@@ -59,37 +59,42 @@ class MedicineController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'generic_name' => 'required|string|max:255',
-            'brand_name' => 'nullable|string|max:255',
-            'category' => 'required|string|max:255',
-            'dosage' => 'required|string|max:255',
-            'reorder_point' => 'required|integer|min:0',
+            'generic_name'   => 'required|string|max:255',
+            'brand_name'     => 'nullable|string|max:255',
+            'category'       => 'required|string|max:255',
+            'dosage'         => 'required|string|max:255',
+            'reorder_point'  => 'required|integer|min:0',
             'price_per_unit' => 'required|numeric|min:0',
         ]);
 
-        $clean = fn($str) => strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $str));
-        $baseSku = $clean($validated['generic_name']) . ($validated['brand_name'] ? '-' . $clean($validated['brand_name']) : '') . '-' . $clean($validated['dosage']);
+        $cleanAlphanumeric = fn($str) => strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $str));
+        $extractNumbers    = fn($str) => preg_replace('/[^0-9]/', '', $str);
+        
+        $genPart   = substr($cleanAlphanumeric($validated['generic_name']), 0, 4);
+        $brandPart = substr($cleanAlphanumeric($validated['brand_name'] ?? ''), 0, 3);
+        $dosePart  = $extractNumbers($validated['dosage']);
+
+        $baseSku = $genPart . "-" . $brandPart . "-" . $dosePart;
         
         $nextSequence = 1;
-        $sku = "{$baseSku}-" . str_pad($nextSequence, 3, '0', STR_PAD_LEFT);
+        $sku = $baseSku . "-" . str_pad($nextSequence, 3, '0', STR_PAD_LEFT);
         while (MedicineCatalog::where('sku_id', $sku)->exists()) {
             $nextSequence++;
-            $sku = "{$baseSku}-" . str_pad($nextSequence, 3, '0', STR_PAD_LEFT);
+            $sku = $baseSku . "-" . str_pad($nextSequence, 3, '0', STR_PAD_LEFT);
         }
 
         return DB::transaction(function () use ($validated, $sku) {
-            $validated['sku_id'] = $sku;
+            $validated['sku_id'] = $sku; 
             $medicine = MedicineCatalog::create($validated);
 
             StockLog::create([
                 'medicine_id'   => $medicine->id,
-                'staff_id'      => auth()->id(), // FIX: Use auth id (integer)
-                'batch_id'      => null, 
+                'staff_id'      => auth()->id(), 
                 'change_amount' => 0,
                 'reason'        => "CATALOG: New medicine entry created.",
             ]);
 
-            return redirect()->back();
+            return redirect()->back()->with('success', 'Medicine added: ' . $sku);
         });
     }
 
@@ -97,23 +102,45 @@ class MedicineController extends Controller
     {
         $medicine = MedicineCatalog::findOrFail($id);
         $validated = $request->validate([
-            'generic_name' => 'required|string|max:255',
-            'brand_name' => 'nullable|string|max:255',
-            'category' => 'required|string|max:255',
-            'dosage' => 'required|string|max:255',
-            'reorder_point' => 'required|integer|min:0',
+            'generic_name'   => 'required|string|max:255',
+            'brand_name'     => 'nullable|string|max:255',
+            'category'       => 'required|string|max:255',
+            'dosage'         => 'required|string|max:255',
+            'reorder_point'  => 'required|integer|min:0',
             'price_per_unit' => 'required|numeric|min:0',
         ]);
+
+        $cleanAlphanumeric = fn($str) => strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', $str));
+        $extractNumbers    = fn($str) => preg_replace('/[^0-9]/', '', $str);
+        
+        $genPart   = substr($cleanAlphanumeric($validated['generic_name']), 0, 4);
+        $brandPart = substr($cleanAlphanumeric($validated['brand_name'] ?? ''), 0, 3);
+        $dosePart  = $extractNumbers($validated['dosage']);
+
+        // --- FIXED TYPO HERE: Renamed $baseSku to $newBaseSku ---
+        $newBaseSku = $genPart . "-" . $brandPart . "-" . $dosePart;
+        $currentBase = preg_replace('/-\d{3}$/', '', $medicine->sku_id);
+
+        if ($newBaseSku !== $currentBase) {
+            $nextSequence = 1;
+            $finalSku = "{$newBaseSku}-" . str_pad($nextSequence, 3, '0', STR_PAD_LEFT);
+            
+            // Ensure the new SKU doesn't collide with existing records
+            while (MedicineCatalog::where('sku_id', $finalSku)->where('id', '!=', $id)->exists()) {
+                $nextSequence++;
+                $finalSku = "{$newBaseSku}-" . str_pad($nextSequence, 3, '0', STR_PAD_LEFT);
+            }
+            $validated['sku_id'] = $finalSku;
+        }
 
         return DB::transaction(function () use ($medicine, $validated) {
             $medicine->update($validated);
 
             StockLog::create([
                 'medicine_id'   => $medicine->id,
-                'staff_id'      => auth()->id(), // FIX: Use auth id (integer)
-                'batch_id'      => null,
+                'staff_id'      => auth()->id(),
                 'change_amount' => 0,
-                'reason'        => "CATALOG: Medicine details updated.",
+                'reason'        => "CATALOG: Medicine details and SKU updated.",
             ]);
 
             return redirect()->back()->with('success', 'Medicine updated successfully');
