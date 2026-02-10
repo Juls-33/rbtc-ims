@@ -6,25 +6,20 @@ use App\Models\PatientVisit;
 use App\Models\Patient;
 use App\Models\Room;
 use App\Models\Staff;
+use App\Models\Prescription;
+use App\Models\MedicineCatalog;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 
 class DoctorController extends Controller
 {
-    /**
-     * Display the Doctor Dashboard
-     */
     public function dashboard()
     {
         return Inertia::render('Doctor/Dashboard');
     }
 
-    /**
-     * Display the Patient List
-     */
     public function patients()
     {
-        // This sends the REAL data from MySQL to your React page
         return Inertia::render('Doctor/Patients', [
             'patients' => Patient::all()->map(function($patient) {
                 return [
@@ -77,6 +72,22 @@ class DoctorController extends Controller
                 'temp'   => $latestVisit->temperature ?? '—',
                 'latestNote' => $latestVisit ? $latestVisit->reason : 'No consultation notes available.',
             ],
+            'medicines' => MedicineCatalog::orderBy('generic_name')->get()->map(function($med) {
+                return [
+                    'id'   => $med->id,
+                    // Shows as: "Paracetamol (Biogesic)"
+                    'name' => $med->brand_name 
+                                ? "{$med->generic_name} ({$med->brand_name})" 
+                                : $med->generic_name,
+                ];
+            }),
+            'auth' => [
+                'user' => [
+                    'db_id' => auth()->user()->id,
+                    'name'  => "Dr. " . auth()->user()->last_name,
+                    'id'    => auth()->user()->staff_id, // e.g., D-005
+                ]
+            ],
             'admissionHistory' => $patient->admissions->map(fn($adm) => [
                 'id'         => 'A-' . str_pad($adm->id, 5, '0', STR_PAD_LEFT),
                 'admitted'   => $adm->admission_date,
@@ -104,6 +115,9 @@ class DoctorController extends Controller
             'weight'         => 'required|numeric|between:1,500',
             'visit_date'     => 'required|date',
             'reason'         => 'required|string|max:255',
+            ], [
+            'blood_pressure.regex' => 'Please enter a valid BP (e.g., 120/80). Systolic: 70-190, Diastolic: 40-130.',
+            'heart_rate.between'   => 'Heart rate must be between 30 and 220 bpm.',
         ]);
 
         PatientVisit::create([
@@ -117,5 +131,28 @@ class DoctorController extends Controller
         ]);
 
         return back()->with('message', 'Vitals updated successfully!');
+    }
+
+    public function storePrescription(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'medicine_name'   => 'required|string|max:255',
+            'dosage'          => 'required|string|max:100',
+            'frequency'       => 'required|string|max:100',
+            'time'            => 'required',
+            'date_prescribed' => 'required|date',
+        ]);
+
+        Prescription::create([
+            'patient_id'      => $id,
+            'staff_id'        => auth()->id(), // Automatically sets to logged-in doctor
+            'medicine_name'   => $validated['medicine_name'],
+            'dosage'          => $validated['dosage'],
+            'frequency'       => $validated['frequency'],
+            'time'            => $validated['time'],
+            'date_prescribed' => $validated['date_prescribed'],
+        ]);
+
+        return back()->with('message', 'Prescription added successfully!');
     }
 }

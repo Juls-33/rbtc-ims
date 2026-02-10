@@ -3,35 +3,89 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import Modal from '@/Components/Modal';
 
-export default function DoctorPatientProfile({ auth, patient, admissionHistory, prescriptions = [] }) {
+export default function DoctorPatientProfile({ auth, patient, admissionHistory, medicines, prescriptions = [] }) {
     const [activeTab, setActiveTab] = useState('admission');
     
     // Modal States
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
     const [showVitals, setShowVitals] = useState(false);
+    const [isOther, setIsOther] = useState(false);
 
-    const { data, setData, post, processing, reset, errors } = useForm({
+    // 1. Vitals Form
+    const { 
+        data: vitalsData, 
+        setData: setVitalsData, 
+        post: postVitals, 
+        reset: resetVitals, 
+        processing: processingVitals,
+        errors: vitalsErrors 
+    } = useForm({
         blood_pressure: '',
         heart_rate: '',
         temperature: '',
         weight: '',
         visit_date: new Date().toISOString().split('T')[0],
-        reason: '',
+        reason: 'Routine Checkup', // Default value to fix image_cf8438.png
+    });
+
+    // 2. Prescription Form
+    const { 
+        data: prescriptionData, 
+        setData: setPrescriptionData, 
+        post: postPrescription, 
+        processing: processingPrescription, 
+        reset: resetPrescription,
+        errors: prescriptionErrors 
+    } = useForm({
+        medicine_name: '',
+        custom_medicine: '', 
+        dosage: '',
+        frequency: '',
+        time: '',
+        date_prescribed: new Date().toISOString().split('T')[0],
     });
 
     const submitVitals = (e) => {
         e.preventDefault();
         console.log("Submitting to ID:", patient.db_id); // Check your console (F12) for this!
         
-        post(route('doctor.patients.vitals.update', patient.db_id), {
+        postVitals(route('doctor.patients.vitals.update', patient.db_id), {
             onSuccess: () => {
                 setShowVitals(false);
-                reset();
+                resetVitals();
             },
             onError: (err) => {
                 console.error("Submission failed:", err); // This will tell us exactly what Laravel rejected
             }
+        });
+    };
+
+    const handleMedicineChange = (e) => {
+        const value = e.target.value;
+        if (value === 'other') {
+            setIsOther(true);
+            setPrescriptionData('medicine_name', ''); 
+        } else {
+            setIsOther(false);
+            setPrescriptionData('medicine_name', value);
+        }
+    };
+
+    const submitPrescription = (e) => {
+        e.preventDefault();
+        
+        const payload = {
+            ...prescriptionData,
+            medicine_name: isOther ? prescriptionData.custom_medicine : prescriptionData.medicine_name
+        };
+
+        postPrescription(route('doctor.prescriptions.store', patient.db_id), {
+            onSuccess: () => {
+                resetPrescription();
+                setIsOther(false);
+                setShowPrescriptionModal(false);
+            },
         });
     };
 
@@ -301,45 +355,73 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                 </div>
                 <div className="p-8 space-y-4">
                     {/* Updated: Added Doctor's ID here */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        {/* Auto-filled Doctor Info */}
                         <div>
-                            <label className="text-xs font-bold text-gray-600 block mb-1">Doctor's ID</label>
-                            <input type="text" className="w-full border-gray-300 rounded-md shadow-sm text-sm" placeholder="e.g. D-005" />
+                            <label className="block text-sm font-medium text-gray-700">Doctor's ID</label>
+                            <input type="text" disabled value={auth.user.id} className="mt-1 block w-full bg-gray-100 border-gray-300 rounded-md" />
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-gray-600 block mb-1">Doctor's Name</label>
-                            <input type="text" className="w-full border-gray-300 rounded-md shadow-sm text-sm" />
+                            <label className="block text-sm font-medium text-gray-700">Doctor's Name</label>
+                            <input type="text" disabled value={auth.user.name} className="mt-1 block w-full bg-gray-100 border-gray-300 rounded-md" />
                         </div>
                     </div>
 
-                    <div>
-                        <label className="text-xs font-bold text-gray-600 block mb-1">Medicine Name</label>
-                        <input type="text" className="w-full border-gray-300 rounded-md shadow-sm text-sm" />
+                    {/* Medicine Dropdown + Other */}
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700">Medicine Name</label>
+                        <select 
+                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                            value={isOther ? 'other' : prescriptionData.medicine_name}
+                            onChange={handleMedicineChange}
+                        >
+                            <option value="">-- Select Medicine from Catalog --</option>
+                            {medicines.map((med) => (
+                                <option key={med.id} value={med.name}>{med.name}</option>
+                            ))}
+                            <option value="other" className="font-bold text-blue-600">Other (Type manually...)</option>
+                        </select>
+
+                        {/* This text box appears only if "Other" is selected */}
+                        {isOther && (
+                            <input
+                                type="text"
+                                placeholder="Enter medicine name..."
+                                className="mt-2 block w-full border-blue-500 rounded-md shadow-sm focus:ring-blue-500"
+                                value={prescriptionData.custom_medicine}
+                                onChange={(e) => setPrescriptionData('custom_medicine', e.target.value)}
+                                required
+                            />
+                        )}
+                        {prescriptionErrors.medicine_name && <p className="text-red-500 text-xs mt-1">{prescriptionErrors.medicine_name}</p>}
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    {/* Dosage, Frequency, Time */}
+                    <div className="grid grid-cols-3 gap-4 mb-4">
                         <div>
-                            <label className="text-xs font-bold text-gray-600 block mb-1">Dosage</label>
-                            <input type="text" className="w-full border-gray-300 rounded-md shadow-sm text-sm" placeholder="e.g. 500mg" />
+                            <label className="block text-sm font-medium text-gray-700">Dosage</label>
+                            <input type="text" placeholder="e.g. 500mg" value={prescriptionData.dosage} onChange={e => setPrescriptionData('dosage', e.target.value)} className="mt-1 block w-full border-gray-300 rounded-md" />
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-gray-600 block mb-1">Frequency</label>
-                            <input type="text" className="w-full border-gray-300 rounded-md shadow-sm text-sm" placeholder="e.g. 2x a day" />
+                            <label className="block text-sm font-medium text-gray-700">Frequency</label>
+                            <input type="text" placeholder="e.g. 2x a day" value={prescriptionData.frequency} onChange={e => setPrescriptionData('frequency', e.target.value)} className="mt-1 block w-full border-gray-300 rounded-md" />
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-gray-600 block mb-1">Time</label>
-                            <input type="time" className="w-full border-gray-300 rounded-md shadow-sm text-sm" />
+                            <label className="block text-sm font-medium text-gray-700">Time</label>
+                            <input type="time" value={prescriptionData.time} onChange={e => setPrescriptionData('time', e.target.value)} className="mt-1 block w-full border-gray-300 rounded-md" />
                         </div>
                     </div>
-                    <div>
-                        <label className="text-xs font-bold text-gray-600 block mb-1">Date Prescribed</label>
-                        <input type="date" className="w-full border-gray-300 rounded-md shadow-sm text-sm" defaultValue={new Date().toISOString().split('T')[0]} />
+
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700">Date Prescribed</label>
+                        <input type="date" value={prescriptionData.date_prescribed} onChange={e => setPrescriptionData('date_prescribed', e.target.value)} className="mt-1 block w-full border-gray-300 rounded-md" />
                     </div>
-                    <div className="flex justify-center gap-4 mt-6">
-                        <button onClick={() => setShowPrescriptionModal(false)} className="bg-slate-500 text-white px-8 py-2 rounded font-bold text-xs uppercase shadow hover:bg-slate-600">Cancel</button>
-                        <button onClick={() => setShowPrescriptionModal(false)} className="bg-[#4CAF50] text-white px-10 py-2 rounded font-bold text-xs uppercase shadow hover:bg-green-600">Save</button>
+
+                    <div className="flex justify-end gap-3">
+                        <button type="button" onClick={() => setShowPrescriptionModal(false)} className="px-4 py-2 bg-gray-500 text-white rounded">CANCEL</button>
+                        <button type="submit" disabled={processingPrescription} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">SAVE</button>
                     </div>
-                </div>
+                </div>    
             </Modal>
 
             {/* 3. Update Vitals Modal */}
@@ -372,22 +454,22 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                             <label className="text-xs font-bold text-gray-600 block mb-1">Date of Visit</label>
                             <input 
                                 type="date" 
-                                className={`w-full border rounded-md shadow-sm text-sm ${errors.visit_date ? 'border-red-500' : 'border-gray-300'}`} 
-                                value={data.visit_date}
-                                onChange={e => setData('visit_date', e.target.value)}
+                                className={`w-full border rounded-md shadow-sm text-sm ${vitalsErrors.visit_date ? 'border-red-500' : 'border-gray-300'}`} 
+                                value={vitalsData.visit_date}
+                                onChange={e => setVitalsData('visit_date', e.target.value)}
                             />
-                            {errors.visit_date && <div className="text-red-500 text-[10px] mt-1 font-bold">{errors.visit_date}</div>}
+                            {vitalsErrors.visit_date && <div className="text-red-500 text-[10px] mt-1 font-bold">{vitalsErrors.visit_date}</div>}
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-600 block mb-1">Weight (kg)</label>
                             <input 
                                 type="text" 
-                                className={`w-full border rounded-md shadow-sm text-sm ${errors.weight ? 'border-red-500' : 'border-gray-300'}`} 
+                                className={`w-full border rounded-md shadow-sm text-sm ${vitalsErrors.weight ? 'border-red-500' : 'border-gray-300'}`} 
                                 placeholder="e.g. 70kg" 
-                                value={data.weight}
-                                onChange={e => setData('weight', e.target.value)}
+                                value={vitalsData.weight}
+                                onChange={e => setVitalsData('weight', e.target.value)}
                             />
-                            {errors.weight && <div className="text-red-500 text-[10px] mt-1 font-bold">{errors.weight}</div>}
+                            {vitalsErrors.weight && <div className="text-red-500 text-[10px] mt-1 font-bold">{vitalsErrors.weight}</div>}
                         </div>
                     </div>
                     
@@ -396,8 +478,8 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                         <textarea
                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                             rows="3"
-                            value={data.reason}
-                            onChange={e => setData('reason', e.target.value)}
+                            value={vitalsData.reason}
+                            onChange={e => setVitalsData('reason', e.target.value)}
                             placeholder="Enter observations or reason for visit..."
                         />
                     </div>
@@ -407,34 +489,34 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                             <label className="text-xs font-bold text-gray-600 block mb-1">Blood Pressure</label>
                             <input 
                                 type="text" 
-                                className={`w-full border rounded-md shadow-sm text-sm ${errors.blood_pressure ? 'border-red-500' : 'border-gray-300'}`} 
+                                className={`w-full border rounded-md shadow-sm text-sm ${vitalsErrors.blood_pressure ? 'border-red-500' : 'border-gray-300'}`} 
                                 placeholder="120/80" 
-                                value={data.blood_pressure}
-                                onChange={e => setData('blood_pressure', e.target.value)}
+                                value={vitalsData.blood_pressure}
+                                onChange={e => setVitalsData('blood_pressure', e.target.value)}
                             />
-                            {errors.blood_pressure && <div className="text-red-500 text-[10px] mt-1 font-bold">{errors.blood_pressure}</div>}
+                            {vitalsErrors.blood_pressure && <div className="text-red-500 text-[10px] mt-1 font-bold">{vitalsErrors.blood_pressure}</div>}
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-600 block mb-1">Heart Rate</label>
                             <input 
-                                type="text" 
-                                className={`w-full border rounded-md shadow-sm text-sm ${errors.heart_rate ? 'border-red-500' : 'border-gray-300'}`} 
-                                placeholder="72 bpm" 
-                                value={data.heart_rate}
-                                onChange={e => setData('heart_rate', e.target.value)}
+                                type="number" 
+                                className={`w-full border rounded-md shadow-sm text-sm ${vitalsErrors.heart_rate ? 'border-red-500' : 'border-gray-300'}`} 
+                                placeholder="72" 
+                                value={vitalsData.heart_rate}
+                                onChange={e => setVitalsData('heart_rate', e.target.value)}
                             />
-                            {errors.heart_rate && <div className="text-red-500 text-[10px] mt-1 font-bold">{errors.heart_rate}</div>}
+                            {vitalsErrors.heart_rate && <div className="text-red-500 text-[10px] mt-1 font-bold">{vitalsErrors.heart_rate}</div>}
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-600 block mb-1">Temp (°C)</label>
                             <input 
                                 type="text" 
-                                className={`w-full border rounded-md shadow-sm text-sm ${errors.temperature ? 'border-red-500' : 'border-gray-300'}`} 
+                                className={`w-full border rounded-md shadow-sm text-sm ${vitalsErrors.temperature ? 'border-red-500' : 'border-gray-300'}`} 
                                 placeholder="36.5" 
-                                value={data.temperature}
-                                onChange={e => setData('temperature', e.target.value)}
+                                value={vitalsData.temperature}
+                                onChange={e => setVitalsData('temperature', e.target.value)}
                             />
-                            {errors.temperature && <div className="text-red-500 text-[10px] mt-1 font-bold">{errors.temperature}</div>}
+                            {vitalsErrors.temperature && <div className="text-red-500 text-[10px] mt-1 font-bold">{vitalsErrors.temperature}</div>}
                         </div>
                     </div>
 
@@ -448,10 +530,10 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                         </button>
                         <button 
                             type="submit" 
-                            disabled={processing}
+                            disabled={processingVitals}
                             className="bg-[#4CAF50] text-white px-10 py-2 rounded font-bold text-xs uppercase shadow hover:bg-green-600 transition disabled:opacity-50"
                         >
-                            {processing ? 'Saving...' : 'Save Vitals'}
+                            {processingVitals ? 'Saving...' : 'Save Vitals'}
                         </button>
                     </div>
                 </form>
