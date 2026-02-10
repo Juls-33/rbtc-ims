@@ -1,7 +1,13 @@
 import React from 'react';
 import Button from '@/Components/Button';
 
-export default function ManageStockTable({ items, expandedRow, toggleRow, today, onManage, onEdit, onDelete }) {
+export default function ManageStockTable({ items, expandedRow, toggleRow, today, onManage, onEdit, onDelete, sortConfig, onSort }) {
+    const SortIcon = ({ column }) => {
+        if (sortConfig.key !== column) return <span className="ml-1 opacity-20 text-[10px]">↕</span>;
+        return sortConfig.direction === 'asc' 
+            ? <span className="ml-1 text-blue-600 font-bold">↑</span> 
+            : <span className="ml-1 text-blue-600 font-bold">↓</span>;
+    };
     return (
         <div className="overflow-x-auto relative border border-slate-200 rounded">
             <table className="w-full text-left text-sm border-collapse min-w-[1000px]">
@@ -9,11 +15,25 @@ export default function ManageStockTable({ items, expandedRow, toggleRow, today,
                     <tr>
                         <th className="p-3 w-10 text-center"></th>
                         <th className="p-3 border-r border-slate-200 min-w-[120px]">SKU</th>
-                        <th className="p-3 border-r border-slate-200 min-w-[200px]">Medicine Name</th>
+                        <th 
+                            className="p-3 border-r cursor-pointer hover:bg-slate-100 transition-colors" 
+                            onClick={() => onSort('name')}
+                        >
+                            Medicine Name <SortIcon column="name" />
+                        </th>
                         <th className="p-3 border-r border-slate-200 min-w-[150px]">Category</th>
-                        <th className="p-3 border-r border-slate-200 text-center w-[120px]">Total Stock</th>
-                        <th className="p-3 border-r border-slate-200 text-center min-w-[150px]">Soonest Expiry</th>
-                        <th className="p-3 border-r border-slate-200 text-center w-[120px]">Status</th>
+                        <th 
+                            className="p-3 border-r text-center cursor-pointer hover:bg-slate-100 transition-colors" 
+                            onClick={() => onSort('calculatedTotal')}
+                        >
+                            Total Stock <SortIcon column="calculatedTotal" />
+                        </th>
+                        <th className="p-3 border-r text-center cursor-pointer hover:bg-slate-100" onClick={() => onSort('calculatedSoonest')}>
+                            Expiry <SortIcon column="calculatedSoonest" />
+                        </th>
+                        <th className="p-3 border-r text-center cursor-pointer hover:bg-slate-100" onClick={() => onSort('calculatedStatus')}>
+                            Status <SortIcon column="calculatedStatus" />
+                        </th>
                         
                         {/* --- FIXED ACTIONS HEADER --- */}
                         <th className="p-3 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-20 w-[160px]">

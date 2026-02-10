@@ -180,7 +180,7 @@ export default function AddPatientModal({ isOpen, onClose }) {
                                         </select>
                                     </div>
                                     <div>
-                                        <Label text="Phone Number" current={data.contact_no.length} max={11} required fieldError={errors.contact_no} />
+                                        <Label text="Phone Number (Optional)" current={data.contact_no.length} max={11} fieldError={errors.contact_no} />
                                         <input type="text" value={data.contact_no} onChange={e => setData('contact_no', e.target.value.replace(/\D/g, '').slice(0, 11))} className={inputClass(errors.contact_no)} placeholder="09171234567" />
                                         {errors.contact_no && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.contact_no}</p>}
                                     </div>

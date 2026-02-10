@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
 
@@ -20,7 +20,21 @@ export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [expandedRow, setExpandedRow] = useState(null);
-    const itemsPerPage = 5;
+    const itemsPerPage = 10;
+
+    const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+    const statusPriority = {
+        'OUT OF STOCK': 1,
+        'LOW STOCK': 2,
+        'IN STOCK': 3
+    };
 
     // --- LOGIC: PREPROCESSING ---
     const today = new Date().toISOString().split('T')[0];
@@ -38,6 +52,52 @@ export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
         };
     });
 
+    const filteredAndSortedData = useMemo(() => {
+        const query = searchQuery.toLowerCase();
+        let data = [];
+
+        if (activeTab === 'manage') {
+            // 1. Filter Manage Tab
+            data = processedInventory.filter(item => 
+                item.name.toLowerCase().includes(query) || 
+                item.sku.toLowerCase().includes(query) ||
+                item.category.toLowerCase().includes(query) || 
+                item.calculatedStatus.toLowerCase().includes(query)
+            );
+
+            // 2. Sort Manage Tab
+            data.sort((a, b) => {
+                let aValue = a[sortConfig.key];
+                let bValue = b[sortConfig.key];
+
+                if (sortConfig.key === 'calculatedStatus') {
+                    aValue = statusPriority[a.calculatedStatus] || 99;
+                    bValue = statusPriority[b.calculatedStatus] || 99;
+                }
+
+                if (sortConfig.key === 'calculatedSoonest') {
+                    if (!aValue) return 1; 
+                    if (!bValue) return -1;
+                    aValue = new Date(aValue).getTime();
+                    bValue = new Date(bValue).getTime();
+                }
+
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        } else {
+            // 1. Filter Ledger Tab
+            data = logs.filter(log => 
+                log.id.toLowerCase().includes(query) || 
+                log.medicine_name.toLowerCase().includes(query) ||
+                log.admin.toLowerCase().includes(query) || 
+                log.action.toLowerCase().includes(query)
+            );
+        }
+        return data;
+    }, [activeTab, searchQuery, processedInventory, logs, sortConfig]);
+
     // --- MODAL STATE ---
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -48,25 +108,25 @@ export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
     const [batchMedicine, setBatchMedicine] = useState(null);
 
     // --- LOGIC: FILTERING & PAGINATION ---
-    const getFilteredData = () => {
-        const query = searchQuery.toLowerCase();
-        if (activeTab === 'manage') {
-            return processedInventory.filter(item => 
-                item.name.toLowerCase().includes(query) || item.sku.toLowerCase().includes(query) ||
-                item.category.toLowerCase().includes(query) || item.calculatedStatus.toLowerCase().includes(query)
-            );
-        }
-        return logs.filter(log => 
-            log.id.toLowerCase().includes(query) || log.medicine_name.toLowerCase().includes(query) ||
-            log.admin.toLowerCase().includes(query) || log.action.toLowerCase().includes(query)
-        );
-    };
+    // const getFilteredData = () => {
+        // const query = searchQuery.toLowerCase();
+    //     if (activeTab === 'manage') {
+    //         return processedInventory.filter(item => 
+    //             item.name.toLowerCase().includes(query) || item.sku.toLowerCase().includes(query) ||
+    //             item.category.toLowerCase().includes(query) || item.calculatedStatus.toLowerCase().includes(query)
+    //         );
+    //     }
+    //     return logs.filter(log => 
+    //         log.id.toLowerCase().includes(query) || log.medicine_name.toLowerCase().includes(query) ||
+    //         log.admin.toLowerCase().includes(query) || log.action.toLowerCase().includes(query)
+    //     );
+    // };
 
-    const filteredData = getFilteredData();
+    // const filteredData = getFilteredData();
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+    const currentItems = filteredAndSortedData.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
 
     const stats = {
         totalItems: processedInventory.length,
@@ -121,6 +181,8 @@ export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
                         onManage={(item) => { setBatchMedicine(item); setIsBatchModalOpen(true); }}
                         onEdit={(item) => { setSelectedMedicine(item); setIsEditModalOpen(true); }}
                         onDelete={(item) => { setMedicineToDelete(item); setIsDeleteModalOpen(true); }}
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
                     />
                 ) : (
                     <StockLedgerTable logs={currentItems} />
@@ -128,8 +190,11 @@ export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
             </div>
 
             <Pagination 
-                currentPage={currentPage} totalPages={totalPages} filteredLength={filteredData.length} 
-                indexOfFirstItem={indexOfFirstItem} indexOfLastItem={indexOfLastItem} 
+                currentPage={currentPage} 
+                totalPages={totalPages} 
+                filteredLength={filteredAndSortedData.length} 
+                indexOfFirstItem={indexOfFirstItem} 
+                indexOfLastItem={Math.min(indexOfLastItem, filteredAndSortedData.length)} 
                 onPageChange={(p) => { setCurrentPage(p); setExpandedRow(null); }} 
             />
 
