@@ -12,6 +12,8 @@ use App\Http\Controllers\AdmissionController;
 use App\Http\Controllers\PatientVisitController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Auth\RecoveryController;
+use App\Http\Controllers\StaffLogController;
+use App\Http\Controllers\RoomController;
 
 
 Route::get('/', function () {
@@ -31,6 +33,8 @@ Route::get('/', function () {
 //Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 Route::post('/recover-admin', [RecoveryController::class, 'recoverAdmin'])->name('admin.recover');
 Route::post('/request-reset', [RecoveryController::class, 'requestReset'])->name('staff.request_reset');
+Route::get('/admin/staff-management/logs', [StaffLogController::class, 'index'])->name('admin.staff.logs');
+Route::get('/admin/rooms', [RoomController::class, 'index'])->name('admin.rooms');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/notifications/dismiss', [NotificationController::class, 'dismiss'])->name('notifications.dismiss');
     Route::post('/notifications/dismiss-all', [NotificationController::class, 'dismissAll'])->name('notifications.dismiss_all');
@@ -78,6 +82,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/admissions/discharge', [AdmissionController::class, 'discharge'])->name('admin.admissions.discharge');
 
         Route::post('/visits', [PatientVisitController::class, 'store'])->name('admin.visits.store');
+        
         
 
     });

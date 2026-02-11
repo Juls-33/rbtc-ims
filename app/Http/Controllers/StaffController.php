@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Staff;
+use App\Models\StaffLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -55,7 +56,6 @@ class StaffController extends Controller
 
         try {
             return DB::transaction(function () use ($validated) {
-                // 1. Generate the custom Staff ID
                 $prefix = strtoupper(substr($validated['role'], 0, 1)); // D, N, or A
                 $lastMember = Staff::where('role', $validated['role'])
                     ->orderBy('id', 'desc')
@@ -67,7 +67,6 @@ class StaffController extends Controller
                 
                 $staffId = $prefix . '-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
 
-                // 2. Create the record
                 Staff::create([
                     'staff_id'   => $staffId,
                     'first_name' => $validated['first_name'],
@@ -80,6 +79,14 @@ class StaffController extends Controller
                     'status'     => 'ACTIVE',
                     'password'   => Hash::make($validated['password']),
                     
+                ]);
+                $newStaff = Staff::create($validated);
+
+                StaffLog::create([
+                    'staff_id'    => auth()->id(),
+                    'action'      => 'CREATED STAFF',
+                    'description' => "Created account for {$newStaff->first_name} {$newStaff->last_name} with role {$newStaff->role}.",
+                    'ip_address'  => $request->ip(),
                 ]);
 
                 return redirect()->back()->with('success', "New {$validated['role']} added as {$staffId}.");
@@ -108,6 +115,14 @@ class StaffController extends Controller
             'contact_no' => $validated['contact_number'],
             'gender'     => $validated['gender'],
         ]);
+        $staff->update($validated);
+
+        StaffLog::create([
+            'staff_id'    => auth()->id(),
+            'action'      => 'UPDATED STAFF',
+            'description' => "Modified details for {$staff->first_name} {$staff->last_name} ({$staff->staff_id}).",
+            'ip_address'  => $request->ip(),
+        ]);
 
         return redirect()->back()->with('success', 'Staff details updated.');
     }
@@ -122,6 +137,12 @@ class StaffController extends Controller
         $newStatus = ($staff->status === 'ACTIVE') ? 'INACTIVE' : 'ACTIVE';
         $staff->update(['status' => $newStatus]);
 
+        StaffLog::create([
+            'staff_id'    => auth()->id(),
+            'action'      => $newStatus === 'ACTIVE' ? 'REACTIVATED STAFF' : 'DEACTIVATED STAFF',
+            'description' => ($newStatus === 'ACTIVE' ? "Reactivated" : "Deactivated") . " account for {$staff->first_name} {$staff->last_name} ({$staff->staff_id}).",
+            'ip_address'  => $request->ip(),
+        ]); 
         return redirect()->back()->with('success', "Staff account is now {$newStatus}.");
     }
     public function destroy(Request $request, Staff $staff)
@@ -131,12 +152,24 @@ class StaffController extends Controller
             return redirect()->back()->withErrors(['error' => 'The default admin account cannot be deleted.']);
         }
 
+
+        $staffName = "{$staff->first_name} {$staff->last_name}";
+        $staffID   = $staff->staff_id;
+
+        StaffLog::create([
+            'staff_id'    => auth()->id(),
+            'action'      => 'DELETED STAFF',
+            'description' => "Permanently removed staff record: {$staffName} ({$staffID}).",
+            'ip_address'  => $request->ip(),
+        ]);
+
         $staff->delete();
 
         return redirect()->back()->with('success', 'Staff account has been permanently removed.');
     }
     public function resetPassword(Request $request, Staff $staff)
     {
+        $staff = Staff::findOrFail($id);
         $validated = $request->validate([
             'password' => 'required|string|min:8|confirmed',
         ]);
@@ -144,6 +177,12 @@ class StaffController extends Controller
         $staff->update([
             'password' => Hash::make($validated['password']),
             'reset_requested' => false, // ADDED: Clear the flag once reset is successful
+        ]);
+        StaffLog::create([
+            'staff_id'    => auth()->id(),
+            'action'      => 'PASSWORD RESET',
+            'description' => "Manually reset password to default for {$staff->first_name} {$staff->last_name}.",
+            'ip_address'  => $request->ip(),
         ]);
 
         return redirect()->back()->with('success', "Password for {$staff->first_name} has been updated.");

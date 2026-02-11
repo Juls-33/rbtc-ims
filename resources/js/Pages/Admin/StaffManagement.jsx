@@ -2,18 +2,19 @@
 
 import React, { useState, useMemo } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, Link} from '@inertiajs/react';
 import Button from '@/Components/Button';
 import Pagination from '@/Components/Pagination';
 import AddStaffModal from './Partials/AddStaffModal'; 
-
 import StaffManagementTable from '@/Components/StaffManagementTable';
+import StaffLogs from './Partials/StaffLogs';
 
 export default function StaffManagement({ auth, staff = [], flash }) {
     const [activeTab, setActiveTab] = useState('all'); // 'all', 'doctors', 'nurses', 'admins'
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isStaffLogsOpen, setIsStaffLogsOpen] = useState(false);
     const itemsPerPage = 10;
 
     // --- LOGIC: FILTERING & SEARCHING ---
@@ -93,7 +94,6 @@ export default function StaffManagement({ auth, staff = [], flash }) {
                 </div>
                 
                 <div className="p-8">
-                    {/* Action Bar */}
                     <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <div className="flex-1 max-w-md">
                             <input 
@@ -105,9 +105,19 @@ export default function StaffManagement({ auth, staff = [], flash }) {
                             />
                         </div>
                         
-                        <Button variant="success" className="px-6" onClick={() => setIsAddModalOpen(true)}>
-                            + ADD NEW STAFF
-                        </Button>
+                        <div className="flex gap-2">
+                            {/* NEW HISTORY BUTTON */}
+                            <Link 
+                                href={route('admin.staff.logs')}
+                                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2 rounded font-bold text-[11px] uppercase tracking-widest flex items-center border border-slate-300 transition-all"
+                            >
+                                🕒 System Logs
+                            </Link>
+
+                            <Button variant="success" className="px-6" onClick={() => setIsAddModalOpen(true)}>
+                                + ADD NEW STAFF
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Integrated Table Component */}
@@ -137,6 +147,11 @@ export default function StaffManagement({ auth, staff = [], flash }) {
                 // Auto-select role based on current tab if it's not 'all'
                 initialRole={activeTab === 'all' ? '' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1, -1)} 
             />
+            {/* <StaffLogs
+                isOpen={isStaffLogsOpen} 
+                onClose={() => setIsStaffLogsOpen(false)} 
+                initialRole={activeTab === 'all' ? '' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1, -1)} 
+            /> */}
         </AuthenticatedLayout>
     );
 }
