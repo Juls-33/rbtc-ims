@@ -42,8 +42,8 @@ class DoctorController extends Controller
     {
         $numericId = is_numeric($id) ? (int)$id : (int)str_replace('P-', '', $id);
 
-        $patient = Patient::with(['admissions.room', 'admissions.staff', 'visits'])
-                ->findOrFail($numericId);
+        $patient = Patient::with(['admissions.room', 'admissions.staff', 'visits', 'prescriptions'])
+            ->findOrFail($numericId);
 
         $latestAdmission = $patient->admissions->sortByDesc('admission_date')->first();
         $latestVisit = $patient->visits()->latest()->first();
@@ -72,6 +72,18 @@ class DoctorController extends Controller
                 'temp'   => $latestVisit->temperature ?? '—',
                 'latestNote' => $latestVisit ? $latestVisit->reason : 'No consultation notes available.',
             ],
+
+            'prescriptionHistory' => $patient->prescriptions()->latest()->get()->map(fn($pres) => [
+            'id'        => $pres->id,
+            'medicine'  => $pres->medicine ? ($pres->medicine->brand_name 
+                            ? "{$pres->medicine->generic_name} ({$pres->medicine->brand_name})" 
+                            : $pres->medicine->generic_name) : 'Unknown Medicine',
+            'dosage'    => $pres->dosage,
+            'frequency' => $pres->frequency,
+            'time'      => $pres->schedule_time,
+            'date'      => $pres->date_prescribed,
+            ]),
+
             'medicines' => MedicineCatalog::orderBy('generic_name')->get()->map(function($med) {
                 return [
                     'id'   => $med->id,

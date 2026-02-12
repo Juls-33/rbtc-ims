@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Prescriptions extends Model
 {
     use HasFactory;
+    protected $table = 'prescriptions';
 
     protected $fillable = [
         'patient_id',

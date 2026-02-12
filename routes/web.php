@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MedicineController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\DoctorController;
+use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\AdmissionController;
 use App\Http\Controllers\PatientVisitController;
 use App\Http\Controllers\NotificationController;
@@ -88,12 +89,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // Doctor Routes
-    Route::prefix('doctor')->group(function () {
+    Route::middleware(['auth', 'doctor'])->group(function () {
         Route::get('/dashboard', [DoctorController::class, 'dashboard'])->name('doctor.dashboard');
         Route::get('/patients', [DoctorController::class, 'patients'])->name('doctor.patients');
         Route::get('/patients/{id}', [DoctorController::class, 'showPatient'])->name('doctor.patients.profile');
         Route::get('/profile', fn() => Inertia::render('Doctor/Profile'))->name('doctor.profile');
         Route::post('/patients/{id}/vitals', [DoctorController::class, 'updateVitals'])->name('doctor.patients.vitals.update');
+        Route::post('/prescriptions', [PrescriptionController::class, 'store'])->name('doctor.prescriptions.store');
+        Route::delete('/prescriptions/{id}', [PrescriptionController::class, 'destroy'])->name('doctor.prescriptions.destroy');
+        Route::put('/prescriptions/{id}', [PrescriptionController::class, 'update'])->name('doctor.prescriptions.update');
     });
 
     // Nurse Routes

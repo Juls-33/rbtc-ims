@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, router} from '@inertiajs/react';
 import Modal from '@/Components/Modal';
 
-export default function DoctorPatientProfile({ auth, patient, admissionHistory, medicines, prescriptions = [] }) {
+export default function DoctorPatientProfile({ auth, patient, admissionHistory, medicines, prescriptions, prescriptionHistory = [] }) {
     const [activeTab, setActiveTab] = useState('admission');
     
     // Modal States
@@ -38,6 +38,7 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
         reset: resetPrescription,
         errors: prescriptionErrors 
     } = useForm({
+        patient_id: patient.db_id,
         medicine_name: '',
         custom_medicine: '', 
         dosage: '',
@@ -86,13 +87,25 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                 setIsOther(false);
                 setShowPrescriptionModal(false);
             },
+            onError: (err) => {
+            console.error("Prescription Error:", err);
+        }
         });
     };
 
+    const handleDeletePrescription = (id) => {
+        if (confirm('Are you sure you want to delete this prescription?')) {
+            router.delete(route('doctor.prescriptions.destroy', id), {
+                onSuccess: () => alert('Prescription deleted'),
+            });
+        }
+    };
+
     if (!patient) return <div>Loading...</div>;
+    console.log("Prescription List:", prescriptionHistory);
     return (
         <AuthenticatedLayout
-            auth={auth}
+            auth={auth.user}
             header="Doctor / Patient Management"
             sectionTitle={
                 <div className="flex justify-between items-center w-full px-6 text-white">
@@ -254,18 +267,49 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                                     </button>
                                 </div>
 
-                                <div className="grid gap-4">
-                                    {prescriptions.map((med, i) => (
-                                        <div key={i} className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm flex justify-between items-center">
-                                            <div>
-                                                <div className="text-lg font-bold text-gray-800">{med.name}</div>
-                                                <div className="text-sm text-gray-500 font-medium">{med.dose}</div>
-                                            </div>
-                                            <span className="bg-green-100 text-green-800 text-[10px] uppercase font-bold px-2 py-1 rounded">
-                                                {med.status}
-                                            </span>
+                                <div className="bg-white p-6 rounded-lg shadow-md mt-6">
+                                    <h3 className="text-lg font-bold mb-4 border-b pb-2">Prescription History</h3>
+                                    {prescriptionHistory && prescriptionHistory.length > 0 ? (
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full text-left">
+                                                <thead>
+                                                    <tr className="bg-gray-100">
+                                                        <th className="p-2">Date</th>
+                                                        <th className="p-2">Medicine</th>
+                                                        <th className="p-2">Dosage</th>
+                                                        <th className="p-2">Frequency</th>
+                                                        <th className="p-2 text-right">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {prescriptionHistory.map((pres) => (
+                                                        <tr key={pres.id} className="border-b">
+                                                            <td className="p-2">{pres.date}</td>
+                                                            <td className="p-2 font-semibold">{pres.medicine}</td>
+                                                            <td className="p-2">{pres.dosage}</td>
+                                                            <td className="p-2">{pres.frequency}</td>
+                                                            <td className="p-2 text-right space-x-2">
+                                                            <button 
+                                                                onClick={() => handleEditPrescription(pres)}
+                                                                className="text-blue-600 hover:text-blue-800 text-xs font-bold uppercase"
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleDeletePrescription(pres.id)}
+                                                                className="text-red-600 hover:text-red-800 text-xs font-bold uppercase"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
                                         </div>
-                                    ))}
+                                    ) : (
+                                        <p className="text-gray-500 italic">No prescriptions found for this patient.</p>
+                                    )}
                                 </div>
                             </div>
 
@@ -353,7 +397,8 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                     <h3 className="font-bold uppercase tracking-wide">Add New Prescription</h3>
                     <button onClick={() => setShowPrescriptionModal(false)} className="text-xl hover:text-gray-200">&times;</button>
                 </div>
-                <div className="p-8 space-y-4">
+
+                <form onSubmit={submitPrescription} className="p-8 space-y-4">
                     {/* Updated: Added Doctor's ID here */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
                         {/* Auto-filled Doctor Info */}
@@ -419,9 +464,11 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
 
                     <div className="flex justify-end gap-3">
                         <button type="button" onClick={() => setShowPrescriptionModal(false)} className="px-4 py-2 bg-gray-500 text-white rounded">CANCEL</button>
-                        <button type="submit" disabled={processingPrescription} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">SAVE</button>
+                        <button type="submit" disabled={processingPrescription} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                            {processingPrescription ? 'SAVING...' : 'SAVE'}
+                        </button>
                     </div>
-                </div>    
+                </form>    
             </Modal>
 
             {/* 3. Update Vitals Modal */}
