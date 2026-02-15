@@ -26,6 +26,7 @@ class PatientVisit extends Model
         'blood_pressure',
         'heart_rate', 
         'temperature', 
+        'checkup_fee',
         'weight',
         'reason'
     ];
@@ -37,5 +38,9 @@ class PatientVisit extends Model
     public function patient(): BelongsTo
     {
         return $this->belongsTo(Patient::class);
+    }
+    public function bill_items()
+    {
+        return $this->hasMany(OutpatientBillItem::class, 'visit_id');
     }
 }

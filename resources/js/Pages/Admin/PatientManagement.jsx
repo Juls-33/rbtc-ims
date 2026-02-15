@@ -12,9 +12,8 @@ import AdmitPatientModal from './Partials/AdmitPatientModal';
 import PatientProfile from './Partials/PatientProfile';
 import AddVisitModal from './Partials/AddVisitModal';
 
-export default function PatientManagement({ auth, patients = [], selectablePatients, rooms, doctors }) {
-    // 1. LOCAL STATE (Medicine-Style)
-    // 'patients' is now expected as a simple array for this client-side approach
+export default function PatientManagement({ auth, patients = [], selectablePatients, rooms, doctors, inventory = [] }) {
+
     const allPatients = Array.isArray(patients) ? patients : (patients.data || []);
     const [activeTab, setActiveTab] = useState('all'); 
     const [searchQuery, setSearchQuery] = useState('');
@@ -109,6 +108,7 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                 }} 
                 doctors={doctors} 
                 rooms={rooms}
+                inventory={inventory}
             />
         </AuthenticatedLayout>
     );

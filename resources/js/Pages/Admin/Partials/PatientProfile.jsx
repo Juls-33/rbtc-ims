@@ -11,7 +11,7 @@ import EditPatientModal from './EditPatientModal';
 import EditVisitModal from './EditVisitModal';
 import ViewOutpatientBillModal from './ViewOutpatientBillModal';
 
-export default function PatientProfile({ patient, onBack, doctors, rooms }) {
+export default function PatientProfile({ patient, onBack, doctors, rooms, inventory }) {
     const [activeSubTab, setActiveSubTab] = useState('admission');
     const [isEditAdmissionOpen, setIsEditAdmissionOpen] = useState(false);
     const [isBillModalOpen, setIsBillModalOpen] = useState(false);
@@ -164,6 +164,7 @@ export default function PatientProfile({ patient, onBack, doctors, rooms }) {
                     onClose={() => setIsVisitBillOpen(false)} 
                     patient={patient}
                     visit={selectedVisit}
+                    medicines={inventory}
                 />
             </div>
         );

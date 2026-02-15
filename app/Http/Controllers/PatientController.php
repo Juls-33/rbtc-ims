@@ -35,10 +35,15 @@ class PatientController extends Controller
             ->select('id', 'first_name', 'last_name')
             ->get();
 
-        $patients = Patient::with(['admissions.room', 'admissions.staff', 'visits', 'prescriptions.medicine'])
-            ->latest()
-            ->get() 
-            ->map(function ($patient) {
+        $patients = Patient::with([
+            'admissions.room', 
+            'admissions.staff', 
+            'visits.bill_items.medicine', // Load items and medicine details
+            'visits.bill_items.batch'      // Load batch details
+        ])
+        ->latest()
+        ->get() 
+        ->map(function ($patient){
                 $latest = $patient->admissions->sortByDesc('admission_date')->first();
                 
                 // FIXED: Case-insensitive status check to find the active admission
@@ -92,14 +97,49 @@ class PatientController extends Controller
                         'date'     => $visit->visit_date,
                         'weight'   => $visit->weight ? "{$visit->weight}KG" : 'N/A',
                         'reason'   => $visit->reason,
+                        'checkup_fee' => $visit->checkup_fee, 
+                        'bill_items'  => $visit->bill_items->map(fn($item) => [
+                            'id'          => $item->id,
+                            'medicine_id' => $item->medicine_id,
+                            'batch_id'    => $item->batch_id,
+                            'quantity'    => $item->quantity,
+                            'unit_price'  => $item->unit_price,
+                            'total_price' => $item->total_price,
+                            'medicine'    => $item->medicine ? [
+                                'generic_name' => $item->medicine->generic_name,
+                                'brand_name'   => $item->medicine->brand_name,
+                            ] : null,
+                            'batch'       => $item->batch ? [
+                                'sku_batch_id' => $item->batch->sku_batch_id,
+                            ] : null, 
+                        ]),
                     ]),
                 ];
             });
-        dd($patient->prescriptions->toArray());
+        dd($patient->prescriptions->toArray());        $inventory = \App\Models\MedicineCatalog::with(['batches' => function($query) {
+            $query->where('current_quantity', '>', 0)->orderBy('expiry_date', 'asc');
+        }])->get()->map(function($m) {
+            return [
+                'id' => $m->id,
+                'name' => $m->generic_name,
+                'brand_name' => $m->brand_name,
+                'price' => $m->price_per_unit,
+                'totalStock' => $m->batches->sum('current_quantity'),
+                'is_available' => $m->batches->sum('current_quantity') > 0,
+                'batches' => $m->batches->map(fn($b) => [
+                    'id'     => $b->id,           
+                    'sku_id' => $b->sku_batch_id, 
+                    'expiry' => $b->expiry_date,
+                    'stock'  => $b->current_quantity,
+                ]),
+            ];
+        })->sortByDesc('is_available')->values();
+
         return Inertia::render('Admin/PatientManagement', [
             'patients'           => $patients,
             'selectablePatients' => $selectablePatients,
             'rooms'              => $rooms,
+            'inventory'          => $inventory,
             'doctors'            => $doctors
         ]);
     }

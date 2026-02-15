@@ -9,6 +9,7 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
         patient_id: '',
         visit_date: new Date().toISOString().split('T')[0], 
         weight: '',
+        checkup_fee: 2500, // Added: Default Fee
         reason: '',
     });
 
@@ -33,11 +34,7 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
         return [...results].sort((a, b) => {
             const aAdmitted = a.status?.toLowerCase() === 'admitted';
             const bAdmitted = b.status?.toLowerCase() === 'admitted';
-            if (aAdmitted !== bAdmitted) {
-                return aAdmitted ? 1 : -1;
-            }
-
-            // Secondary Sort: Alphabetical by Name
+            if (aAdmitted !== bAdmitted) return aAdmitted ? 1 : -1;
             return a.name.localeCompare(b.name);
         });
     }, [searchTerm, patients]);
@@ -60,22 +57,17 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
             setError('patient_id', 'Please select a patient.');
             isValid = false;
         }
-
         if (!data.visit_date) {
             setError('visit_date', 'Visit date is required.');
             isValid = false;
         } 
-
         if (!data.reason || data.reason.trim() === '') {
             setError('reason', 'Reason for visit is required.');
             isValid = false;
-        } else if (data.reason.length > 250) {
-            setError('reason', 'Maximum 250 characters only.');
-            isValid = false;
         }
-
-        if (data.weight && parseFloat(data.weight) <= 0) {
-            setError('weight', 'Weight must be a positive number.');
+        // Added Validation for Fee
+        if (data.checkup_fee === '' || parseFloat(data.checkup_fee) < 0) {
+            setError('checkup_fee', 'A valid fee is required.');
             isValid = false;
         }
 
@@ -138,9 +130,9 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-slate-800">
+                            {/* Patient Search */}
                             <div className="relative" ref={dropdownRef}>
                                 <Label text="Select Patient" required fieldError={errors.patient_id} />
-                                
                                 <div className="relative">
                                     <input 
                                         type="text"
@@ -148,83 +140,60 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
                                         className={inputClass(errors.patient_id)}
                                         value={searchTerm}
                                         onFocus={() => setIsDropdownOpen(true)}
-                                        onChange={(e) => {
-                                            setSearchTerm(e.target.value);
-                                            setIsDropdownOpen(true);
-                                        }}
+                                        onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }}
                                     />
                                     {searchTerm && (
-                                        <button 
-                                            type="button" 
-                                            onClick={() => {
-                                                setSearchTerm(''); 
-                                                setData('patient_id', '');
-                                                setIsDropdownOpen(false);
-                                            }}
-                                            className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors font-bold"
-                                        >
-                                            ✕
-                                        </button>
+                                        <button type="button" onClick={() => { setSearchTerm(''); setData('patient_id', ''); setIsDropdownOpen(false); }} className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">✕</button>
                                     )}
                                 </div>
-
                                 {isDropdownOpen && (
-                                    <div className="absolute z-[110] w-full mt-1 bg-white border border-slate-200 rounded shadow-xl max-h-56 overflow-y-auto scrollbar-thin animate-in slide-in-from-top-1 duration-150">
+                                    <div className="absolute z-[110] w-full mt-1 bg-white border border-slate-200 rounded shadow-xl max-h-56 overflow-y-auto scrollbar-thin">
                                         {filteredPatients.length > 0 ? (
-                                            filteredPatients.map(p => {
-                                                // --- THE FIX: Define status check here ---
-                                                const isAdmitted = p.status?.toLowerCase() === 'admitted';
-                                                
-                                                return (
-                                                    <button
-                                                        key={p.id}
-                                                        type="button"
-                                                        disabled={isAdmitted}
-                                                        className={`w-full text-left px-4 py-3 text-sm flex justify-between items-center border-b border-slate-50 last:border-0 transition-colors ${
-                                                            isAdmitted ? 'bg-slate-50 cursor-not-allowed' : 'hover:bg-blue-50'
-                                                        }`}
-                                                        onClick={() => {
-                                                            setData('patient_id', p.id);
-                                                            setSearchTerm(p.name);
-                                                            setIsDropdownOpen(false);
-                                                        }}
-                                                    >
-                                                        <div className="flex flex-col">
-                                                            <span className={`font-bold ${isAdmitted ? 'text-slate-400' : 'text-slate-700'}`}>{p.name}</span>
-                                                            <span className="text-[10px] text-slate-400 font-mono">{p.patient_id || p.id_no}</span>
-                                                        </div>
-                                                        
-                                                        {isAdmitted ? (
-                                                            <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-2 py-1 rounded border border-amber-200 uppercase tracking-tighter">
-                                                                Inpatient (Admitted)
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-[9px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded border border-emerald-100 uppercase tracking-tighter">
-                                                                Selectable
-                                                            </span>
-                                                        )}
-                                                    </button>
-                                                );
-                                            })
+                                            filteredPatients.map(p => (
+                                                <button
+                                                    key={p.id}
+                                                    type="button"
+                                                    disabled={p.status?.toLowerCase() === 'admitted'}
+                                                    className={`w-full text-left px-4 py-3 text-sm flex justify-between items-center border-b border-slate-50 transition-colors ${p.status?.toLowerCase() === 'admitted' ? 'bg-slate-50 cursor-not-allowed' : 'hover:bg-blue-50'}`}
+                                                    onClick={() => { setData('patient_id', p.id); setSearchTerm(p.name); setIsDropdownOpen(false); }}
+                                                >
+                                                    <div className="flex flex-col">
+                                                        <span className={`font-bold ${p.status?.toLowerCase() === 'admitted' ? 'text-slate-400' : 'text-slate-700'}`}>{p.name}</span>
+                                                        <span className="text-[10px] text-slate-400 font-mono">{p.patient_id || p.id_no}</span>
+                                                    </div>
+                                                </button>
+                                            ))
                                         ) : (
                                             <div className="p-4 text-center text-xs text-slate-400 italic">No patients found.</div>
                                         )}
                                     </div>
                                 )}
-                                {errors.patient_id && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.patient_id}</p>}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label text="Visit Date" required fieldError={errors.visit_date} />
                                     <input type="date" value={data.visit_date} onChange={e => setData('visit_date', e.target.value)} className={inputClass(errors.visit_date)} />
-                                    {errors.visit_date && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.visit_date}</p>}
                                 </div>
                                 <div>
                                     <Label text="Weight (KG)" fieldError={errors.weight} />
                                     <input type="number" step="0.1" placeholder="0.0" value={data.weight} onChange={e => setData('weight', e.target.value)} className={inputClass(errors.weight)} />
-                                    {errors.weight && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.weight}</p>}
                                 </div>
+                            </div>
+
+                            {/* Added: Doctor's Fee Field */}
+                            <div>
+                                <Label text="Doctor's Consultation Fee (₱)" required fieldError={errors.checkup_fee} />
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2 text-slate-400 text-sm">₱</span>
+                                    <input 
+                                        type="number" 
+                                        value={data.checkup_fee} 
+                                        onChange={e => setData('checkup_fee', e.target.value)} 
+                                        className={`${inputClass(errors.checkup_fee)} pl-7 font-bold text-emerald-700`} 
+                                    />
+                                </div>
+                                {errors.checkup_fee && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.checkup_fee}</p>}
                             </div>
 
                             <div>
@@ -235,7 +204,7 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
 
                             <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                                 <button type="button" onClick={handleModalClose} className="px-6 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded font-bold text-[11px] uppercase tracking-widest transition-all">Cancel</button>
-                                <button type="submit" disabled={processing} className="px-8 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[11px] uppercase tracking-widest transition-all shadow-md active:scale-95 disabled:opacity-50">
+                                <button type="submit" disabled={processing} className="px-8 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[11px] uppercase tracking-widest transition-all shadow-md">
                                     {processing ? 'Saving...' : 'Save Visit'}
                                 </button>
                             </div>
