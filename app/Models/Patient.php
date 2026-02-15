@@ -54,7 +54,7 @@ class Patient extends Model implements CipherSweetEncrypted
     }
     
     public function prescriptions() { 
-        return $this->hasMany(Prescriptions::class); 
+        return $this->hasMany(Prescriptions::class,'patient_id', 'id'); 
     }
 
     public function getFullNameAttribute()

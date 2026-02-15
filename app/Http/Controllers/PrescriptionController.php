@@ -55,4 +55,23 @@ class PrescriptionController extends Controller
 
         return back()->with('message', 'Prescription deleted successfully.');
     }
+    public function update(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'dosage'    => 'required|string|max:255',
+            'frequency' => 'required|string|max:255',
+            'time'      => 'nullable|string',
+        ]);
+
+        $prescription = Prescriptions::findOrFail($id);
+
+        $prescription->update([
+            'dosage'        => $validated['dosage'],
+            'frequency'     => $validated['frequency'],
+            'schedule_time' => $validated['time'], 
+        ]);
+
+        // CHANGE THIS LINE: Use the back() helper instead of Redirect::back()
+        return back()->with('success', 'Prescription updated successfully.');
+    }
 }

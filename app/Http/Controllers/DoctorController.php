@@ -6,7 +6,7 @@ use App\Models\PatientVisit;
 use App\Models\Patient;
 use App\Models\Room;
 use App\Models\Staff;
-use App\Models\Prescription;
+use App\Models\Prescriptions;
 use App\Models\MedicineCatalog;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
@@ -42,7 +42,7 @@ class DoctorController extends Controller
     {
         $numericId = is_numeric($id) ? (int)$id : (int)str_replace('P-', '', $id);
 
-        $patient = Patient::with(['admissions.room', 'admissions.staff', 'visits', 'prescriptions'])
+        $patient = Patient::with(['admissions.room', 'admissions.staff', 'visits', 'prescriptions.medicine'])
             ->findOrFail($numericId);
 
         $latestAdmission = $patient->admissions->sortByDesc('admission_date')->first();
@@ -73,32 +73,43 @@ class DoctorController extends Controller
                 'latestNote' => $latestVisit ? $latestVisit->reason : 'No consultation notes available.',
             ],
 
-            'prescriptionHistory' => $patient->prescriptions()->latest()->get()->map(fn($pres) => [
-            'id'        => $pres->id,
-            'medicine'  => $pres->medicine ? ($pres->medicine->brand_name 
+            'prescriptionHistory' => $patient->prescriptions
+                ->sortByDesc('created_at')
+                ->values()
+                ->map(function($pres) {
+                    // Step 1: Determine the best name to display
+                    if ($pres->medicine) {
+                        $displayName = $pres->medicine->brand_name 
                             ? "{$pres->medicine->generic_name} ({$pres->medicine->brand_name})" 
-                            : $pres->medicine->generic_name) : 'Unknown Medicine',
-            'dosage'    => $pres->dosage,
-            'frequency' => $pres->frequency,
-            'time'      => $pres->schedule_time,
-            'date'      => $pres->date_prescribed,
-            ]),
+                            : $pres->medicine->generic_name;
+                    } else {
+                        // Fallback to the manual name column, or a placeholder if empty
+                        $displayName = $pres->medicine_name ?? 'Manual Entry Missing';
+                    }
+
+                    return [
+                        'id'            => $pres->id,
+                        'medicine_id'   => $pres->medicine_id,
+                        'medicine_name' => $displayName, 
+                        'dosage'        => $pres->dosage,
+                        'frequency'     => $pres->frequency,
+                        'time'          => $pres->schedule_time, // Added this so Edit works better
+                        'date'          => $pres->date_prescribed,
+                    ];
+            }),
 
             'medicines' => MedicineCatalog::orderBy('generic_name')->get()->map(function($med) {
-                return [
-                    'id'   => $med->id,
-                    // Shows as: "Paracetamol (Biogesic)"
-                    'name' => $med->brand_name 
-                                ? "{$med->generic_name} ({$med->brand_name})" 
-                                : $med->generic_name,
-                ];
-            }),
+            return [
+                'id'   => $med->id,
+                'name' => $med->brand_name ? "{$med->generic_name} ({$med->brand_name})" : $med->generic_name,
+            ];
+        }),
             'auth' => [
-                'user' => [
+                'user' => array_merge(auth()->user()->toArray(), [
                     'db_id' => auth()->user()->id,
                     'name'  => "Dr. " . auth()->user()->last_name,
-                    'id'    => auth()->user()->staff_id, // e.g., D-005
-                ]
+                    'id'    => auth()->user()->staff_id,
+                ])
             ],
             'admissionHistory' => $patient->admissions->map(fn($adm) => [
                 'id'         => 'A-' . str_pad($adm->id, 5, '0', STR_PAD_LEFT),
@@ -148,23 +159,68 @@ class DoctorController extends Controller
     public function storePrescription(Request $request, $id)
     {
         $validated = $request->validate([
+            'medicine_id'     => 'nullable',
             'medicine_name'   => 'required|string|max:255',
             'dosage'          => 'required|string|max:100',
             'frequency'       => 'required|string|max:100',
-            'time'            => 'required',
+            'time'            => 'required', 
             'date_prescribed' => 'required|date',
         ]);
 
-        Prescription::create([
-            'patient_id'      => $id,
-            'staff_id'        => auth()->id(), // Automatically sets to logged-in doctor
+        // Clean the ID: If 'other' or empty, it must be null in DB
+        $finalMedicineId = ($request->medicine_id === 'other' || !$request->medicine_id) 
+                           ? null 
+                           : $request->medicine_id;
+
+        Prescriptions::create([
+            'patient_id'      => $id, // This is the Patient's ID from the URL
+            'staff_id'        => auth()->id(), 
+            'medicine_id'     => $finalMedicineId,
             'medicine_name'   => $validated['medicine_name'],
             'dosage'          => $validated['dosage'],
             'frequency'       => $validated['frequency'],
-            'time'            => $validated['time'],
+            'schedule_time'   => $validated['time'], 
+            'date_prescribed' => $validated['date_prescribed'],
+        ]);
+        
+        return back()->with('message', 'Prescription added successfully!');
+    }
+
+    public function updatePrescription(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'medicine_id'     => 'nullable',
+            'medicine_name'   => 'required|string|max:255',
+            'dosage'          => 'required|string|max:100',
+            'frequency'       => 'required|string|max:100',
+            'time'            => 'required', 
+            'date_prescribed' => 'required|date',
+        ]);
+
+        // Here $id IS the Prescription ID
+        $prescription = Prescriptions::findOrFail($id);
+
+        $finalMedicineId = ($request->medicine_id === 'other' || !$request->medicine_id) 
+                           ? null 
+                           : $request->medicine_id;
+
+        $prescription->update([
+            'medicine_id'     => $finalMedicineId,
+            'medicine_name'   => $validated['medicine_name'],
+            'dosage'          => $validated['dosage'],
+            'frequency'       => $validated['frequency'],
+            'schedule_time'   => $validated['time'], 
             'date_prescribed' => $validated['date_prescribed'],
         ]);
 
-        return back()->with('message', 'Prescription added successfully!');
+        return back()->with('message', 'Prescription updated successfully!');
+    }
+
+    public function destroyPrescription($id)
+    {
+        $prescription = Prescriptions::findOrFail($id);
+        $prescription->delete();
+
+        return back()->with('message', 'Prescription deleted successfully!');
     }
 }

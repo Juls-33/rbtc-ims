@@ -14,6 +14,7 @@ class Prescriptions extends Model
         'patient_id',
         'staff_id',
         'medicine_id',
+        'medicine_name',
         'dosage',
         'frequency',
         'schedule_time',

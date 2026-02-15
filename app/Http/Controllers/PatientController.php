@@ -35,7 +35,7 @@ class PatientController extends Controller
             ->select('id', 'first_name', 'last_name')
             ->get();
 
-        $patients = Patient::with(['admissions.room', 'admissions.staff', 'visits'])
+        $patients = Patient::with(['admissions.room', 'admissions.staff', 'visits', 'prescriptions.medicine'])
             ->latest()
             ->get() 
             ->map(function ($patient) {
@@ -95,7 +95,7 @@ class PatientController extends Controller
                     ]),
                 ];
             });
-
+        dd($patient->prescriptions->toArray());
         return Inertia::render('Admin/PatientManagement', [
             'patients'           => $patients,
             'selectablePatients' => $selectablePatients,
@@ -163,7 +163,7 @@ class PatientController extends Controller
     public function show($id)
     {
         // Load patient with all necessary history
-        $patient = Patient::with(['admissions.room', 'admissions.staff', 'visits'])->findOrFail($id);
+        $patient = Patient::with(['admissions.room', 'admissions.staff', 'visits', 'prescriptions.medicine'])->findOrFail($id);
 
         // Get the most recent admission for "Current Status"
         $latestAdmission = $patient->admissions->sortByDesc('admission_date')->first();
@@ -201,7 +201,14 @@ class PatientController extends Controller
                 'discharged' => $adm->discharge_date ?? 'Active',
                 'reason'     => $adm->diagnosis,
             ]),
-            'prescriptions' => $patient->prescriptions // Assuming you have this table/relation
+            'prescriptionHistory' => $patient->prescriptions->map(fn($pres) => [
+            'id'        => $pres->id,
+            'date'      => $pres->date_prescribed, 
+            'medicine'  => $pres->medicine ? $pres->medicine->medicine_name : 'Unknown', 
+            'dosage'    => $pres->dosage,
+            'frequency' => $pres->frequency,
+        ]),
+        'medicines' => \App\Models\MedicineCatalog::all(),
         ]);
     }
 }

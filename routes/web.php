@@ -94,10 +94,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/patients', [DoctorController::class, 'patients'])->name('doctor.patients');
         Route::get('/patients/{id}', [DoctorController::class, 'showPatient'])->name('doctor.patients.profile');
         Route::get('/profile', fn() => Inertia::render('Doctor/Profile'))->name('doctor.profile');
+        
+        // Vitals
         Route::post('/patients/{id}/vitals', [DoctorController::class, 'updateVitals'])->name('doctor.patients.vitals.update');
-        Route::post('/prescriptions', [PrescriptionController::class, 'store'])->name('doctor.prescriptions.store');
-        Route::delete('/prescriptions/{id}', [PrescriptionController::class, 'destroy'])->name('doctor.prescriptions.destroy');
-        Route::put('/prescriptions/{id}', [PrescriptionController::class, 'update'])->name('doctor.prescriptions.update');
+        
+        // Prescriptions - POINT THESE TO DoctorController
+        Route::post('/patients/{id}/prescriptions', [DoctorController::class, 'storePrescription'])->name('doctor.prescriptions.store');
+        Route::put('/prescriptions/{id}', [DoctorController::class, 'updatePrescription'])->name('doctor.prescriptions.update');
+        
+        // If you have a delete method in DoctorController, point it there too
+        Route::delete('/prescriptions/{id}', [DoctorController::class, 'destroyPrescription'])->name('doctor.prescriptions.destroy');
     });
 
     // Nurse Routes

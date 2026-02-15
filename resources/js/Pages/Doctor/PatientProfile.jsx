@@ -3,7 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, useForm, router} from '@inertiajs/react';
 import Modal from '@/Components/Modal';
 
-export default function DoctorPatientProfile({ auth, patient, admissionHistory, medicines, prescriptions, prescriptionHistory = [] }) {
+export default function DoctorPatientProfile({ auth, patient, admissionHistory, medicines, prescriptionHistory = [] }) {
     const [activeTab, setActiveTab] = useState('admission');
     
     // Modal States
@@ -11,6 +11,8 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
     const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
     const [showVitals, setShowVitals] = useState(false);
     const [isOther, setIsOther] = useState(false);
+    const [editingPrescription, setEditingPrescription] = useState(null);
+    
 
     // 1. Vitals Form
     const { 
@@ -39,6 +41,7 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
         errors: prescriptionErrors 
     } = useForm({
         patient_id: patient.db_id,
+        medicine_id: '',
         medicine_name: '',
         custom_medicine: '', 
         dosage: '',
@@ -63,34 +66,56 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
     };
 
     const handleMedicineChange = (e) => {
-        const value = e.target.value;
-        if (value === 'other') {
+        const selectedId = e.target.value;
+        
+        if (selectedId === 'other') {
             setIsOther(true);
-            setPrescriptionData('medicine_name', ''); 
+            // Clear both so the user starts fresh
+            setPrescriptionData({
+                ...prescriptionData,
+                medicine_id: 'other',
+                medicine_name: '' 
+            });
         } else {
             setIsOther(false);
-            setPrescriptionData('medicine_name', value);
+            // Find the actual name string from the medicines array
+            const selectedMed = medicines.find(m => m.id == selectedId);
+            const name = selectedMed ? selectedMed.name : '';
+            
+            setPrescriptionData({
+                ...prescriptionData,
+                medicine_id: selectedId,
+                medicine_name: name // This satisfies Laravel's requirement
+            });
         }
     };
 
     const submitPrescription = (e) => {
         e.preventDefault();
-        
+
         const payload = {
             ...prescriptionData,
-            medicine_name: isOther ? prescriptionData.custom_medicine : prescriptionData.medicine_name
+            // FORCE medicine_id to null if 'Other' is selected
+            // This prevents it from defaulting to 1 (Paracetamol)
+            medicine_id: isOther ? null : prescriptionData.medicine_id,
+            medicine_name: isOther ? prescriptionData.custom_medicine : prescriptionData.medicine_name,
         };
 
-        postPrescription(route('doctor.prescriptions.store', patient.db_id), {
+        const config = {
             onSuccess: () => {
-                resetPrescription();
-                setIsOther(false);
                 setShowPrescriptionModal(false);
+                setEditingPrescription(null);
+                setIsOther(false);
+                resetPrescription();
             },
-            onError: (err) => {
-            console.error("Prescription Error:", err);
+        };
+
+        if (editingPrescription) {
+            router.put(route('doctor.prescriptions.update', editingPrescription.id), payload, config);
+        } else {
+            // Make sure patient.db_id is being passed correctly here
+            router.post(route('doctor.prescriptions.store', patient.db_id), payload, config);
         }
-        });
     };
 
     const handleDeletePrescription = (id) => {
@@ -101,16 +126,40 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
         }
     };
 
-    if (!patient) return <div>Loading...</div>;
-    console.log("Prescription List:", prescriptionHistory);
+
+    const handleEditPrescription = (pres) => {
+        setEditingPrescription(pres);
+        
+        // Determine if it was "Other"
+        // It's 'Other' if medicine_id is missing OR if the medicine name 
+        // was manually typed and doesn't match a catalog ID
+        const wasOther = !pres.medicine_id || pres.medicine_id === 'other';
+        setIsOther(wasOther);
+        
+        setPrescriptionData({
+            ...prescriptionData,
+            id: pres.id, 
+            medicine_id: wasOther ? 'other' : pres.medicine_id,
+            // Ensure the custom text box gets the name
+            custom_medicine: wasOther ? (pres.medicine || pres.medicine_name) : '',
+            // Ensure the internal name state is set
+            medicine_name: pres.medicine_name,
+            dosage: pres.dosage,
+            frequency: pres.frequency,
+            time: pres.time || '', 
+            date_prescribed: pres.date_prescribed || pres.date,
+        });
+        
+        setShowPrescriptionModal(true);
+    };
     return (
         <AuthenticatedLayout
-            auth={auth.user}
+            auth={auth}
             header="Doctor / Patient Management"
             sectionTitle={
                 <div className="flex justify-between items-center w-full px-6 text-white">
                     <span className="text-white font-semibold text-lg">
-                        Patient Profile: {patient.name} ({patient.id})
+                        {patient ? `Patient Profile: ${patient.name} (${patient.id})` : 'Loading Patient...'}
                     </span>
                     <Link href={route('doctor.patients')} className="text-xs uppercase hover:underline">
                         &lt; Back to List
@@ -118,7 +167,15 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                 </div>
             }
         >
-            <Head title={`Patient: ${patient.name}`} />
+            <Head title={patient ? `Patient: ${patient.name}` : 'Loading...'} />
+
+            {!patient ? (
+                <div className="p-8 text-center text-gray-500">Loading patient data...</div>
+            ) : (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+                    {/* ... Rest of your existing profile code ... */}
+                </div>
+            )}
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
                 
@@ -284,24 +341,24 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                                                 <tbody>
                                                     {prescriptionHistory.map((pres) => (
                                                         <tr key={pres.id} className="border-b">
-                                                            <td className="p-2">{pres.date}</td>
-                                                            <td className="p-2 font-semibold">{pres.medicine}</td>
+                                                            <td className="p-2">{pres.date}</td> 
+                                                            <td className="p-2 font-semibold">{pres.medicine_name || 'Unknown Medicine'}</td> 
                                                             <td className="p-2">{pres.dosage}</td>
                                                             <td className="p-2">{pres.frequency}</td>
                                                             <td className="p-2 text-right space-x-2">
-                                                            <button 
-                                                                onClick={() => handleEditPrescription(pres)}
-                                                                className="text-blue-600 hover:text-blue-800 text-xs font-bold uppercase"
-                                                            >
-                                                                Edit
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleDeletePrescription(pres.id)}
-                                                                className="text-red-600 hover:text-red-800 text-xs font-bold uppercase"
-                                                            >
-                                                                Delete
-                                                            </button>
-                                                        </td>
+                                                                <button 
+                                                                    onClick={() => handleEditPrescription(pres)}
+                                                                    className="text-blue-600 hover:text-blue-800 text-xs font-bold uppercase"
+                                                                >
+                                                                    Edit
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => handleDeletePrescription(pres.id)}
+                                                                    className="text-red-600 hover:text-red-800 text-xs font-bold uppercase"
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            </td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
@@ -392,8 +449,16 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
             </Modal>
 
             {/* 2. Add Prescription Modal */}
-            <Modal show={showPrescriptionModal} onClose={() => setShowPrescriptionModal(false)} maxWidth="md">
-                <div className="bg-[#30499B] text-white px-6 py-4 flex justify-between items-center">
+            <Modal 
+                show={showPrescriptionModal} 
+                onClose={() => {
+                    setShowPrescriptionModal(false);
+                    setEditingPrescription(null); // This clears the "Edit Mode"
+                    setIsOther(false);
+                    resetPrescription();          // This clears the form fields
+                }} 
+                maxWidth="md"
+            >                <div className="bg-[#30499B] text-white px-6 py-4 flex justify-between items-center">
                     <h3 className="font-bold uppercase tracking-wide">Add New Prescription</h3>
                     <button onClick={() => setShowPrescriptionModal(false)} className="text-xl hover:text-gray-200">&times;</button>
                 </div>
@@ -415,30 +480,56 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                     {/* Medicine Dropdown + Other */}
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700">Medicine Name</label>
-                        <select 
-                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-                            value={isOther ? 'other' : prescriptionData.medicine_name}
-                            onChange={handleMedicineChange}
-                        >
-                            <option value="">-- Select Medicine from Catalog --</option>
-                            {medicines.map((med) => (
-                                <option key={med.id} value={med.name}>{med.name}</option>
-                            ))}
-                            <option value="other" className="font-bold text-blue-600">Other (Type manually...)</option>
-                        </select>
+                        
+                        {editingPrescription ? (
+                            /* EDIT MODE: Show read-only text */
+                            <div className="mt-1 p-3 bg-gray-100 border border-gray-200 rounded-md text-gray-700 font-semibold flex items-center justify-between">
+                                <span>{prescriptionData.medicine_name}</span>
+                            </div>
+                        ) : (
+                            /* CREATE MODE: Show your original dropdown */
+                            <>
+                                <select 
+                                    value={prescriptionData.medicine_id} 
+                                    onChange={handleMedicineChange} 
+                                    className="mt-1 block w-full border-gray-300 rounded-md"
+                                >
+                                    <option value="">-- Select Medicine --</option>
+                                    {medicines.map((med) => (
+                                        <option key={med.id} value={med.id}> 
+                                            {med.name}
+                                        </option>
+                                    ))}
+                                    <option value="other">OTHER (Manual Entry)</option>
+                                </select>
 
-                        {/* This text box appears only if "Other" is selected */}
-                        {isOther && (
-                            <input
-                                type="text"
-                                placeholder="Enter medicine name..."
-                                className="mt-2 block w-full border-blue-500 rounded-md shadow-sm focus:ring-blue-500"
-                                value={prescriptionData.custom_medicine}
-                                onChange={(e) => setPrescriptionData('custom_medicine', e.target.value)}
-                                required
-                            />
+                                {isOther && (
+                                    <div className="mt-4">
+                                        <label className="block text-sm font-medium text-blue-700 italic">
+                                            Please specify medicine name
+                                        </label>
+                                        <input 
+                                            type="text"
+                                            className="..."
+                                            value={prescriptionData.custom_medicine || ''} 
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setPrescriptionData({
+                                                    ...prescriptionData, 
+                                                    custom_medicine: val,
+                                                    medicine_name: val // <--- WE SET IT HERE DIRECTLY
+                                                });
+                                            }}
+                                            placeholder="Type medicine name here..."
+                                        />
+                                    </div>
+                                )}
+                            </>
                         )}
-                        {prescriptionErrors.medicine_name && <p className="text-red-500 text-xs mt-1">{prescriptionErrors.medicine_name}</p>}
+                        
+                        {prescriptionErrors.medicine_name && (
+                            <p className="text-red-500 text-xs mt-1">{prescriptionErrors.medicine_name}</p>
+                        )}
                     </div>
 
                     {/* Dosage, Frequency, Time */}
@@ -463,7 +554,7 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                     </div>
 
                     <div className="flex justify-end gap-3">
-                        <button type="button" onClick={() => setShowPrescriptionModal(false)} className="px-4 py-2 bg-gray-500 text-white rounded">CANCEL</button>
+                        <button type="button" onClick={() => {setShowPrescriptionModal(false); setEditingPrescription(null); resetPrescription(); }} className="px-4 py-2 bg-gray-500 text-white rounded">CANCEL</button>
                         <button type="submit" disabled={processingPrescription} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
                             {processingPrescription ? 'SAVING...' : 'SAVE'}
                         </button>
@@ -521,7 +612,7 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                     </div>
                     
                     <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-700">Reason / Nurse's Notes</label>
+                        <label className="block text-sm font-medium text-gray-700">Reason / Doctor's Notes</label>
                         <textarea
                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
                             rows="3"
