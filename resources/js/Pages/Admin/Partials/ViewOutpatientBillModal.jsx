@@ -329,12 +329,18 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
                                 <input 
                                     type="number" 
                                     className={`w-full md:w-48 bg-blue-900/50 border-2 rounded-xl px-4 py-3 text-2xl font-black outline-none transition-all ${
-                                        paymentInput > totals.maxPayable ? 'border-rose-500 text-rose-400' : 'border-blue-400/30 text-emerald-400 focus:border-emerald-400 shadow-inner'
+                                        paymentInput >= totals.maxPayable && totals.maxPayable > 0 ? 'border-emerald-400 text-emerald-400' : 'border-blue-400/30 text-emerald-400 focus:border-emerald-400 shadow-inner'
                                     }`} 
                                     value={paymentInput} 
                                     onChange={e => {
                                         const val = parseFloat(e.target.value);
-                                        setPaymentInput(isNaN(val) ? 0 : val);
+                                        if (isNaN(val)) {
+                                            setPaymentInput(0);
+                                            return;
+                                        }
+                                        // Clamps the value between 0 and the maximum payable amount
+                                        const cappedValue = Math.min(Math.max(0, val), totals.maxPayable);
+                                        setPaymentInput(cappedValue);
                                     }} 
                                     onFocus={(e) => e.target.select()}
                                 />
