@@ -189,53 +189,63 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                             </thead>
                             <tbody className="text-slate-600">
                                 {currentItems.length > 0 ? (
-                                    currentItems.map((patient) => (
-                                        <tr key={patient.id} className="border-b hover:bg-slate-50 transition-colors group">
-                                            {activeTab === 'all' ? (
-                                                <>
-                                                    <td className="p-3 font-bold text-slate-800 border-r">{patient.name}</td>
-                                                    <td className="p-3 border-r text-xs">{patient.dob}</td>
-                                                    <td className="p-3 border-r text-xs">{patient.gender}</td>
-                                                    <td className="p-3 border-r text-xs">{patient.civil_status}</td>
-                                                    <td className="p-3 border-r text-xs">{patient.contact_no}</td>
-                                                    <td className="p-3 border-r text-[10px] truncate max-w-[100px]">{patient.address}</td>
-                                                    <td className="p-3 border-r text-[10px]">{patient.emergency_contact_name}</td>
-                                                    <td className="p-3 border-r text-[10px]">{patient.emergency_contact_relation}</td>
-                                                    <td className="p-3 border-r text-[10px]">{patient.emergency_contact_number}</td>
-                                                    {/* FIXED ACTION CELL */}
-                                                    <td className="p-4 text-center sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-10">
-                                                        <div className="flex flex-col gap-1">
-                                                            <Button variant="success" className="text-[8px] py-1" onClick={() => { setSelectedPatient(patient); setIsEditModalOpen(true); }}>EDIT</Button>
-                                                            <Button variant="danger" className="text-[8px] py-1" onClick={() => { setPatientToDelete(patient); setIsDeleteModalOpen(true); }}>DELETE</Button>
-                                                        </div>
-                                                    </td>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <td className="p-3 font-bold border-r">{patient.patient_id}</td>
-                                                    <td className="p-3 font-bold text-slate-800 border-r">{patient.name}</td>
-                                                    <td className="p-3 border-r text-xs">{patient.dob}</td>
-                                                    <td className="p-3 border-r text-xs">{patient.contact_no}</td>
-                                                    <td className="p-3 border-r">
-                                                        <span className={`font-bold text-[10px] px-2 py-0.5 rounded ${
-                                                            patient.status === 'ADMITTED' ? 'bg-emerald-100 text-emerald-700' : 
-                                                            patient.status === 'DISCHARGED' ? 'bg-amber-100 text-amber-700' : 
-                                                            'bg-slate-100 text-slate-600'
-                                                        }`}>
-                                                            {patient.status}
-                                                        </span>
-                                                    </td>
-                                                    <td className={`p-3 border-r font-bold text-xs ${patient.bill_status.includes('UNPAID') ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                                        {patient.bill_status}
-                                                    </td>
-                                                    {/* FIXED ACTION CELL */}
-                                                    <td className="p-3 text-center sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-10">
-                                                        <Button variant="success" className="text-[9px] px-2 py-1 shadow-sm uppercase font-bold" onClick={() => handleViewProfile(patient)}>VIEW PROFILE</Button>
-                                                    </td>
-                                                </>
-                                            )}
-                                        </tr>
-                                    ))
+                                    currentItems.map((patient) => {
+                                        const hasUnpaidVisit = patient.visit_history?.some(v => parseFloat(v.balance) > 0);
+                                        const aggregateBillStatus = hasUnpaidVisit ? 'UNPAID' : 'PAID';
+                                        return (
+                                            <tr key={patient.id} className="border-b hover:bg-slate-50 transition-colors group">
+                                                {activeTab === 'all' ? (
+                                                    <>
+                                                        <td className="p-3 font-bold text-slate-800 border-r">{patient.name}</td>
+                                                        <td className="p-3 border-r text-xs">{patient.dob}</td>
+                                                        <td className="p-3 border-r text-xs">{patient.gender}</td>
+                                                        <td className="p-3 border-r text-xs">{patient.civil_status}</td>
+                                                        <td className="p-3 border-r text-xs">{patient.contact_no}</td>
+                                                        <td className="p-3 border-r text-[10px] truncate max-w-[100px]">{patient.address}</td>
+                                                        <td className="p-3 border-r text-[10px]">{patient.emergency_contact_name}</td>
+                                                        <td className="p-3 border-r text-[10px]">{patient.emergency_contact_relation}</td>
+                                                        <td className="p-3 border-r text-[10px]">{patient.emergency_contact_number}</td>
+                                                        {/* FIXED ACTION CELL */}
+                                                        <td className="p-4 text-center sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-10">
+                                                            <div className="flex flex-col gap-1">
+                                                                <Button variant="success" className="text-[8px] py-1" onClick={() => { setSelectedPatient(patient); setIsEditModalOpen(true); }}>EDIT</Button>
+                                                                <Button variant="danger" className="text-[8px] py-1" onClick={() => { setPatientToDelete(patient); setIsDeleteModalOpen(true); }}>DELETE</Button>
+                                                            </div>
+                                                        </td>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <td className="p-3 font-bold border-r">{patient.patient_id}</td>
+                                                        <td className="p-3 font-bold text-slate-800 border-r">{patient.name}</td>
+                                                        <td className="p-3 border-r text-xs">{patient.dob}</td>
+                                                        <td className="p-3 border-r text-xs">{patient.contact_no}</td>
+                                                        <td className="p-3 border-r">
+                                                            <span className={`font-bold text-[10px] px-2 py-0.5 rounded ${
+                                                                patient.status === 'ADMITTED' ? 'bg-emerald-100 text-emerald-700' : 
+                                                                patient.status === 'DISCHARGED' ? 'bg-amber-100 text-amber-700' : 
+                                                                'bg-slate-100 text-slate-600'
+                                                            }`}>
+                                                                {patient.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-3 border-r">
+                                                            <span className={`font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-widest border ${
+                                                                aggregateBillStatus === 'UNPAID' 
+                                                                    ? 'bg-rose-100 text-rose-700 border-rose-200' 
+                                                                    : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                                            }`}>
+                                                                {aggregateBillStatus}
+                                                            </span>
+                                                        </td>
+                                                        {/* FIXED ACTION CELL */}
+                                                        <td className="p-3 text-center sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-10">
+                                                            <Button variant="success" className="text-[9px] px-2 py-1 shadow-sm uppercase font-bold" onClick={() => handleViewProfile(patient)}>VIEW PROFILE</Button>
+                                                        </td>
+                                                    </>
+                                                )}
+                                            </tr>
+                                        ); 
+                                    })  
                                 ) : (
                                     <tr>
                                         <td colSpan={activeTab === 'all' ? 10 : 7} className="p-8 text-center text-slate-400">No records found.</td>

@@ -28,7 +28,11 @@ class PatientVisit extends Model
         'temperature', 
         'checkup_fee',
         'weight',
-        'reason'
+        'reason',
+        'total_bill',
+        'amount_paid',
+        'balance'
+
     ];
 
     /**

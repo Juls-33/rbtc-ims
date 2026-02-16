@@ -83,6 +83,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('admin.billing.addItem');
         Route::put('billing/update-item/{id}', [OutpatientBillController::class, 'updateItem'])->name('admin.billing.updateItem');
         Route::delete('billing/remove-item/{id}', [OutpatientBillController::class, 'removeItem'])->name('admin.billing.removeItem');
+        Route::delete('/admin/visits/{id}', [PatientVisitController::class, 'destroy'])
+            ->name('admin.visits.destroy');
+       Route::put('visits/{id}/fee', [PatientVisitController::class, 'updateFee'])->name('admin.visits.updateFee');
     });
 
     // Doctor Routes

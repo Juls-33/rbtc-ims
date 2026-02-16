@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Patient;
 use App\Models\Room;
 use App\Models\Staff;
+use App\Models\PatientVisit;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -98,6 +99,9 @@ class PatientController extends Controller
                         'weight'   => $visit->weight ? "{$visit->weight}KG" : 'N/A',
                         'reason'   => $visit->reason,
                         'checkup_fee' => $visit->checkup_fee, 
+                        'total_bill'  => (float)($visit->total_bill ?? $visit->checkup_fee),
+                        'amount_paid' => (float)($visit->amount_paid ?? 0),
+                        'balance'     => (float)($visit->balance ?? $visit->checkup_fee),
                         'bill_items'  => $visit->bill_items->map(fn($item) => [
                             'id'          => $item->id,
                             'medicine_id' => $item->medicine_id,
@@ -113,10 +117,12 @@ class PatientController extends Controller
                                 'sku_batch_id' => $item->batch->sku_batch_id,
                             ] : null, 
                         ]),
+                        'balance' => (float)$visit->balance,
+                        'status'  => $visit->status,
                     ]),
                 ];
-            });
-        dd($patient->prescriptions->toArray());        $inventory = \App\Models\MedicineCatalog::with(['batches' => function($query) {
+            });      
+        $inventory = \App\Models\MedicineCatalog::with(['batches' => function($query) {
             $query->where('current_quantity', '>', 0)->orderBy('expiry_date', 'asc');
         }])->get()->map(function($m) {
             return [

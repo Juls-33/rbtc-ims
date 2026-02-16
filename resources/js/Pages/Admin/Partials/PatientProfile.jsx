@@ -1,6 +1,7 @@
 // resources/js/Pages/Admin/Partials/PatientProfile.jsx
 
 import React, { useState, useMemo } from 'react';
+import { router } from '@inertiajs/react';
 import Button from '@/Components/Button';
 import Pagination from '@/Components/Pagination';
 import EditAdmissionModal from './EditAdmissionModal';
@@ -22,6 +23,9 @@ export default function PatientProfile({ patient, onBack, doctors, rooms, invent
     const [selectedVisit, setSelectedVisit] = useState(null);
     const [isEditVisitOpen, setIsEditVisitOpen] = useState(false);
     const [isVisitBillOpen, setIsVisitBillOpen] = useState(false);
+    const [isDeleteVisitOpen, setIsDeleteVisitOpen] = useState(false);
+    const [visitToDelete, setVisitToDelete] = useState(null);
+
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
     const visitHistory = patient.visit_history || [];
@@ -45,6 +49,10 @@ export default function PatientProfile({ patient, onBack, doctors, rooms, invent
     const handleViewVisitBill = (visit) => {
         setSelectedVisit(visit);
         setIsVisitBillOpen(true);
+    };
+    const handleDeleteVisitClick = (visit) => {
+        setVisitToDelete(visit);
+        setIsDeleteVisitOpen(true);
     };
     if (patient.type !== 'inpatient') {
         return (
@@ -84,61 +92,86 @@ export default function PatientProfile({ patient, onBack, doctors, rooms, invent
 
                 {/* Visit History Table Card */}
                 <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="bg-[#3D52A0] text-white p-2 font-bold text-sm text-center uppercase">
-                        PATIENT RECORD
+                    <div className="bg-[#3D52A0] text-white p-2 font-bold text-sm text-center uppercase tracking-widest">
+                        Visit History Record
                     </div>
                     <div className="p-6">
-                        <h4 className="font-bold text-slate-700 mb-4">Admission History</h4>
-                        <table className="w-full text-left text-xs border border-slate-200">
-                            <thead className="bg-slate-50 border-b font-bold text-slate-700">
+                        <table className="w-full text-left text-xs border border-slate-200 border-collapse">
+                            <thead className="bg-slate-50 border-b font-black text-slate-700 uppercase tracking-tighter">
                                 <tr>
-                                    <th className="p-3 border-r">Visit ID</th>
-                                    <th className="p-3 border-r">Visit Date</th>
-                                    <th className="p-3 border-r">Reason for Checkup (Weight)</th>
-                                    <th className="p-3 border-r">Reason for Checkup</th>
-                                    <th className="p-3 text-center">Actions</th>
+                                    <th className="p-3 border-r w-24">Visit ID</th>
+                                    <th className="p-3 border-r w-32">Visit Date</th>
+                                    <th className="p-3 border-r w-24">Weight</th>
+                                    <th className="p-3 border-r">Reason</th>
+                                    <th className="p-3 border-r text-right w-32">Remaining Balance</th>
+                                    <th className="p-3 border-r text-center w-28">Status</th>
+                                    <th className="p-3 text-center w-48">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="text-slate-600">
                                 {patient.visit_history && patient.visit_history.length > 0 ? (
-                                    patient.visit_history.map((visit) => (
+                                    currentVisits.map((visit) => (
                                         <tr key={visit.id} className="border-b hover:bg-slate-50 transition-colors">
                                             <td className="p-3 border-r font-bold text-slate-800">{visit.visit_id}</td>
                                             <td className="p-3 border-r">{visit.date}</td>
                                             <td className="p-3 border-r font-bold">{visit.weight}</td>
-                                            <td className="p-3 border-r">{visit.reason}</td>
+                                            <td className="p-3 border-r truncate max-w-[150px]" title={visit.reason}>
+                                                {visit.reason}
+                                            </td>
+
+                                            {/* BALANCE COLUMN */}
+                                            <td className={`p-3 border-r text-right font-black ${parseFloat(visit.balance) > 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                                                ₱ {parseFloat(visit.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </td>
+
+                                            {/* STATUS BADGE COLUMN */}
+                                            <td className="p-3 border-r text-center">
+                                                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                                    parseFloat(visit.balance) <= 0 
+                                                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
+                                                        : 'bg-rose-100 text-rose-700 border border-rose-200'
+                                                }`}>
+                                                    {parseFloat(visit.balance) <= 0 ? 'PAID' : 'UNPAID'}
+                                                </span>
+                                            </td>
+
                                             <td className="p-3 text-center flex justify-center gap-2">
                                                 <Button
                                                     variant="success"
                                                     onClick={() => handleEditVisit(visit)}
-                                                    className="px-2 py-1 rounded font-bold uppercase"
+                                                    className="px-2 py-1 rounded font-bold uppercase text-[9px]"
                                                 >
-                                                    EDIT DETAILS
+                                                    EDIT
+                                                </Button>
+                                                <Button 
+                                                    variant="primary"
+                                                    onClick={() => handleViewVisitBill(visit)}
+                                                    className="px-2 py-1 rounded font-bold uppercase text-[9px]"
+                                                >
+                                                    VIEW BILL
                                                 </Button>
                                                 <Button 
                                                     variant="danger"
-                                                    onClick={() => handleViewVisitBill(visit)}
-                                                    className="px-2 py-1 rounded font-bold uppercase"
+                                                    onClick={() => handleDeleteVisitClick(visit)}
+                                                    className="px-2 py-1  text-rose-600 border border-rose-200 rounded font-black uppercase text-[9px] hover:bg-rose-600 hover:text-white transition-all"
                                                 >
-                                                    VIEW BILL
+                                                    DELETE
                                                 </Button>
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="5" className="p-8 text-center text-slate-400 italic">No visit history found.</td>
+                                        <td colSpan="7" className="p-8 text-center text-slate-400 italic">No visit history found.</td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
+                        
                         <div className="mt-4">
                             <Pagination 
                                 currentPage={currentPage} 
                                 totalPages={totalPages} 
-                                filteredLength={visitHistory.length} 
-                                indexOfFirstItem={indexOfFirstItem} 
-                                indexOfLastItem={Math.min(indexOfLastItem, visitHistory.length)} 
                                 onPageChange={setCurrentPage} 
                             />
                         </div>
@@ -166,6 +199,36 @@ export default function PatientProfile({ patient, onBack, doctors, rooms, invent
                     visit={selectedVisit}
                     medicines={inventory}
                 />
+                {isDeleteVisitOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+                        <div className="bg-rose-600 p-6 text-center text-white">
+                            <h4 className="text-xl font-black uppercase">Delete Visit Record?</h4>
+                            <p className="text-[10px] text-rose-100 uppercase mt-1">This will return all items to inventory</p>
+                        </div>
+                        <div className="p-8 text-center">
+                            <p className="text-slate-600 text-sm mb-6">
+                                Are you sure you want to delete <span className="font-bold text-slate-900">{visitToDelete?.visit_id}</span>? 
+                                This action will reset stock counts for any medicines included in this bill.
+                            </p>
+                            <div className="flex gap-3">
+                                <Button variant="gray" className="flex-1" onClick={() => setIsDeleteVisitOpen(false)}>CANCEL</Button>
+                                <Button 
+                                    variant="danger" 
+                                    className="flex-1" 
+                                    onClick={() => {
+                                        router.delete(route('admin.visits.destroy', visitToDelete.id), {
+                                            onSuccess: () => setIsDeleteVisitOpen(false)
+                                        });
+                                    }}
+                                >
+                                    YES, DELETE
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             </div>
         );
     }else{

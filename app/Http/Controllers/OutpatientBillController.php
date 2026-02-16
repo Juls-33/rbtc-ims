@@ -22,6 +22,9 @@ class OutpatientBillController extends Controller
             $staffId = auth()->id();
             $visit = PatientVisit::with('bill_items')->findOrFail($request->visit_id);
 
+            if ($visit->status === 'PAID') {
+                return redirect()->back()->with('error', 'This bill has already been fully paid.');
+            }
             // 1. Process Stock (Graceful Adjustment established previously)
             foreach ($visit->bill_items as $item) {
                 $batch = \App\Models\MedicineBatch::lockForUpdate()->findOrFail($item->batch_id);
@@ -107,7 +110,10 @@ class OutpatientBillController extends Controller
 
     public function removeItem($id) 
     {
-        \App\Models\OutpatientBillItem::findOrFail($id)->delete();
+        $item = \App\Models\OutpatientBillItem::findOrFail($id);
+        $visitId = $item->visit_id; // 🔥 Define it before deleting the item
+        $item->delete();
+        
         $this->syncVisitTotals($visitId);
         return redirect()->back();
     }
