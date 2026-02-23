@@ -71,10 +71,19 @@ export default function AddStaffModal({ isOpen, onClose, initialRole }) {
                     setToastInfo({ show: true, message: 'Staff Member Created Successfully!', type: 'success' });
                     handleModalClose();
                 },
-                onError: () => {
-                    setToastInfo({ show: true, message: 'Submission Failed. Check inputs.', type: 'error' });
+                onError: (err) => {
+                    console.error("Backend Validation Errors:", err);
+                    const firstErrorMessage = Object.values(err)[0];
+                setToastInfo({ 
+                    show: true, 
+                    message: `Submission Failed: ${firstErrorMessage}`, 
+                    type: 'error' 
+                });
+                    // setToastInfo({ show: true, message: 'Submission Failed. Check inputs.', type: 'error' });
                 },
             });
+        }else{
+            console.warn("Frontend Validation failed before sending to server.");
         }
     };
 

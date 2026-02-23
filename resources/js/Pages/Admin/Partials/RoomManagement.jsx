@@ -8,6 +8,7 @@ import AddRoomModal from './AddRoomModal';
 import EditRoomModal from './EditRoomModal';
 import DeleteRoomModal from './DeleteRoomModal';
 import Toast from '@/Components/Toast';
+import Pagination from '@/Components/Pagination';
 
 export default function RoomManagement({ auth, rooms = [] }) {
     const [searchQuery, setSearchQuery] = useState('');
@@ -18,15 +19,39 @@ export default function RoomManagement({ auth, rooms = [] }) {
 
     const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' });
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 8;
+
     const handleShowToast = (message, type = 'success') => {
         setToastInfo({ show: true, message, type });
     };
-    const stats = [
-        { label: 'Total Rooms', value: rooms.length },
-        { label: 'Available', value: rooms.filter(r => r.status === 'Available').length },
-        { label: 'Occupied', value: rooms.filter(r => r.status === 'Occupied').length },
-        { label: 'Maintenance', value: rooms.filter(r => r.status === 'Maintenance' || r.status === 'Cleaning').length },
-    ];
+   const stats = useMemo(() => [
+        { 
+            label: 'Total Units', 
+            value: rooms.length, 
+            color: 'text-slate-800',
+            bg: 'bg-slate-50' 
+        },
+        { 
+            label: 'Available Now', 
+            value: rooms.filter(r => r.status === 'Available').length, 
+            color: 'text-emerald-600',
+            bg: 'bg-emerald-50'
+        },
+        { 
+            label: 'Currently Occupied', 
+            value: rooms.filter(r => r.status === 'Occupied').length, 
+            color: 'text-blue-600',
+            bg: 'bg-blue-50'
+        },
+        { 
+            label: 'Under Maintenance', 
+            value: rooms.filter(r => r.status === 'Maintenance' || r.status === 'Cleaning').length, 
+            color: 'text-amber-600',
+            bg: 'bg-amber-50'
+        },
+    ], [rooms]);
+
 
     const filteredRooms = useMemo(() => {
         return rooms.filter(r => 
@@ -35,10 +60,30 @@ export default function RoomManagement({ auth, rooms = [] }) {
         );
     }, [searchQuery, rooms]);
 
+    useMemo(() => {
+        setCurrentPage(1);
+    }, [searchQuery]);
+
+    const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
+    
+    const paginatedRooms = useMemo(() => {
+        const indexOfLastItem = currentPage * itemsPerPage;
+        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+        return filteredRooms.slice(indexOfFirstItem, indexOfLastItem);
+    }, [currentPage, filteredRooms]);
+
     return (
         <AuthenticatedLayout header="Admin / Room Registry" sectionTitle="Room Management">
             <Head title="Room Management" />
 
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                {stats.map((stat, i) => (
+                    <div key={i} className={`p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center transition-all hover:shadow-md ${stat.bg}`}>
+                        <span className={`text-4xl font-black mb-1 ${stat.color}`}>{stat.value}</span>
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{stat.label}</span>
+                    </div>
+                ))}
+            </div>
             {toastInfo.show && (
                 <Toast 
                     message={toastInfo.message} 
@@ -47,14 +92,14 @@ export default function RoomManagement({ auth, rooms = [] }) {
                 />
             )}
             {/* --- STAT CARDS SECTION (Center-aligned minimalist style) --- */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 {stats.map((stat, i) => (
                     <div key={i} className="bg-white p-6 rounded-xl shadow-md border border-slate-100 flex flex-col items-center justify-center">
                         <span className="text-4xl font-bold text-slate-800 mb-1">{stat.value}</span>
                         <span className="text-sm font-medium text-slate-500 uppercase tracking-wide">{stat.label}</span>
                     </div>
                 ))}
-            </div>
+            </div> */}
             
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[500px]">
                 {/* Header/Action Bar */}
@@ -100,7 +145,7 @@ export default function RoomManagement({ auth, rooms = [] }) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-slate-600">
-                            {filteredRooms.map(room => (
+                            {paginatedRooms.map(room => (
                                 <tr key={room.id} className="hover:bg-slate-50 transition-colors group text-[13px]">
                                     <td className="p-4 font-bold text-slate-700 border-r">{room.room_location}</td>
                                     <td className="p-4 font-mono text-emerald-700 font-bold border-r">
@@ -140,6 +185,7 @@ export default function RoomManagement({ auth, rooms = [] }) {
                                     </td>
                                 </tr>
                             ))}
+                            
                             {filteredRooms.length === 0 && (
                                 <tr>
                                     <td colSpan="4" className="p-10 text-center text-slate-400 italic">No rooms found.</td>
@@ -147,6 +193,13 @@ export default function RoomManagement({ auth, rooms = [] }) {
                             )}
                         </tbody>
                     </table>
+                </div>
+                <div className="p-6 border-t bg-slate-50/30">
+                    <Pagination 
+                        currentPage={currentPage} 
+                        totalPages={totalPages} 
+                        onPageChange={setCurrentPage} 
+                    />
                 </div>
             </div>
 

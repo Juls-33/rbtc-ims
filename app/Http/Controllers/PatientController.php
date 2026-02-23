@@ -180,7 +180,7 @@ class PatientController extends Controller
             'last_name' => 'required|string|max:255',
             'birth_date' => 'required|date',
             'gender' => 'required|in:Male,Female,Other',
-            'contact_no' => 'required|string|max:20',
+            'contact_no' => 'nullable|string|size:11',
             'address' => 'required|string',
             'civil_status' => 'required|string',
             'emergency_contact_name' => 'nullable|string|max:255',

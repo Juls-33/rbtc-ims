@@ -29,6 +29,7 @@ class StaffController extends Controller
                 'email'      => $member->email,
                 'phone'      => $member->contact_no,
                 'gender'     => $member->gender,
+                'address'    => $member->address,
                 'status'     => strtoupper($member->status),
                 'reset_requested'  => (bool) $member->reset_requested,
             ]);
@@ -48,15 +49,16 @@ class StaffController extends Controller
             'first_name'     => 'required|string|max:255',
             'last_name'      => 'required|string|max:255',
             'email'          => 'required|email|unique:staff,email',
-            'contact_number' => 'required|string|max:20',
+            'contact_number' => 'required|string|max:20', // From Form
             'gender'         => 'required|string',
             'address'        => 'required|string|max:500',
             'password'       => 'required|string|min:8',
         ]);
 
         try {
-            return DB::transaction(function () use ($validated) {
-                $prefix = strtoupper(substr($validated['role'], 0, 1)); // D, N, or A
+            return DB::transaction(function () use ($validated, $request) {
+                // 1. Generate Custom Staff ID (D-001, etc.)
+                $prefix = strtoupper(substr($validated['role'], 0, 1));
                 $lastMember = Staff::where('role', $validated['role'])
                     ->orderBy('id', 'desc')
                     ->first();
@@ -67,21 +69,21 @@ class StaffController extends Controller
                 
                 $staffId = $prefix . '-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
 
-                Staff::create([
+                // 2. Create the record ONLY ONCE
+                $newStaff = Staff::create([
                     'staff_id'   => $staffId,
                     'first_name' => $validated['first_name'],
                     'last_name'  => $validated['last_name'],
                     'email'      => $validated['email'],
                     'role'       => $validated['role'],
-                    'contact_no' => $validated['contact_number'],
+                    'contact_no' => $validated['contact_number'], // Map 'contact_number' to 'contact_no'
                     'gender'     => $validated['gender'],
                     'address'    => $validated['address'],
                     'status'     => 'ACTIVE',
                     'password'   => Hash::make($validated['password']),
-                    
                 ]);
-                $newStaff = Staff::create($validated);
 
+                // 3. Log the action
                 StaffLog::create([
                     'staff_id'    => auth()->id(),
                     'action'      => 'CREATED STAFF',
@@ -93,6 +95,7 @@ class StaffController extends Controller
             });
 
         } catch (\Exception $e) {
+            // This will now catch database errors and show them in your toast properly
             return redirect()->back()->withErrors(['error' => 'Failed to create staff member: ' . $e->getMessage()]);
         }
     }
@@ -105,17 +108,19 @@ class StaffController extends Controller
             'email'          => 'required|email|unique:staff,email,' . $staff->id,
             'contact_number' => 'required|string|max:20',
             'gender'         => 'required|string',
+            'address'        => 'required|string|max:500',
         ]);
 
+        // Update using correct column names
         $staff->update([
             'first_name' => $validated['first_name'],
             'last_name'  => $validated['last_name'],
             'email'      => $validated['email'],
             'role'       => $validated['role'],
-            'contact_no' => $validated['contact_number'],
+            'contact_no' => $validated['contact_number'], 
             'gender'     => $validated['gender'],
+            'address'    => $validated['address'],
         ]);
-        $staff->update($validated);
 
         StaffLog::create([
             'staff_id'    => auth()->id(),
@@ -126,7 +131,6 @@ class StaffController extends Controller
 
         return redirect()->back()->with('success', 'Staff details updated.');
     }
-
     public function deactivate(Request $request, Staff $staff)
     {
         // Backend Guard: Prevent deactivation of default admin

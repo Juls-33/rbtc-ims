@@ -25,7 +25,7 @@ export default function AddPatientModal({ isOpen, onClose }) {
         let isValid = true;
         clearErrors();
 
-        const requiredFields = ['first_name', 'last_name', 'birth_date', 'gender', 'civil_status', 'contact_no', 'address'];
+        const requiredFields = ['first_name', 'last_name', 'birth_date', 'gender', 'civil_status', 'address'];
         requiredFields.forEach(field => {
             if (!data[field] || data[field].toString().trim() === '') {
                 setError(field, 'This field is required.');
@@ -33,7 +33,7 @@ export default function AddPatientModal({ isOpen, onClose }) {
             }
         });
 
-        if (data.contact_no && data.contact_no.length !== 11) {
+        if (data.contact_no && data.contact_no.length > 0 && data.contact_no.length !== 11) {
             setError('contact_no', 'Must be exactly 11 digits.');
             isValid = false;
         }

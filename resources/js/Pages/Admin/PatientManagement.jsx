@@ -46,9 +46,7 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
         } 
         else if (activeTab === 'outpatient') {
             data = data.filter(p => 
-                p.visit_history && 
-                p.visit_history.length > 0 && 
-                p.status?.toUpperCase() !== 'ADMITTED'
+                p.status?.toUpperCase() === 'OUTPATIENT'
             );
         }
 
