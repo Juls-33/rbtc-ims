@@ -34,17 +34,25 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
         if (activeTab === 'outpatient') return 'Patient List (Visits | Outpatient)';
         return 'Patient List (General Directory)';
     }, [activeTab]);
-   const filteredData = useMemo(() => {
+    const filteredData = useMemo(() => {
         let data = allPatients;
 
         if (activeTab === 'inpatient') {
-            data = data.filter(p => p.status?.toLowerCase() === 'admitted');
+            data = data.filter(p => 
+                p.status?.toUpperCase() === 'ADMITTED' || 
+                p.status?.toUpperCase() === 'COMPLETED'  || 
+                p.status?.toUpperCase() === 'DISCHARGED'
+            );
         } 
         else if (activeTab === 'outpatient') {
-
-            data = data.filter(p => p.visit_history && p.visit_history.length > 0);
+            data = data.filter(p => 
+                p.visit_history && 
+                p.visit_history.length > 0 && 
+                p.status?.toUpperCase() !== 'ADMITTED'
+            );
         }
 
+        // Search logic remains the same
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             data = data.filter(p => 
@@ -54,7 +62,7 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
         }
 
         return data;
-    }, [activeTab, searchQuery, patients]);
+    }, [activeTab, searchQuery, allPatients]);
 
     // --- PAGINATION LOGIC ---
     const indexOfLastItem = currentPage * itemsPerPage;
@@ -191,7 +199,8 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                                 {currentItems.length > 0 ? (
                                     currentItems.map((patient) => {
                                         const hasUnpaidVisit = patient.visit_history?.some(v => parseFloat(v.balance) > 0);
-                                        const aggregateBillStatus = hasUnpaidVisit ? 'UNPAID' : 'PAID';
+                                        const hasUnpaidStatement = patient.active_admission?.statements?.some(s => s.status === 'UNPAID');
+                                        const aggregateBillStatus = (hasUnpaidVisit || hasUnpaidStatement) ? 'UNPAID' : 'PAID';
                                         return (
                                             <tr key={patient.id} className="border-b hover:bg-slate-50 transition-colors group">
                                                 {activeTab === 'all' ? (
@@ -236,7 +245,7 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                                                             }`}>
                                                                 {aggregateBillStatus}
                                                             </span>
-                                                        </td>
+                                                                                                    </td>
                                                         {/* FIXED ACTION CELL */}
                                                         <td className="p-3 text-center sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-10">
                                                             <Button variant="success" className="text-[9px] px-2 py-1 shadow-sm uppercase font-bold" onClick={() => handleViewProfile(patient)}>VIEW PROFILE</Button>

@@ -4,34 +4,47 @@ namespace Database\Seeders;
 
 use App\Models\Patient;
 use App\Models\Admission;
+use App\Models\Staff;
+use App\Models\Room;
+use App\Models\PatientVisit;
 use Illuminate\Database\Seeder;
 
 class PatientSeeder extends Seeder
 {
     public function run(): void
-{
-    // Create 50 patients
-    \App\Models\Patient::factory()
-        ->count(50)
-        ->create()
-        ->each(function ($patient) {
-            // Create at least one admission so the Profile page has data to show
-            \App\Models\Admission::create([
-                'patient_id'     => $patient->id,
-                'staff_id'       => \App\Models\Staff::first()?->id ?? 1,
-                'room_id'        => \App\Models\Room::first()?->id ?? 1,
-                'admission_date' => now(),
-                'status'         => 'Admitted',
-                'diagnosis'      => 'Initial Assessment',
-            ]);
+    {
+        // 1. Fetch available IDs to avoid foreign key violations
+        $roomIds = Room::pluck('id');
+        $staffIds = Staff::pluck('id');
 
-            // Create a visit record so the vitals (BP, HR) aren't empty
-            \App\Models\PatientVisit::create([
-                'patient_id' => $patient->id,
-                'visit_date' => now(),
-                'weight'     => '70kg',
-                'reason'     => 'Initial Checkup', 
-            ]);
-        });
-}
+        if ($roomIds->isEmpty() || $staffIds->isEmpty()) {
+            throw new \Exception("Rooms or Staff table is empty. Seed them before Patients.");
+        }
+
+        // 2. Create 50 patients
+        Patient::factory()
+            ->count(50)
+            ->create()
+            ->each(function ($patient) use ($roomIds, $staffIds) {
+                // Create an admission using a RANDOM existing ID
+                Admission::create([
+                    'patient_id'     => $patient->id,
+                    'staff_id'       => $staffIds->random(),
+                    'room_id'        => $roomIds->random(),
+                    'admission_date' => now(),
+                    'status'         => 'Admitted',
+                    'diagnosis'      => 'Initial Assessment',
+                ]);
+
+                // Create a visit record
+                PatientVisit::create([
+                    'patient_id' => $patient->id,
+                    'visit_date' => now(),
+                    'weight'     => '70kg',
+                    'reason'     => 'Initial Checkup', 
+                    // Add balance if your model requires it for outpatient
+                    'balance'    => 0,
+                ]);
+            });
+    }
 }

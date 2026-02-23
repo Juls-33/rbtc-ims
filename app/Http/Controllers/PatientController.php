@@ -14,7 +14,7 @@ class PatientController extends Controller
 {
     public function index()
     {
-        // 1. Fetch selection data
+        // 1. Fetch selection data for Modals
         $selectablePatients = Patient::with(['admissions' => function($query) {
             $query->latest('admission_date');
         }])
@@ -31,97 +31,120 @@ class PatientController extends Controller
 
         $rooms = Room::select('id', 'room_location', 'room_rate', 'status')->get();
 
-        // FIXED: Case-insensitive role check for Doctors
         $doctors = Staff::whereRaw('LOWER(role) = ?', ['doctor'])
             ->select('id', 'first_name', 'last_name')
             ->get();
 
+        // 2. Fetch Patients and PERFORM ACTIVE SYNC
         $patients = Patient::with([
             'admissions.room', 
             'admissions.staff', 
-            'visits.bill_items.medicine', // Load items and medicine details
-            'visits.bill_items.batch'      // Load batch details
+            'admissions.roomStays', 
+            'admissions.billItems',
+            'visits.bill_items.medicine', 
+            'visits.bill_items.batch'      
         ])
         ->latest()
         ->get() 
-        ->map(function ($patient){
-                $latest = $patient->admissions->sortByDesc('admission_date')->first();
+        ->map(function ($patient) {
+            
+            // 🔥 THE JIT SYNC: Ensure database columns are updated for time elapsed
+            // This fixes the "Started Feb 21, now Feb 23" discrepancy.
+            $patient->admissions->each(function($adm) {
+                if (strtolower($adm->status) === 'admitted') {
+                    $adm->syncLiveTotals(); 
+                }
+            });
+
+            $allAdmissions = $patient->admissions->sortByDesc('admission_date');
+
+            // Re-fetch the collections after sync to get fresh data in memory
+            $active = $allAdmissions->first(fn($adm) => strtolower($adm->status) === 'admitted');
+            $latest = $allAdmissions->first();
+
+            return [
+                'id'         => $patient->id,
+                'patient_id' => $patient->patient_id,
+                'name'       => $patient->full_name,
+                'contact_no' => $patient->contact_no,
+                'first_name' => $patient->first_name, 
+                'last_name'  => $patient->last_name,
+                'dob'        => $patient->birth_date,
+                'gender'     => $patient->gender,
+                'civil_status' => $patient->civil_status,
+                'address'    => $patient->address,
+                'emergency_contact_name'   => $patient->emergency_contact_name,
+                'emergency_contact_relation' => $patient->emergency_contact_relation,
+                'emergency_contact_number' => $patient->emergency_contact_number,
                 
-                // FIXED: Case-insensitive status check to find the active admission
-                $active = $patient->admissions->first(function ($adm) {
-                    return strtolower($adm->status) === 'admitted';
-                });
+                'bill_status' => 'UNPAID', 
+                'status'     => $latest ? strtoupper($latest->status) : 'OUTPATIENT',
+                'type'       => ($active || $latest) ? 'inpatient' : 'outpatient',
+                
+                'current_room'        => $active?->room?->room_location ?? 'N/A',
+                'admission_date'      => $active?->admission_date,
+                'discharge_date'      => $active?->discharge_date, 
+                'attending_physician' => $active?->staff ? "Dr. {$active->staff->first_name} {$active->staff->last_name}" : 'N/A',
+                
+                // --- ADMISSION HISTORY TABLE ---
+                'admission_history' => $allAdmissions->map(function ($adm) {
+                    return [
+                        'id'             => $adm->id,
+                        'admission_date' => $adm->admission_date,
+                        'discharge_date' => $adm->discharge_date,
+                        'diagnosis'      => $adm->diagnosis,
+                        'total_bill'     => (float)$adm->total_bill,   
+                        'balance'        => (float)$adm->balance, 
+                        'amount_paid'    => (float)$adm->amount_paid,
+                    ];
+                })->values(),
 
-                return [
-                    'id'         => $patient->id,
-                    'patient_id' => $patient->patient_id,
-                    'name'       => $patient->full_name,
-                    'contact_no' => $patient->contact_no,
-                    
-                    // Personal Information
-                    'first_name'   => $patient->first_name, 
-                    'last_name'    => $patient->last_name,
-                    'dob'          => $patient->birth_date,
-                    'gender'       => $patient->gender,
-                    'civil_status' => $patient->civil_status,
-                    'address'      => $patient->address,
-                    
-                    // Emergency Contact Details
-                    'emergency_contact_name'     => $patient->emergency_contact_name,
-                    'emergency_contact_relation' => $patient->emergency_contact_relation,
-                    'emergency_contact_number'   => $patient->emergency_contact_number,
-                    
-                    'status'      => $latest ? strtoupper($latest->status) : 'OUTPATIENT',
-                    'bill_status' => 'UNPAID', 
-                    'type'        => $latest ? 'inpatient' : 'outpatient',
-                    
-                    // Clinical Details
-                    'current_room'        => $latest?->room?->room_location ?? 'N/A',
-                    'admission_date'      => $latest?->admission_date,
-                    'discharge_date'      => $latest?->discharge_date, 
-                    'attending_physician' => $latest?->staff ? "Dr. {$latest->staff->first_name} {$latest->staff->last_name}" : 'N/A',
+                // --- ACTIVE ADMISSION (FOR MODAL) ---
+                'active_admission' => $active ? [
+                    'id'                 => $active->id,
+                    'patient_name'       => $patient->full_name,
+                    'patient_id_display' => $patient->patient_id,
+                    'admission_date'     => date('Y-m-d\TH:i', strtotime($active->admission_date)),
+                    'staff_id'           => (int)$active->staff_id,
+                    'room_id'            => (int)$active->room_id,
+                    'diagnosis'          => $active->diagnosis,
+                    'status'             => $active->status,
+                    'statements'         => $active->getStatements(), 
+                    'amount_paid'        => (float)$active->amount_paid,
+                    // Use database snapshots updated by the sync above
+                    'total_bill'         => (float)$active->total_bill,
+                    'balance'            => (float)$active->balance,
+                    'room_stays'         => $active->roomStays, 
+                    'bill_items'         => $active->billItems,
+                ] : null,
 
-                    // FIXED: Ensure every field is explicitly mapped for the Edit Modal
-                    'active_admission' => $active ? [
-                        'id'                 => $active->id,
-                        'patient_name'       => $patient->full_name,
-                        'patient_id_display' => $patient->patient_id,
-                        'admission_date'     => date('Y-m-d\TH:i', strtotime($active->admission_date)),
-                        'staff_id'           => (int)$active->staff_id, // Cast to int for safety
-                        'room_id'            => (int)$active->room_id,
-                        'diagnosis'          => $active->diagnosis,
-                    ] : null,
-
-                    'visit_history' => $patient->visits->sortByDesc('visit_date')->map(fn($visit) => [
-                        'id'       => $visit->id,
-                        'visit_id' => 'V-' . str_pad($visit->id, 5, '0', STR_PAD_LEFT),
-                        'date'     => $visit->visit_date,
-                        'weight'   => $visit->weight ? "{$visit->weight}KG" : 'N/A',
-                        'reason'   => $visit->reason,
-                        'checkup_fee' => $visit->checkup_fee, 
-                        'total_bill'  => (float)($visit->total_bill ?? $visit->checkup_fee),
-                        'amount_paid' => (float)($visit->amount_paid ?? 0),
-                        'balance'     => (float)($visit->balance ?? $visit->checkup_fee),
-                        'bill_items'  => $visit->bill_items->map(fn($item) => [
-                            'id'          => $item->id,
-                            'medicine_id' => $item->medicine_id,
-                            'batch_id'    => $item->batch_id,
-                            'quantity'    => $item->quantity,
-                            'unit_price'  => $item->unit_price,
-                            'total_price' => $item->total_price,
-                            'medicine'    => $item->medicine ? [
-                                'generic_name' => $item->medicine->generic_name,
-                                'brand_name'   => $item->medicine->brand_name,
-                            ] : null,
-                            'batch'       => $item->batch ? [
-                                'sku_batch_id' => $item->batch->sku_batch_id,
-                            ] : null, 
-                        ]),
-                        'balance' => (float)$visit->balance,
-                        'status'  => $visit->status,
+                'visit_history' => $patient->visits->sortByDesc('visit_date')->map(fn($visit) => [
+                    'id'       => $visit->id,
+                    'visit_id' => 'V-' . str_pad($visit->id, 5, '0', STR_PAD_LEFT),
+                    'date'     => $visit->visit_date,
+                    'weight'   => $visit->weight ? "{$visit->weight}KG" : 'N/A',
+                    'reason'   => $visit->reason,
+                    'checkup_fee' => (float)$visit->checkup_fee, 
+                    'total_bill'  => (float)($visit->total_bill ?? $visit->checkup_fee),
+                    'amount_paid' => (float)($visit->amount_paid ?? 0),
+                    'balance'     => (float)($visit->balance ?? $visit->checkup_fee),
+                    'status'      => $visit->status,
+                    'bill_items'  => $visit->bill_items->map(fn($item) => [
+                        'id'          => $item->id,
+                        'medicine_id' => $item->medicine_id,
+                        'batch_id'    => $item->batch_id,
+                        'quantity'    => $item->quantity,
+                        'unit_price'  => (float)$item->unit_price,
+                        'total_price' => (float)$item->total_price,
+                        'medicine'    => $item->medicine ? [
+                            'generic_name' => $item->medicine->generic_name,
+                            'brand_name'   => $item->medicine->brand_name,
+                        ] : null,
                     ]),
-                ];
-            });      
+                ]),
+            ];
+        });      
+
         $inventory = \App\Models\MedicineCatalog::with(['batches' => function($query) {
             $query->where('current_quantity', '>', 0)->orderBy('expiry_date', 'asc');
         }])->get()->map(function($m) {
@@ -129,14 +152,14 @@ class PatientController extends Controller
                 'id' => $m->id,
                 'name' => $m->generic_name,
                 'brand_name' => $m->brand_name,
-                'price' => $m->price_per_unit,
-                'totalStock' => $m->batches->sum('current_quantity'),
+                'price' => (float)$m->price_per_unit,
+                'totalStock' => (int)$m->batches->sum('current_quantity'),
                 'is_available' => $m->batches->sum('current_quantity') > 0,
                 'batches' => $m->batches->map(fn($b) => [
                     'id'     => $b->id,           
                     'sku_id' => $b->sku_batch_id, 
                     'expiry' => $b->expiry_date,
-                    'stock'  => $b->current_quantity,
+                    'stock'  => (int)$b->current_quantity,
                 ]),
             ];
         })->sortByDesc('is_available')->values();

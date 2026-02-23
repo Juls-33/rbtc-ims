@@ -16,6 +16,7 @@ use App\Http\Controllers\Auth\RecoveryController;
 use App\Http\Controllers\StaffLogController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\OutpatientBillController;
+use App\Http\Controllers\InpatientBillController;
 
 Route::get('/', function () {
     // If already logged in, send them to their dashboard
@@ -69,6 +70,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/admissions/{admission}', [AdmissionController::class, 'update'])->name('admin.admissions.update');
         Route::post('/admissions/discharge', [AdmissionController::class, 'discharge'])->name('admin.admissions.discharge');
         Route::post('/visits', [PatientVisitController::class, 'store'])->name('admin.visits.store');
+        Route::delete('/admissions/{id}', [App\Http\Controllers\AdmissionController::class, 'destroy'])->name('admin.admissions.destroy');
 
         // Rooms - CLEANED UP
         Route::get('/rooms', [RoomController::class, 'index'])->name('admin.rooms');
@@ -85,7 +87,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('billing/remove-item/{id}', [OutpatientBillController::class, 'removeItem'])->name('admin.billing.removeItem');
         Route::delete('/admin/visits/{id}', [PatientVisitController::class, 'destroy'])
             ->name('admin.visits.destroy');
-       Route::put('visits/{id}/fee', [PatientVisitController::class, 'updateFee'])->name('admin.visits.updateFee');
+        Route::put('visits/{id}/fee', [PatientVisitController::class, 'updateFee'])->name('admin.visits.updateFee');
+
+        //Inpatient Billing
+        Route::prefix('billing/inpatient')->group(function () {
+            Route::post('add-item', [InpatientBillController::class, 'addItem'])->name('admin.billing.inpatient.addItem');
+            Route::put('update-item/{id}', [InpatientBillController::class, 'updateItem'])->name('admin.billing.inpatient.updateItem');
+            Route::delete('remove-item/{id}', [InpatientBillController::class, 'removeItem'])->name('admin.billing.inpatient.removeItem');
+            // Ensure this payment route is also here if you use it for inpatients
+            Route::post('pay', [InpatientBillController::class, 'pay'])->name('admin.billing.inpatient.pay');
+        });
     });
 
     // Doctor Routes

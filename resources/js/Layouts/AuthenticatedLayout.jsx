@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import LogoutModal from '../Components/LogoutModal';
 import NotificationPopover from '../Components/NotificationPopover';
+import GlobalLoader from '@/Components/GlobalLoader';
 
 export default function AuthenticatedLayout({ children, header, sectionTitle }) {
     const { auth, notifications = [] } = usePage().props;
@@ -85,6 +86,7 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
 
     return (
         <div className="flex h-screen bg-slate-200 overflow-hidden font-sans">
+            <GlobalLoader />
             {/* Sidebar for Desktop */}
             <aside className="hidden md:flex md:flex-shrink-0 w-72 flex-col bg-[#2E4696] text-white">
                 

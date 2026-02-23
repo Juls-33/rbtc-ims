@@ -25,6 +25,18 @@ export default function PatientProfile({ patient, onBack, doctors, rooms, invent
     const [isVisitBillOpen, setIsVisitBillOpen] = useState(false);
     const [isDeleteVisitOpen, setIsDeleteVisitOpen] = useState(false);
     const [visitToDelete, setVisitToDelete] = useState(null);
+    const [selectedReasonOption, setSelectedReasonOption] = useState(''); 
+    const [admissionToDelete, setAdmissionToDelete] = useState(null);
+    const [deleteReason, setDeleteReason] = useState(''); // For "Other" text
+    const [otherReasonText, setOtherReasonText] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const reasonsList = [
+        "Invalid Record / Data Entry Error",
+        "Request for Deletion (Patient/Doctor)",
+        "Duplicate Admission Entry",
+        "Other"
+    ];
 
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
@@ -34,6 +46,12 @@ export default function PatientProfile({ patient, onBack, doctors, rooms, invent
     const currentVisits = useMemo(() => {
         return visitHistory.slice(indexOfFirstItem, indexOfLastItem);
     }, [currentPage, visitHistory]);
+
+    const unpaidStatements = useMemo(() => {
+        return patient.active_admission?.statements?.filter(s => s.status === 'UNPAID') || [];
+    }, [patient.active_admission?.statements]);
+
+    const unpaidCount = unpaidStatements.length;
 
     const totalPages = Math.ceil(visitHistory.length / itemsPerPage);
 
@@ -54,7 +72,23 @@ export default function PatientProfile({ patient, onBack, doctors, rooms, invent
         setVisitToDelete(visit);
         setIsDeleteVisitOpen(true);
     };
-    if (patient.type !== 'inpatient') {
+    const confirmDeleteAdmission = () => {
+        if (!deleteReason) return alert("Please provide a reason for deletion.");
+        setIsDeleting(true);
+        router.delete(route('admin.admissions.destroy', admissionToDelete.id), {
+        data: { reason: finalReason },
+        onSuccess: () => {
+            setAdmissionToDelete(null);
+            setDeleteReason('');
+            setSelectedReasonOption('');
+        },
+        onError: () => {
+            setIsDeleting(false); 
+        },
+        onFinish: () => setIsDeleting(false)
+    });
+    };
+    if (patient.status === 'OUTPATIENT') {
         return (
             <div className="space-y-6 animate-in fade-in duration-300 font-sans">
                 {/* Header & Personal Info Card */}
@@ -309,9 +343,21 @@ export default function PatientProfile({ patient, onBack, doctors, rooms, invent
                 </div>
 
                 <div className="text-center space-y-4">
-                    <p className="text-rose-600 font-bold text-sm">1 Unpaid Bill: Click "View Bill" to see more details</p>
+                    {unpaidCount > 0 ? (
+                            <p className="text-rose-600 font-bold text-sm">
+                                {unpaidCount} Unpaid Billing Statement{unpaidCount > 1 ? 's' : ''}: Click "View Bill" to see details
+                            </p>
+                        ) : (
+                            <p className="text-emerald-600 font-bold text-sm">
+                                All billing statements for this admission are fully settled.
+                            </p>
+                        )}
                     <div className="flex justify-center gap-4">
-                        <Button variant="success" className="px-8 py-2" onClick={() => handleViewBill('A-00234')}>
+                        <Button 
+                            variant="success" 
+                            className="px-8 py-2" 
+                            onClick={() => handleViewBill(patient.active_admission?.id)} // 🔥 Use real ID
+                        >
                             VIEW BILL
                         </Button>
                         <Button variant="success" className="px-8 py-2" onClick={() => setIsDischargeModalOpen(true)}>
@@ -323,31 +369,151 @@ export default function PatientProfile({ patient, onBack, doctors, rooms, invent
 
             {/* Historical Table */}
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-                <h4 className="font-bold text-slate-700 mb-4">Admission History</h4>
-                <table className="w-full text-left text-xs border">
-                    <thead className="bg-slate-50 border-b">
-                        <tr>
-                            <th className="p-2 border-r">Admission ID</th>
-                            <th className="p-2 border-r">Admitted</th>
-                            <th className="p-2 border-r">Discharged</th>
-                            <th className="p-2 border-r">Reason For Stay</th>
-                            <th className="p-2 text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {/* Example Row from your mockup */}
-                        <tr className="border-b hover:bg-slate-50">
-                            <td className="p-2 border-r font-bold text-slate-800">A-00234</td>
-                            <td className="p-2 border-r">2025-03-01</td>
-                            <td className="p-2 border-r">2025-03-05</td>
-                            <td className="p-2 border-r">Dengue Fever</td>
-                            <td className="p-2 text-center">
-                                <Button variant="success" className="text-[8px] px-2 py-1">VIEW BILL</Button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                    <h4 className="font-bold text-slate-700 mb-4 tracking-widest uppercase text-xs text-center">Inpatient Record History (All Stays)</h4>
+                    <table className="w-full text-left text-xs border border-slate-200 border-collapse">
+                        <thead className="bg-slate-50 border-b font-black text-slate-600 uppercase">
+                            <tr>
+                                <th className="p-3 border-r w-32">Admission ID</th>
+                                <th className="p-3 border-r">Date Admitted</th>
+                                <th className="p-3 border-r">Total Bill</th>
+                                <th className="p-3 border-r">Balance</th>
+                                <th className="p-3 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="text-slate-600">
+                            {(patient.admission_history || []).length > 0 ? (
+                                patient.admission_history.map((adm) => (
+                                    <tr key={adm.id} className="border-b hover:bg-slate-50 transition-colors">
+                                        <td className="p-3 border-r font-black text-slate-800">ADM-{String(adm.id).padStart(5, '0')}</td>
+                                        <td className="p-3 border-r">{new Date(adm.admission_date).toLocaleDateString()}</td>
+                                        <td className="p-3 border-r font-bold text-slate-800">₱ {parseFloat(adm.total_bill || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                        <td className={`p-3 border-r font-black ${adm.balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                            ₱ {parseFloat(adm.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="p-3 text-center flex justify-center items-center gap-2">
+                                            <Button 
+                                                variant="success" 
+                                                className="text-[8px] px-3 py-1 font-black uppercase shadow-sm" 
+                                                onClick={() => handleViewBill(adm.id)}
+                                            >
+                                                VIEW BILL
+                                            </Button>
+
+                                            <Button 
+                                                variant="danger" 
+                                                className="text-[8px] px-3 py-1 font-black uppercase shadow-sm transition-all"
+                                                onClick={() => setAdmissionToDelete(adm)} 
+                                            >
+                                                DELETE
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr><td colSpan="5" className="p-8 text-center text-slate-400 italic">No admission history found.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+            {admissionToDelete && (
+                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg overflow-hidden transform animate-in zoom-in-95 duration-200">
+                        {/* Header matches your image */}
+                        <div className="bg-[#C84B4B] text-white p-4 flex justify-between items-center">
+                            <h3 className="font-bold text-lg">Are you sure you want to delete?</h3>
+                            <button onClick={() => setAdmissionToDelete(null)} className="text-white text-xl hover:text-rose-200">&times;</button>
+                        </div>
+
+                        <div className="p-8 space-y-6">
+                            <div className="space-y-2">
+                                <p className="text-slate-700">
+                                    Are you sure you want to delete admission record: <span className="font-bold underline">ADM-{String(admissionToDelete.id).padStart(5, '0')}</span>?
+                                </p>
+                                <p className="text-[#C84B4B] text-sm italic font-medium">
+                                    This action cannot be undone and will return charged medicines to inventory.
+                                </p>
+                            </div>
+                            
+                            {/* Reason for Deletion Section */}
+                            <div className="space-y-4">
+                                <h4 className="font-bold text-slate-700">Reason for deletion</h4>
+                                
+                                <div className="space-y-3 px-2">
+                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                        <input 
+                                            type="radio" 
+                                            className="w-5 h-5 text-rose-600 border-slate-300 focus:ring-rose-500"
+                                            checked={selectedReasonOption === 'Patient Requested for record deletion'}
+                                            onChange={() => setSelectedReasonOption('Patient Requested for record deletion')}
+                                        />
+                                        <span className="text-slate-600 group-hover:text-slate-900 transition-colors">Patient Requested for record deletion</span>
+                                    </label>
+
+                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                        <input 
+                                            type="radio" 
+                                            className="w-5 h-5 text-rose-600 border-slate-300 focus:ring-rose-500"
+                                            checked={selectedReasonOption === 'Invalid Record'}
+                                            onChange={() => setSelectedReasonOption('Invalid Record')}
+                                        />
+                                        <span className="text-slate-600 group-hover:text-slate-900 transition-colors">Invalid Record</span>
+                                    </label>
+
+                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                        <input 
+                                            type="radio" 
+                                            className="w-5 h-5 text-rose-600 border-slate-300 focus:ring-rose-500"
+                                            checked={selectedReasonOption === 'Others'}
+                                            onChange={() => setSelectedReasonOption('Others')}
+                                        />
+                                        <span className="text-slate-600 group-hover:text-slate-900 transition-colors">Others</span>
+                                    </label>
+                                </div>
+
+                                {/* Show textarea only if 'Others' is selected */}
+                                {selectedReasonOption === 'Others' && (
+                                    <textarea 
+                                        className="w-full mt-2 border-slate-300 rounded-lg text-sm focus:ring-rose-500 focus:border-rose-500 p-3"
+                                        placeholder="Please specify the reason..."
+                                        rows="2"
+                                        value={otherReasonText}
+                                        onChange={(e) => setOtherReasonText(e.target.value)}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Buttons match your image style */}
+                            <div className="flex justify-center gap-4 pt-4 border-t border-slate-100">
+                                <Button 
+                                    variant="gray" 
+                                    className="px-12 py-3 bg-[#6C757D] hover:bg-[#5A6268] text-white uppercase font-bold text-sm tracking-wide rounded"
+                                    onClick={() => { setAdmissionToDelete(null); setSelectedReasonOption(''); }}
+                                >
+                                    CANCEL
+                                </Button>
+                                <Button 
+                                    variant="danger"
+                                    disabled={isDeleting || !selectedReasonOption || (selectedReasonOption === 'Others' && !otherReasonText)}
+                                    onClick={() => {
+                                        const finalReason = selectedReasonOption === 'Others' ? otherReasonText : selectedReasonOption;
+                                        setIsDeleting(true);
+                                        router.delete(route('admin.admissions.destroy', admissionToDelete.id), {
+                                            data: { reason: finalReason },
+                                            onSuccess: () => { setAdmissionToDelete(null); setSelectedReasonOption(''); setOtherReasonText(''); },
+                                            onError: () => setIsDeleting(false),
+                                            onFinish: () => setIsDeleting(false)
+                                        });
+                                    }} 
+                                    className="px-10 py-3 bg-[#C84B4B] hover:bg-[#A63E3E] text-white uppercase font-bold text-sm tracking-wide rounded shadow-md disabled:opacity-50"
+                                >
+                                    {isDeleting ? 'REMOVING...' : 'REMOVE RECORD'}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             <EditAdmissionModal 
                 isOpen={isEditAdmissionOpen}
                 onClose={() => setIsEditAdmissionOpen(false)}
@@ -359,7 +525,8 @@ export default function PatientProfile({ patient, onBack, doctors, rooms, invent
                 isOpen={isBillModalOpen}
                 onClose={() => setIsBillModalOpen(false)}
                 admissionId={activeAdmissionId}
-                bills={patient.billing_history || []} // Ensure controller provides this
+                patient={patient}      // 🔥 Added this
+                medicines={inventory} // 🔥 Added this
             />
             <DischargeModal 
                 isOpen={isDischargeModalOpen}

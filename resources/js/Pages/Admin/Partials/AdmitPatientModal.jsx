@@ -48,9 +48,11 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
 
     const filteredPatients = useMemo(() => {
         if (!searchTerm) return patients;
+        const query = searchTerm.toLowerCase();
+        
         return patients.filter(p => 
-            p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            p.id_no?.toLowerCase().includes(searchTerm.toLowerCase())
+            p.name.toLowerCase().includes(query) || 
+            p.patient_id?.toLowerCase().includes(query)
         );
     }, [searchTerm, patients]);
 
@@ -111,13 +113,57 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
                                     onChange={(e) => { setSearchTerm(e.target.value); setIsDropdownOpen(true); }}
                                 />
                                 {isDropdownOpen && (
-                                    <div className="absolute z-[60] w-full mt-1 bg-white border rounded shadow-2xl max-h-40 overflow-y-auto">
-                                        {filteredPatients.map(p => (
-                                            <button key={p.id} type="button" className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 border-b flex justify-between items-center" onClick={() => { setData('patient_id', p.id); setSearchTerm(p.name); setIsDropdownOpen(false); }}>
-                                                <span className="font-bold">{p.name}</span>
-                                                <span className="text-[10px] font-mono text-slate-400">{p.patient_id}</span>
-                                            </button>
-                                        ))}
+                                    <div className="absolute z-[60] w-full mt-1 bg-white border rounded shadow-2xl max-h-56 overflow-y-auto border-slate-200">
+                                        {filteredPatients.length > 0 ? (
+                                            filteredPatients.map(p => {
+                                                // 🔥 THE FIX: Check if patient is already admitted
+                                                const isAlreadyAdmitted = p.status === 'ADMITTED';
+
+                                                return (
+                                                    <button 
+                                                        key={p.id} 
+                                                        type="button" 
+                                                        disabled={isAlreadyAdmitted} // Disable the button if admitted
+                                                        className={`w-full text-left px-4 py-3 text-sm border-b flex justify-between items-center transition-colors ${
+                                                            isAlreadyAdmitted 
+                                                                ? 'bg-slate-50 cursor-not-allowed opacity-70' 
+                                                                : 'hover:bg-blue-50 bg-white'
+                                                        }`} 
+                                                        onClick={() => { 
+                                                            setData('patient_id', p.id); 
+                                                            setSearchTerm(p.name); 
+                                                            setIsDropdownOpen(false); 
+                                                        }}
+                                                    >
+                                                        <div className="flex flex-col">
+                                                            <span className={`font-bold ${isAlreadyAdmitted ? 'text-slate-400' : 'text-slate-800'}`}>
+                                                                {p.name}
+                                                            </span>
+                                                            <span className="text-[9px] font-mono text-slate-400 uppercase tracking-widest">
+                                                                ID: {p.patient_id}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Status Indicator Badge */}
+                                                        <div className="text-right">
+                                                            {isAlreadyAdmitted ? (
+                                                                <span className="bg-rose-100 text-rose-600 text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-tighter border border-rose-200 animate-pulse">
+                                                                    Already Admitted
+                                                                </span>
+                                                            ) : (
+                                                                <span className="bg-emerald-100 text-emerald-700 text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-tighter border border-emerald-200">
+                                                                    Available for Admission
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="p-4 text-center text-slate-400 text-xs italic bg-slate-50">
+                                                No patients found matching your search.
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
