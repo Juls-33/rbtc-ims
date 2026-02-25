@@ -18,7 +18,7 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
         email: '',
         contact_number: '',
         gender: '',
-        address: '', // Ensuring parity with AddStaff
+        address: '', 
     });
 
     // --- Data Loading ---
@@ -78,15 +78,28 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
                     setToastInfo({ show: true, message: 'Personnel Record Updated!', type: 'success' });
                     handleModalClose();
                 },
-                onError: () => {
-                    setToastInfo({ show: true, message: 'Update failed. Check inputs.', type: 'error' });
+                onError: (err) => {
+                    const firstErrorMessage = Object.values(err)[0];
+                    setToastInfo({ 
+                        show: true, 
+                        message: `Update Failed: ${firstErrorMessage}`, 
+                        type: 'error' 
+                    });
                 }
+            });
+        } else {
+            setToastInfo({ 
+                show: true, 
+                message: 'Please correct the highlighted errors.', 
+                type: 'error' 
             });
         }
     };
 
-    const inputClass = (error) => `w-full border rounded px-3 py-2 text-sm transition-colors bg-white ${
-        error ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-slate-300 focus:ring-[#3D52A0] focus:border-[#3D52A0]'
+    const inputClass = (error) => `w-full border rounded px-3 py-2 text-sm transition-colors ${
+        error 
+        ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' 
+        : 'border-slate-300 focus:ring-[#E6AA68] focus:border-[#E6AA68] bg-white'
     }`;
 
     const Label = ({ text, current, max, required = true, fieldError }) => (
@@ -104,7 +117,6 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
 
     return (
         <>
-            {/* Toast remains visible after modal disappears */}
             {toastInfo.show && (
                 <Toast 
                     message={toastInfo.message} 
@@ -114,25 +126,27 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
             )}
 
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 font-sans animate-in fade-in duration-200">
-                    <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg overflow-hidden flex flex-col transform transition-all animate-in zoom-in duration-200 max-h-[90vh]">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 md:p-4 animate-in fade-in duration-200">
+                    {/* CONTAINER: Flex Column for Mobile Scroll support */}
+                    <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden transform transition-all animate-in zoom-in duration-200">
                         
-                        {/* Header */}
-                        <div className="bg-[#3D52A0] text-white p-4 flex justify-between items-center shadow-md">
+                        {/* FIXED HEADER */}
+                        <div className="bg-[#3D52A0] text-white p-4 md:px-6 md:py-4 flex justify-between items-center shrink-0 shadow-md">
                             <div>
-                                <h3 className="font-bold text-lg leading-none uppercase tracking-tight">Edit Staff Record</h3>
+                                <h3 className="font-black text-lg leading-none uppercase tracking-tight">Edit Staff Record</h3>
                                 <p className="text-[10px] text-blue-100 uppercase tracking-widest mt-1">
                                     Personnel ID: {member?.staff_id || member?.id_no || '---'}
                                 </p>
                             </div>
-                            <button onClick={handleModalClose} className="text-2xl hover:text-rose-200 transition-colors">&times;</button>
+                            <button onClick={handleModalClose} className="text-2xl hover:text-rose-200 transition-colors leading-none">&times;</button>
                         </div>
 
+                        {/* SCROLLABLE BODY */}
                         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden text-slate-800">
-                            <div className="p-8 space-y-5 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300">
+                            <div className="p-6 md:p-8 space-y-5 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-300">
                                 
-                                {/* 1. Role and Gender */}
-                                <div className="grid grid-cols-2 gap-4">
+                                {/* 1. Role and Gender - Responsive Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <Label text="Assigned Role" fieldError={errors.role} />
                                         <select value={data.role} onChange={e => setData('role', e.target.value)} className={inputClass(errors.role)}>
@@ -152,7 +166,7 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
                                 </div>
 
                                 {/* 2. Name Grid */}
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <Label text="First Name" current={data.first_name.length} max={100} fieldError={errors.first_name} />
                                         <input 
@@ -162,7 +176,6 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
                                             onChange={e => setData('first_name', e.target.value)}
                                             className={inputClass(errors.first_name)}
                                         />
-                                        {errors.first_name && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.first_name}</p>}
                                     </div>
                                     <div>
                                         <Label text="Last Name" current={data.last_name.length} max={100} fieldError={errors.last_name} />
@@ -173,12 +186,11 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
                                             onChange={e => setData('last_name', e.target.value)}
                                             className={inputClass(errors.last_name)}
                                         />
-                                        {errors.last_name && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.last_name}</p>}
                                     </div>
                                 </div>
 
                                 {/* 3. Email and Contact */}
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <Label text="Email Address" fieldError={errors.email} />
                                         <input 
@@ -187,7 +199,6 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
                                             onChange={e => setData('email', e.target.value)}
                                             className={inputClass(errors.email)}
                                         />
-                                        {errors.email && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.email}</p>}
                                     </div>
                                     <div>
                                         <Label text="Contact Number" current={data.contact_number.length} max={11} fieldError={errors.contact_number} />
@@ -210,33 +221,39 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
                                         className={`${inputClass(errors.address)} h-20 resize-none`}
                                         placeholder="Street, Brgy, City"
                                     />
-                                    {errors.address && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.address}</p>}
+                                </div>
+                            </div>
+
+                            {/* FIXED FOOTER */}
+                            <div className="bg-slate-50 px-6 md:px-8 py-4 flex flex-col gap-3 border-t shrink-0">
+                                <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+                                    <Button 
+                                        type="button" 
+                                        variant="gray" 
+                                        onClick={handleModalClose} 
+                                        className="w-full sm:w-auto px-6 py-2.5 font-black text-[11px] uppercase tracking-widest"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button 
+                                        type="submit" 
+                                        variant="success" 
+                                        disabled={processing} 
+                                        className="w-full sm:w-auto px-8 py-2.5 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95"
+                                    >
+                                        {processing ? 'SAVING...' : 'SAVE CHANGES'}
+                                    </Button>
                                 </div>
 
-                                {/* Action Buttons */}
-                                <div className="flex flex-col gap-3 pt-6 border-t">
-                                    <div className="flex justify-end gap-3">
-                                        <Button type="button" variant="secondary" onClick={handleModalClose} className="px-6 py-2 bg-slate-500 text-white font-bold text-[11px] uppercase tracking-widest">Cancel</Button>
-                                        <Button 
-                                            type="submit" 
-                                            variant="success" 
-                                            disabled={processing} 
-                                            className="px-8 py-2 bg-emerald-600 text-white font-bold text-[11px] uppercase tracking-widest shadow-md active:scale-95 disabled:opacity-50"
-                                        >
-                                            {processing ? 'SAVING...' : 'SAVE CHANGES'}
-                                        </Button>
-                                    </div>
-
-                                    {!isDefaultAdmin && (
-                                        <button 
-                                            type="button" 
-                                            onClick={() => setIsDeleteOpen(true)} 
-                                            className="w-full py-2 mt-2 text-[10px] font-black text-red-600 uppercase tracking-widest border border-red-100 hover:bg-red-50 rounded transition-colors"
-                                        >
-                                            Terminate Personnel Account
-                                        </button>
-                                    )}
-                                </div>
+                                {!isDefaultAdmin && (
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setIsDeleteOpen(true)} 
+                                        className="w-full py-2.5 text-[10px] font-black text-rose-600 uppercase tracking-[0.15em] border border-rose-100 hover:bg-rose-50 rounded transition-all active:bg-rose-100"
+                                    >
+                                        Terminate Personnel Account
+                                    </button>
+                                )}
                             </div>
                         </form>
                     </div>

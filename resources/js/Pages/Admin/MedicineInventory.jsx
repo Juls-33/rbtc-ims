@@ -106,23 +106,6 @@ export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
     const [medicineToDelete, setMedicineToDelete] = useState(null);
     const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
     const [batchMedicine, setBatchMedicine] = useState(null);
-
-    // --- LOGIC: FILTERING & PAGINATION ---
-    // const getFilteredData = () => {
-        // const query = searchQuery.toLowerCase();
-    //     if (activeTab === 'manage') {
-    //         return processedInventory.filter(item => 
-    //             item.name.toLowerCase().includes(query) || item.sku.toLowerCase().includes(query) ||
-    //             item.category.toLowerCase().includes(query) || item.calculatedStatus.toLowerCase().includes(query)
-    //         );
-    //     }
-    //     return logs.filter(log => 
-    //         log.id.toLowerCase().includes(query) || log.medicine_name.toLowerCase().includes(query) ||
-    //         log.admin.toLowerCase().includes(query) || log.action.toLowerCase().includes(query)
-    //     );
-    // };
-
-    // const filteredData = getFilteredData();
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredAndSortedData.slice(indexOfFirstItem, indexOfLastItem);
@@ -154,9 +137,27 @@ export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
         <AuthenticatedLayout 
             header="Admin / Medicine Inventory" 
             sectionTitle={
-                <div className="flex w-full">
-                    <button onClick={() => { setActiveTab('manage'); setSearchQuery(''); setCurrentPage(1); }} className={`flex-1 py-4 text-center font-bold ${activeTab === 'manage' ? 'bg-slate-400/50 text-slate-100' : 'bg-[#2E4696] text-white'}`}> MANAGE STOCK </button>
-                    <button onClick={() => { setActiveTab('ledger'); setSearchQuery(''); setCurrentPage(1); }} className={`flex-1 py-4 text-center font-bold ${activeTab === 'ledger' ? 'bg-slate-400/50 text-slate-100' : 'bg-[#2E4696] text-white'}`}> STOCK LEDGER (LOGS) </button>
+                <div className="grid grid-cols-1 md:flex w-full shadow-lg border-b border-[#243776]">
+                    <button 
+                        onClick={() => { setActiveTab('manage'); setSearchQuery(''); setCurrentPage(1); }} 
+                        className={`py-3 md:py-5 text-center transition-all font-black tracking-widest uppercase text-[10px] md:text-xs border-b md:border-b-0 md:border-r border-white/10 flex-1 whitespace-nowrap ${
+                            activeTab === 'manage' 
+                                ? 'bg-slate-500/40 text-white shadow-inner' 
+                                : 'bg-[#2E4696] text-white hover:bg-[#3D52A0]'
+                        }`}
+                    > 
+                        MANAGE STOCK 
+                    </button>
+                    <button 
+                        onClick={() => { setActiveTab('ledger'); setSearchQuery(''); setCurrentPage(1); }} 
+                        className={`py-3 md:py-5 text-center transition-all font-black tracking-widest uppercase text-[10px] md:text-xs border-b md:border-b-0 border-white/10 flex-1 whitespace-nowrap ${
+                            activeTab === 'ledger' 
+                                ? 'bg-slate-500/40 text-white shadow-inner' 
+                                : 'bg-[#2E4696] text-white hover:bg-[#3D52A0]'
+                        }`}
+                    > 
+                        STOCK LEDGER (LOGS) 
+                    </button>
                 </div>
             }
         >

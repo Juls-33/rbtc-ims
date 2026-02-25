@@ -103,30 +103,29 @@ export default function RoomManagement({ auth, rooms = [] }) {
             
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[500px]">
                 {/* Header/Action Bar */}
-                <div className="p-6 border-b bg-slate-50/50">
-                
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div className="flex items-center gap-4 w-full md:w-auto">
+                <div className="p-4 md:p-6 border-b bg-slate-50/50">
+                    <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
+                        
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
                             <input 
                                 type="text" 
-                                placeholder="Search by location or status..." 
-                                className="w-full md:w-80 border-slate-300 rounded shadow-sm text-sm focus:ring-[#3D52A0] focus:border-[#3D52A0] outline-none"
+                                placeholder="Search location or status..." 
+                                className="w-full sm:w-72 border-slate-300 rounded shadow-sm text-sm focus:ring-[#3D52A0] focus:border-[#3D52A0] outline-none"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                             <Button 
                                 variant="success" 
-                                className="px-6 py-2 shadow-md whitespace-nowrap"
+                                className="w-full sm:w-auto px-6 py-2.5 shadow-md whitespace-nowrap font-black text-[10px] uppercase tracking-widest"
                                 onClick={() => setIsAddModalOpen(true)}
                             >
                                 + REGISTER ROOM
                             </Button>
                         </div>
 
-                        {/* Back Button on Top Right */}
                         <Link 
                             href={route('admin.patients')} 
-                            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded font-black text-[10px] uppercase tracking-widest transition-all border border-slate-200"
+                            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded font-black text-[10px] uppercase tracking-widest transition-all border border-slate-200"
                         >
                             <span>Back to Patients</span>
                             <span className="text-lg">→</span>
@@ -134,50 +133,44 @@ export default function RoomManagement({ auth, rooms = [] }) {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm border-collapse">
+                <div className="overflow-x-auto flex-1">
+                    <table className="w-full text-left text-sm border-collapse min-w-[600px]">
                         <thead className="bg-slate-50 text-slate-500 font-black uppercase text-[10px] tracking-widest border-b">
                             <tr>
                                 <th className="p-4 border-r">Location / ID</th>
-                                <th className="p-4 border-r">Daily Rate</th>
+                                <th className="p-4 border-r text-center">Daily Rate</th>
                                 <th className="p-4 border-r text-center">Status</th>
-                                <th className="p-4 text-center text-[10px]">Actions</th>
+                                <th className="p-4 text-center sticky right-0 bg-slate-50 z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)]">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-slate-600">
                             {paginatedRooms.map(room => (
-                                <tr key={room.id} className="hover:bg-slate-50 transition-colors group text-[13px]">
-                                    <td className="p-4 font-bold text-slate-700 border-r">{room.room_location}</td>
-                                    <td className="p-4 font-mono text-emerald-700 font-bold border-r">
+                                <tr key={room.id} className="hover:bg-slate-50/50 transition-colors group text-[13px]">
+                                    <td className="p-4 font-bold text-slate-700 border-r uppercase tracking-tight">{room.room_location}</td>
+                                    <td className="p-4 font-mono text-emerald-700 font-black border-r text-center">
                                         ₱{parseFloat(room.room_rate).toLocaleString(undefined, {minimumFractionDigits: 2})}
                                     </td>
                                     <td className="p-4 text-center border-r">
-                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${
-                                            room.status === 'Available' ? 'bg-emerald-100 text-emerald-700' : 
-                                            room.status === 'Occupied' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                                        <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter border ${
+                                            room.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
+                                            room.status === 'Occupied' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-rose-50 text-rose-700 border-rose-100'
                                         }`}>
                                             {room.status}
                                         </span>
                                     </td>
-                                    <td className="p-4 text-center">
+                                    <td className="p-4 text-center sticky right-0 bg-white group-hover:bg-slate-50 z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)]">
                                         <div className="flex justify-center gap-2">
                                             <Button 
                                                 variant="warning" 
-                                                className="text-[9px] py-1 px-4 font-black uppercase tracking-tighter"
-                                                onClick={() => { 
-                                                    setSelectedRoom(room); 
-                                                    setIsEditModalOpen(true); 
-                                                }}
+                                                className="text-[9px] py-1.5 px-4 font-black uppercase tracking-tighter shadow-sm"
+                                                onClick={() => { setSelectedRoom(room); setIsEditModalOpen(true); }}
                                             >
                                                 Edit
                                             </Button>
                                             <Button 
                                                 variant="danger" 
-                                                className="text-[9px] py-1 px-4 font-black uppercase tracking-tighter"
-                                                onClick={() => {
-                                                    setSelectedRoom(room);
-                                                    setIsDeleteModalOpen(true);
-                                                }}
+                                                className="text-[9px] py-1.5 px-4 font-black uppercase tracking-tighter shadow-sm"
+                                                onClick={() => { setSelectedRoom(room); setIsDeleteModalOpen(true); }}
                                             >
                                                 Delete
                                             </Button>
@@ -185,14 +178,12 @@ export default function RoomManagement({ auth, rooms = [] }) {
                                     </td>
                                 </tr>
                             ))}
-                            
-                            {filteredRooms.length === 0 && (
-                                <tr>
-                                    <td colSpan="4" className="p-10 text-center text-slate-400 italic">No rooms found.</td>
-                                </tr>
-                            )}
                         </tbody>
                     </table>
+                    
+                    {filteredRooms.length === 0 && (
+                        <div className="p-20 text-center text-slate-400 italic text-sm">No unit records match your search.</div>
+                    )}
                 </div>
                 <div className="p-6 border-t bg-slate-50/30">
                     <Pagination 

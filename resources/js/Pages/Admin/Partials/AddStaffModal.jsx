@@ -1,7 +1,6 @@
-// resources/js/Pages/Admin/Partials/AddStaffModal.jsx
-
 import React, { useEffect, useState } from 'react';
 import { useForm } from '@inertiajs/react';
+import Button from '@/Components/Button'; // Assuming you have a shared Button component
 import Toast from '@/Components/Toast'; 
 
 export default function AddStaffModal({ isOpen, onClose, initialRole }) {
@@ -48,7 +47,6 @@ export default function AddStaffModal({ isOpen, onClose, initialRole }) {
             isValid = false;
         }
 
-        // Basic Email Regex
         if (data.email && !/\S+@\S+\.\S+/.test(data.email)) {
             setError('email', 'Invalid email format.');
             isValid = false;
@@ -74,16 +72,19 @@ export default function AddStaffModal({ isOpen, onClose, initialRole }) {
                 onError: (err) => {
                     console.error("Backend Validation Errors:", err);
                     const firstErrorMessage = Object.values(err)[0];
-                setToastInfo({ 
-                    show: true, 
-                    message: `Submission Failed: ${firstErrorMessage}`, 
-                    type: 'error' 
-                });
-                    // setToastInfo({ show: true, message: 'Submission Failed. Check inputs.', type: 'error' });
+                    setToastInfo({ 
+                        show: true, 
+                        message: `Submission Failed: ${firstErrorMessage}`, 
+                        type: 'error' 
+                    });
                 },
             });
-        }else{
-            console.warn("Frontend Validation failed before sending to server.");
+        } else {
+            setToastInfo({ 
+                show: true, 
+                message: 'Please check the highlighted fields.', 
+                type: 'error' 
+            });
         }
     };
 
@@ -104,9 +105,10 @@ export default function AddStaffModal({ isOpen, onClose, initialRole }) {
         </div>
     );
 
+    if (!isOpen) return null;
+
     return (
-        <>
-            {/* Toast remains visible after modal close */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 md:p-4 animate-in fade-in duration-200">
             {toastInfo.show && (
                 <Toast 
                     message={toastInfo.message} 
@@ -115,141 +117,145 @@ export default function AddStaffModal({ isOpen, onClose, initialRole }) {
                 />
             )}
 
-            {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg overflow-hidden flex flex-col transform transition-all animate-in zoom-in duration-200">
+            {/* CONTAINER: Flex-col with max-height constraint */}
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden animate-in zoom-in duration-200">
+                
+                {/* FIXED HEADER */}
+                <div className="bg-[#3D52A0] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md">
+                    <div>
+                        <h2 className="font-black text-lg tracking-tight uppercase leading-none">Staff Registration</h2>
+                        <p className="text-[10px] text-blue-100 uppercase tracking-widest mt-1">Personnel Credential Setup</p>
+                    </div>
+                    <button onClick={handleModalClose} className="text-2xl font-bold hover:text-gray-200 leading-none">&times;</button>
+                </div>
+
+                {/* SCROLLABLE FORM BODY */}
+                <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden text-slate-800">
+                    <div className="p-6 md:p-8 space-y-6 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-300">
                         
-                        {/* Fixed Header */}
-                        <div className="bg-[#3D52A0] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md">
+                        {/* 1. Role and Gender: Responsive Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <h2 className="font-black text-lg tracking-tight uppercase">Staff Registration</h2>
-                                <p className="text-[10px] text-blue-100 uppercase tracking-widest">Personnel Credential Setup</p>
+                                <Label text="Assigned Role" fieldError={errors.role} />
+                                <select value={data.role} onChange={e => setData('role', e.target.value)} className={inputClass(errors.role)}>
+                                    <option value="">Select Role</option>
+                                    <option value="Doctor">Doctor</option>
+                                    <option value="Nurse">Nurse</option>
+                                    <option value="Admin">Admin</option>
+                                </select>
                             </div>
-                            <button onClick={handleModalClose} className="text-2xl font-bold hover:text-gray-200 leading-none">&times;</button>
+                            <div>
+                                <Label text="Sex" fieldError={errors.gender} />
+                                <select value={data.gender} onChange={e => setData('gender', e.target.value)} className={inputClass(errors.gender)}>
+                                    <option value="">Select Sex</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden text-slate-800">
-                            <div className="p-8 space-y-6 overflow-y-auto max-h-[65vh] scrollbar-thin scrollbar-thumb-slate-300">
-                                
-                                {/* 1. Role and Gender */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label text="Assigned Role" fieldError={errors.role} />
-                                        <select value={data.role} onChange={e => setData('role', e.target.value)} className={inputClass(errors.role)}>
-                                            <option value="">Select Role</option>
-                                            <option value="Doctor">Doctor</option>
-                                            <option value="Nurse">Nurse</option>
-                                            <option value="Admin">Admin</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <Label text="Sex" fieldError={errors.gender} />
-                                        <select value={data.gender} onChange={e => setData('gender', e.target.value)} className={inputClass(errors.gender)}>
-                                            <option value="">Select Sex</option>
-                                            <option value="Male">Male</option>
-                                            <option value="Female">Female</option>
-                                            <option value="Other">Other</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* 2. Name Grid */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label text="First Name" current={data.first_name.length} max={100} fieldError={errors.first_name} />
-                                        <input 
-                                            type="text" 
-                                            maxLength={100}
-                                            value={data.first_name}
-                                            onChange={e => setData('first_name', e.target.value)}
-                                            className={inputClass(errors.first_name)}
-                                            placeholder="Juan"
-                                        />
-                                        {errors.first_name && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.first_name}</p>}
-                                    </div>
-                                    <div>
-                                        <Label text="Last Name" current={data.last_name.length} max={100} fieldError={errors.last_name} />
-                                        <input 
-                                            type="text" 
-                                            maxLength={100}
-                                            value={data.last_name}
-                                            onChange={e => setData('last_name', e.target.value)}
-                                            className={inputClass(errors.last_name)}
-                                            placeholder="Dela Cruz"
-                                        />
-                                        {errors.last_name && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.last_name}</p>}
-                                    </div>
-                                </div>
-
-                                {/* 3. Contact Details */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label text="Contact Number" current={data.contact_number.length} max={11} fieldError={errors.contact_number} />
-                                        <input 
-                                            type="text" 
-                                            value={data.contact_number}
-                                            onChange={e => setData('contact_number', e.target.value.replace(/\D/g, '').slice(0, 11))}
-                                            className={inputClass(errors.contact_number)}
-                                            placeholder="09171234567"
-                                        />
-                                        {errors.contact_number && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.contact_number}</p>}
-                                    </div>
-                                    <div>
-                                        <Label text="Email Address" fieldError={errors.email} />
-                                        <input 
-                                            type="email" 
-                                            value={data.email}
-                                            onChange={e => setData('email', e.target.value)}
-                                            className={inputClass(errors.email)}
-                                            placeholder="juan@hospital.com"
-                                        />
-                                        {errors.email && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.email}</p>}
-                                    </div>
-                                </div>
-
-                                {/* 4. Address */}
-                                <div>
-                                    <Label text="Residential Address" current={data.address.length} max={200} fieldError={errors.address} />
-                                    <textarea 
-                                        maxLength={200}
-                                        value={data.address}
-                                        onChange={e => setData('address', e.target.value)}
-                                        className={`${inputClass(errors.address)} h-20 resize-none`}
-                                        placeholder="Street, Brgy, City"
-                                    />
-                                    {errors.address && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.address}</p>}
-                                </div>
-
-                                {/* 5. Password */}
-                                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                                    <Label text="Security: Temporary Password" fieldError={errors.password} />
-                                    <input 
-                                        type="password" 
-                                        value={data.password}
-                                        onChange={e => setData('password', e.target.value)}
-                                        className={inputClass(errors.password)}
-                                        placeholder="Min. 8 characters"
-                                    />
-                                    <p className="text-[9px] text-slate-400 mt-1 uppercase font-bold">Staff must change this upon first login.</p>
-                                    {errors.password && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.password}</p>}
-                                </div>
+                        {/* 2. Name Grid: Responsive */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label text="First Name" current={data.first_name.length} max={100} fieldError={errors.first_name} />
+                                <input 
+                                    type="text" 
+                                    maxLength={100}
+                                    value={data.first_name}
+                                    onChange={e => setData('first_name', e.target.value)}
+                                    className={inputClass(errors.first_name)}
+                                    placeholder="e.g. Juan"
+                                />
+                                {errors.first_name && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.first_name}</p>}
                             </div>
-
-                            {/* Fixed Footer Actions */}
-                            <div className="bg-slate-100 px-8 py-4 flex justify-end gap-3 border-t shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-                                <button type="button" onClick={handleModalClose} className="px-6 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded font-black text-[11px] uppercase tracking-widest transition-all">Cancel</button>
-                                <button 
-                                    type="submit"
-                                    disabled={processing}
-                                    className="px-8 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-black text-[11px] uppercase tracking-widest transition-all shadow-md active:scale-95 disabled:opacity-50"
-                                >
-                                    {processing ? 'SAVING...' : 'Register Staff'}
-                                </button>
+                            <div>
+                                <Label text="Last Name" current={data.last_name.length} max={100} fieldError={errors.last_name} />
+                                <input 
+                                    type="text" 
+                                    maxLength={100}
+                                    value={data.last_name}
+                                    onChange={e => setData('last_name', e.target.value)}
+                                    className={inputClass(errors.last_name)}
+                                    placeholder="e.g. Dela Cruz"
+                                />
+                                {errors.last_name && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.last_name}</p>}
                             </div>
-                        </form>
+                        </div>
+
+                        {/* 3. Contact Details: Responsive */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label text="Contact Number" current={data.contact_number.length} max={11} fieldError={errors.contact_number} />
+                                <input 
+                                    type="text" 
+                                    value={data.contact_number}
+                                    onChange={e => setData('contact_number', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                                    className={inputClass(errors.contact_number)}
+                                    placeholder="09171234567"
+                                />
+                                {errors.contact_number && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.contact_number}</p>}
+                            </div>
+                            <div>
+                                <Label text="Email Address" fieldError={errors.email} />
+                                <input 
+                                    type="email" 
+                                    value={data.email}
+                                    onChange={e => setData('email', e.target.value)}
+                                    className={inputClass(errors.email)}
+                                    placeholder="juan@hospital.com"
+                                />
+                                {errors.email && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.email}</p>}
+                            </div>
+                        </div>
+
+                        {/* 4. Address */}
+                        <div>
+                            <Label text="Residential Address" current={data.address.length} max={200} fieldError={errors.address} />
+                            <textarea 
+                                maxLength={200}
+                                value={data.address}
+                                onChange={e => setData('address', e.target.value)}
+                                className={`${inputClass(errors.address)} h-20 resize-none`}
+                                placeholder="Street, Brgy, City"
+                            />
+                            {errors.address && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.address}</p>}
+                        </div>
+
+                        {/* 5. Password */}
+                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <Label text="Security: Temporary Password" fieldError={errors.password} />
+                            <input 
+                                type="password" 
+                                value={data.password}
+                                onChange={e => setData('password', e.target.value)}
+                                className={inputClass(errors.password)}
+                                placeholder="Min. 8 characters"
+                            />
+                            <p className="text-[9px] text-slate-400 mt-1 uppercase font-bold">Staff must change this upon first login.</p>
+                            {errors.password && <p className="text-red-500 text-[9px] mt-1 font-bold italic uppercase">{errors.password}</p>}
+                        </div>
                     </div>
-                </div>
-            )}
-        </>
+
+                    {/* FIXED FOOTER: Stacked on mobile, row on desktop */}
+                    <div className="bg-slate-100 px-6 md:px-8 py-4 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t shrink-0">
+                        <Button 
+                            type="button" 
+                            onClick={handleModalClose} 
+                            className="w-full sm:w-auto px-6 py-2.5 bg-slate-500 text-white font-black text-[11px] uppercase tracking-widest"
+                        >
+                            Cancel
+                        </Button>
+                        <Button 
+                            type="submit"
+                            disabled={processing}
+                            className="w-full sm:w-auto px-8 py-2.5 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 disabled:opacity-50"
+                        >
+                            {processing ? 'SAVING...' : 'Register Staff'}
+                        </Button>
+                    </div>
+                </form>
+            </div>
+        </div>
     );
 }

@@ -34,9 +34,7 @@ export default function ManageStockTable({ items, expandedRow, toggleRow, today,
                         <th className="p-3 border-r text-center cursor-pointer hover:bg-slate-100" onClick={() => onSort('calculatedStatus')}>
                             Status <SortIcon column="calculatedStatus" />
                         </th>
-                        
-                        {/* --- FIXED ACTIONS HEADER --- */}
-                        <th className="p-3 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-20 w-[160px]">
+                        <th className="p-2 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-20 w-[90px] md:w-[160px]">
                             Actions
                         </th>
                     </tr>
@@ -65,28 +63,31 @@ export default function ManageStockTable({ items, expandedRow, toggleRow, today,
                                 </td>
 
                                 {/* --- FIXED ACTIONS CELL --- */}
-                                <td className="p-3 sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-10 transition-colors">
-                                    <div className="flex flex-col gap-1">
+                                <td className="p-1.5 md:p-3 sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-10 transition-colors">
+                                    <div className="flex flex-col gap-1.5 md:gap-2">
                                         <Button 
                                             onClick={() => onManage(item)} 
-                                            className="text-[9px] py-1 font-black uppercase tracking-widest"
+                                            /* tracking-tighter only on mobile (none), tracking-widest restored for desktop (md) */
+                                            className="text-[8px] md:text-[9px] py-1.5 md:py-2 px-1 md:px-3 font-black uppercase tracking-tighter md:tracking-widest w-full leading-tight"
                                         >
                                             Manage Batches
                                         </Button>
-                                        <div className="flex gap-1">
+                                        
+                                        <div className="flex flex-col md:flex-row gap-1">
                                             <Button 
                                                 variant="warning" 
                                                 onClick={() => onEdit(item)} 
-                                                className="text-[9px] py-1 flex-1 font-black uppercase"
+                                                className="text-[8px] md:text-[9px] py-1.5 md:py-1 flex-1 font-black uppercase tracking-tighter md:tracking-normal"
                                             >
                                                 Edit
                                             </Button>
                                             <Button 
                                                 variant="danger" 
                                                 onClick={() => onDelete(item)} 
-                                                className="text-[9px] py-1 flex-1 font-black uppercase"
+                                                className="text-[8px] md:text-[9px] py-1.5 md:py-1 flex-1 font-black uppercase tracking-tighter md:tracking-normal"
                                             >
-                                                Delete
+                                                <span className="md:hidden">Del</span>
+                                                <span className="hidden md:inline">Delete</span>
                                             </Button>
                                         </div>
                                     </div>

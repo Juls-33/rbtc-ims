@@ -20,44 +20,58 @@ export default function DeleteRoomModal({ isOpen, onClose, room, onSuccess }) {
     if (!isOpen || !room) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in duration-200">
-                <div className="bg-red-600 text-white p-4 flex justify-between items-center shadow-md">
-                    <h3 className="font-black uppercase tracking-tight text-sm">Confirm Deletion</h3>
-                    <button onClick={onClose} className="text-xl font-bold">&times;</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 md:p-4 backdrop-blur-sm animate-in fade-in duration-200">
+            {/* CONTAINER: flex flex-col with max-height constraint for mobile viewports */}
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-sm flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden animate-in zoom-in duration-150">
+                
+                {/* FIXED HEADER */}
+                <div className="bg-rose-600 text-white px-6 py-4 flex justify-between items-center shrink-0 shadow-md">
+                    <h3 className="font-black uppercase tracking-widest text-[11px]">System Confirmation</h3>
+                    <button onClick={onClose} className="text-2xl font-bold leading-none hover:text-rose-200 transition-colors">&times;</button>
                 </div>
 
-                <div className="p-6 text-center">
-                    <div className="mb-4 text-red-500">
-                        {/* Simple warning icon */}
-                        <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
+                {/* SCROLLABLE BODY */}
+                <div className="p-6 md:p-8 text-center overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-200">
+                    <div className="mb-6 text-rose-500 shrink-0">
+                        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-rose-50 mb-2">
+                            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
                     </div>
-                    <p className="text-slate-600 text-sm">
-                        Are you sure you want to delete <span className="font-bold text-slate-800">{room.room_location}</span>?
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-2 uppercase font-bold tracking-widest leading-relaxed">
-                        This action is permanent and will be logged in the system history.
-                    </p>
+                    
+                    <h4 className="text-base font-black text-slate-900 uppercase tracking-tight leading-tight">
+                        Remove {room.room_location}?
+                    </h4>
+                    
+                    <div className="mt-4 space-y-3">
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                            Are you sure you want to delete this facility record? This will permanently remove the unit from the registry.
+                        </p>
+                        
+                        <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest bg-rose-50 py-2 rounded border border-rose-100 italic">
+                            Action cannot be reversed
+                        </p>
+                    </div>
                 </div>
 
-                <form onSubmit={submit} className="p-4 bg-slate-50 border-t flex justify-center gap-3">
+                {/* FIXED FOOTER: flex-col-reverse for mobile-first thumb ergonomics */}
+                <form onSubmit={submit} className="p-6 bg-slate-50 border-t flex flex-col-reverse sm:flex-row justify-center gap-3 shrink-0">
                     <Button 
                         type="button" 
                         variant="gray" 
                         onClick={onClose} 
-                        className="px-6 py-2 text-[10px] font-black uppercase tracking-widest"
+                        className="w-full sm:flex-1 py-3 text-[10px] font-black uppercase tracking-widest"
                     >
-                        Keep Room
+                        Keep Record
                     </Button>
                     <Button 
                         type="submit" 
                         variant="danger" 
                         disabled={processing} 
-                        className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95"
+                        className="w-full sm:flex-1 py-3 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-100 active:scale-95"
                     >
-                        {processing ? 'Deleting...' : 'Confirm Delete'}
+                        {processing ? 'Processing...' : 'Confirm Deletion'}
                     </Button>
                 </form>
             </div>

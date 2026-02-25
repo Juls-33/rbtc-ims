@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 
 // Shared Components
 import Button from '@/Components/Button';
@@ -11,6 +11,7 @@ import DeletePatientModal from './Partials/DeletePatientModal';
 import AdmitPatientModal from './Partials/AdmitPatientModal';
 import PatientProfile from './Partials/PatientProfile';
 import AddVisitModal from './Partials/AddVisitModal';
+import Toast from '@/Components/Toast';
 
 export default function PatientManagement({ auth, patients = [], selectablePatients, rooms, doctors, inventory = [] }) {
 
@@ -27,6 +28,8 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
     const [viewMode, setViewMode] = useState('list'); // 'list' or 'profile'
     const [selectedProfile, setSelectedProfile] = useState(null);
     const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
+    const [profileContext, setProfileContext] = useState('inpatient');
+    
     const itemsPerPage = 10;
 
     const listHeaderTitle = useMemo(() => {
@@ -38,16 +41,12 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
         let data = allPatients;
 
         if (activeTab === 'inpatient') {
-            data = data.filter(p => 
-                p.status?.toUpperCase() === 'ADMITTED' || 
-                p.status?.toUpperCase() === 'COMPLETED'  || 
-                p.status?.toUpperCase() === 'DISCHARGED'
-            );
+
+            data = data.filter(p => p.has_admissions);
         } 
         else if (activeTab === 'outpatient') {
-            data = data.filter(p => 
-                p.status?.toUpperCase() === 'OUTPATIENT'
-            );
+
+            data = data.filter(p => p.has_visits);
         }
 
         // Search logic remains the same
@@ -95,19 +94,39 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
             });
         }
     };
+    const activePatient = useMemo(() => {
+    if (!selectedProfile) return null;
+        return allPatients.find(p => p.id === selectedProfile);
+    }, [allPatients, selectedProfile]);
+
+    const { flash } = usePage().props;
+    const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' });
+
+    useEffect(() => {
+        if (flash?.success) {
+            handleShowToast(flash.success, 'success');
+            // Optional: Clear the flash manually if your middleware doesn't
+            flash.success = null; 
+        }
+        if (flash?.error) {
+            handleShowToast(flash.error, 'danger');
+            flash.error = null;
+        }
+    }, [flash]);
+    const handleShowToast = (message, type = 'success') => {
+        setToastInfo({ show: true, message, type });
+    };
     const handleViewProfile = (patient) => {
-        setSelectedProfile(patient);
+        setSelectedProfile(patient.id);
+        setProfileContext(activeTab === 'outpatient' ? 'outpatient' : 'inpatient');
         setViewMode('profile');
     };
-    const activePatient = useMemo(() => {
-        if (!selectedProfile) return null;
-        return allPatients.find(p => p.id === selectedProfile.id);
-    }, [allPatients, selectedProfile]);
     if (viewMode === 'profile' && activePatient) {
     return (
         <AuthenticatedLayout header={`Admin / Patient Profile: ${activePatient.name}`}>
             <PatientProfile 
-                patient={activePatient} // Use the live version here!
+                patient={activePatient} 
+                initialTab={profileContext}
                 onBack={() => {
                     setViewMode('list');
                     setSelectedProfile(null);
@@ -123,29 +142,37 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
         <AuthenticatedLayout 
             header="Admin / Patient Management" 
             sectionTitle={
-                <div className="flex w-full">
+                <div className="grid grid-cols-1 md:flex w-full shadow-lg border-b border-[#243776]">
                     {['all', 'inpatient', 'outpatient'].map((tab) => (
                         <button 
                             key={tab}
                             onClick={() => { 
                                 setActiveTab(tab); 
                                 setCurrentPage(1); 
-                                setSearchQuery(''); // Clear search on tab switch
+                                setSearchQuery(''); 
                             }} 
-                            className={`flex-1 py-4 text-center transition-colors font-bold tracking-wider uppercase ${
+                            /* 🔥 Added border-b for mobile stacking, md:border-b-0 for desktop */
+                            className={`py-3 md:py-5 text-center transition-all font-black tracking-widest uppercase text-[10px] md:text-xs border-b md:border-b-0 md:border-r border-white/10 last:border-0 flex-1 ${
                                 activeTab === tab 
-                                    ? 'bg-slate-400/50 text-slate-100' 
-                                    : 'bg-[#2E4696] text-white hover:bg-[#243776]'
+                                    ? 'bg-slate-500/40 text-white shadow-inner' 
+                                    : 'bg-[#2E4696] text-white hover:bg-[#3D52A0]'
                             }`}
                         >
-                            {tab === 'all' ? 'All Patients' : tab}
+                            {/* Simplified labels for better mobile fit */}
+                            {tab === 'all' ? 'Directory' : tab}
                         </button>
                     ))}
                 </div>
             }
         >
             <Head title="Patient Management" />
-
+            {toastInfo.show && (
+                <Toast 
+                    message={toastInfo.message} 
+                    type={toastInfo.type} 
+                    onClose={() => setToastInfo({ ...toastInfo, show: false })} 
+                />
+            )}
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-h-[600px]">
                 <div className="bg-[#3D52A0] text-white p-4 font-black text-sm uppercase tracking-widest flex justify-between items-center">
                     <span>{listHeaderTitle}</span>
@@ -226,14 +253,21 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                                                         <td className="p-3 font-bold text-slate-800 border-r">{patient.name}</td>
                                                         <td className="p-3 border-r text-xs">{patient.dob}</td>
                                                         <td className="p-3 border-r text-xs">{patient.contact_no}</td>
-                                                        <td className="p-3 border-r">
-                                                            <span className={`font-bold text-[10px] px-2 py-0.5 rounded ${
-                                                                patient.status === 'ADMITTED' ? 'bg-emerald-100 text-emerald-700' : 
-                                                                patient.status === 'DISCHARGED' ? 'bg-amber-100 text-amber-700' : 
-                                                                'bg-slate-100 text-slate-600'
-                                                            }`}>
-                                                                {patient.status}
-                                                            </span>
+                                                        <td className="p-3 border-r text-center">
+                                                            {(() => {
+                                                                if (activeTab === 'outpatient') {
+                                                                    return <span className="font-bold text-[10px] px-2 py-0.5 rounded bg-blue-100 text-blue-700">OUTPATIENT</span>;
+                                                                }
+                                                                return (
+                                                                    <span className={`font-bold text-[10px] px-2 py-0.5 rounded ${
+                                                                        patient.status === 'ADMITTED' ? 'bg-emerald-100 text-emerald-700' : 
+                                                                        patient.status === 'DISCHARGED' ? 'bg-amber-100 text-amber-700' : 
+                                                                        'bg-slate-100 text-slate-600'
+                                                                    }`}>
+                                                                        {patient.status}
+                                                                    </span>
+                                                                );
+                                                            })()}
                                                         </td>
                                                         <td className="p-3 border-r">
                                                             <span className={`font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-widest border ${
@@ -275,6 +309,7 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
             <AddPatientModal 
                 isOpen={isAddModalOpen} 
                 onClose={() => setIsAddModalOpen(false)} 
+                onSuccess={(msg) => handleShowToast(msg || 'Patient registered!', 'success')}
             />
 
             <EditPatientModal 
@@ -284,6 +319,7 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                     setSelectedPatient(null);
                 }}
                 patient={selectedPatient} 
+                onSuccess={(msg) => handleShowToast(msg, 'success')} 
             />
 
             <DeletePatientModal 
@@ -293,6 +329,7 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                     setPatientToDelete(null); 
                 }} 
                 patient={patientToDelete} 
+                onSuccess={(msg) => handleShowToast(msg, 'success')} 
             />
             <AdmitPatientModal 
                 isOpen={isAdmitModalOpen} 
@@ -300,11 +337,13 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                 patients={selectablePatients || []} 
                 rooms={rooms || []}
                 doctors={doctors || []}
+                onSuccess={(msg) => handleShowToast(msg, 'success')} 
             />
             <AddVisitModal 
                 isOpen={isAddVisitModalOpen} 
                 onClose={() => setIsAddVisitModalOpen(false)}
                 patients={selectablePatients || []} 
+                onSuccess={(msg) => handleShowToast(msg, 'success')}
             />
         </AuthenticatedLayout>
     );

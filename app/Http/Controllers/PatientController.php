@@ -78,6 +78,10 @@ class PatientController extends Controller
                 'emergency_contact_number' => $patient->emergency_contact_number,
                 
                 'bill_status' => 'UNPAID', 
+                'is_admitted'     => $active !== null, 
+                'has_admissions'  => $allAdmissions->count() > 0,
+                'has_visits'      => $patient->visits->count() > 0,
+                'latest_admission_status' => $latest ? strtoupper($latest->status) : null,
                 'status'     => $latest ? strtoupper($latest->status) : 'OUTPATIENT',
                 'type'       => ($active || $latest) ? 'inpatient' : 'outpatient',
                 
@@ -96,6 +100,11 @@ class PatientController extends Controller
                         'total_bill'     => (float)$adm->total_bill,   
                         'balance'        => (float)$adm->balance, 
                         'amount_paid'    => (float)$adm->amount_paid,
+                        'statements'     => $adm->getStatements(),
+                        'room_stays'     => $adm->roomStays,
+                        'bill_items'     => $adm->billItems,
+                        'staff'          => $adm->staff,
+                        'room'           => $adm->room,
                     ];
                 })->values(),
 
@@ -118,7 +127,7 @@ class PatientController extends Controller
                     'bill_items'         => $active->billItems,
                 ] : null,
 
-                'visit_history' => $patient->visits->sortByDesc('visit_date')->map(fn($visit) => [
+                'visit_history' => $patient->visits->sortByDesc('visit_date')->values()->map(fn($visit) => [
                     'id'       => $visit->id,
                     'visit_id' => 'V-' . str_pad($visit->id, 5, '0', STR_PAD_LEFT),
                     'date'     => $visit->visit_date,
@@ -226,7 +235,8 @@ class PatientController extends Controller
 
         $patient->delete();
 
-        return redirect()->route('admin.patients')->with('success', 'Record removed.');
+        return redirect()->route('admin.patients')
+        ->with('success', 'Patient record has been permanently removed.');
     }
 
     public function show($id)
