@@ -16,6 +16,7 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
+    const today = new Date().toISOString().split('T')[0];
 
     // 🔥 Added errors state to fix the ReferenceError
     const [errors, setErrors] = useState({}); 
@@ -56,14 +57,14 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
             preserveScroll: true,
             onSuccess: () => {
                 setIsProcessing(false);
-                if (actionType === 'add') {
-                    setFormData({ batchId: generateId(), quantity: '', expiryDate: '' });
-                    showToast('New batch added!', 'success');
-                } else if (actionType === 'adjust') {
-                    showToast('Stock level adjusted.', 'success');
-                } else {
-                    showToast('Batch removed.', 'success');
-                }
+                // if (actionType === 'add') {
+                //     setFormData({ batchId: generateId(), quantity: '', expiryDate: '' });
+                //     showToast('New batch added!', 'success');
+                // } else if (actionType === 'adjust') {
+                //     showToast('Stock level adjusted.', 'success');
+                // } else {
+                //     showToast('Batch removed.', 'success');
+                // }
                 setErrors({}); 
             },
             onError: () => {
@@ -156,7 +157,7 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
             {/* CONTAINER: Flex Column with Max Height */}
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden animate-in zoom-in duration-150">
                 
-                {/* FIXED HEADER */}
+                {/* HEADER */}
                 <div className="bg-[#3D52A0] text-white px-6 py-4 flex justify-between items-center shrink-0 shadow-md">
                     <div>
                         <h2 className="text-lg font-black uppercase tracking-tight leading-none">Manage Batches</h2>
@@ -222,19 +223,25 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
-                                        {currentBatches.length > 0 ? currentBatches.map((batch) => (
-                                            <tr key={batch.id} className="hover:bg-slate-50 transition-colors">
-                                                <td className="p-3 border-r font-mono text-[11px] text-slate-500">{batch.id}</td>
-                                                <td className="p-3 border-r font-black text-center text-slate-800">{batch.stock}</td>
-                                                <td className="p-3 border-r text-[11px] text-center">{batch.expiry}</td>
-                                                <td className="p-3 text-center">
-                                                    <div className="flex gap-2 justify-center">
-                                                        <Button variant="success" onClick={() => setBatchToAdjust(batch)} className="px-3 py-1 text-[8px] font-black uppercase">ADJUST</Button>
-                                                        <Button variant="danger" onClick={() => setBatchToDelete(batch)} className="px-3 py-1 text-[8px] font-black uppercase">REMOVE</Button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )) : (
+                                        {currentBatches.length > 0 ? currentBatches.map((batch) => {
+                                            const isExpired = batch.expiry < today; // 🔥 Expiry Logic
+                                            
+                                            return (
+                                                <tr key={batch.id} className={`transition-colors ${isExpired ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-slate-50'}`}>
+                                                    <td className={`p-3 border-r font-mono text-[11px] ${isExpired ? 'text-red-600 font-bold' : 'text-slate-500'}`}>{batch.id}</td>
+                                                    <td className={`p-3 border-r font-black text-center ${isExpired ? 'text-red-700' : 'text-slate-800'}`}>{batch.stock}</td>
+                                                    <td className={`p-3 border-r text-[11px] text-center font-bold ${isExpired ? 'text-red-600 underline decoration-double' : 'text-slate-600'}`}>
+                                                        {batch.expiry} {isExpired && <span className="block text-[8px] uppercase tracking-tighter">Expired</span>}
+                                                    </td>
+                                                    <td className="p-3 text-center">
+                                                        <div className="flex gap-2 justify-center">
+                                                            <Button variant="success" onClick={() => setBatchToAdjust(batch)} className="px-3 py-1 text-[8px] font-black uppercase">ADJUST</Button>
+                                                            <Button variant="danger" onClick={() => setBatchToDelete(batch)} className="px-3 py-1 text-[8px] font-black uppercase">REMOVE</Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        }) : (
                                             <tr><td colSpan="4" className="p-10 text-center text-slate-400 italic text-xs">No active batches for this medicine.</td></tr>
                                         )}
                                     </tbody>
@@ -249,7 +256,7 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
                     </div>
                 </div>
 
-                {/* FIXED FOOTER */}
+                {/* FOOTER */}
                 <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-center shrink-0">
                     <Button variant="gray" onClick={handleModalClose} className="w-full md:w-auto px-16 py-2.5 font-black text-[10px] uppercase">CLOSE MANAGER</Button>
                 </div>

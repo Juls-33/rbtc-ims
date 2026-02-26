@@ -91,11 +91,11 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
         if (validate()) {
             put(route('inventory.update', medicine.id), {
                 onSuccess: () => {
-                    setToastInfo({ 
-                        show: true, 
-                        message: 'Medicine record and SKU updated!', 
-                        type: 'success' 
-                    });
+                    // setToastInfo({ 
+                    //     show: true, 
+                    //     message: 'Medicine record and SKU updated!', 
+                    //     type: 'success' 
+                    // });
                     handleModalClose();
                 },
                 onError: (err) => {

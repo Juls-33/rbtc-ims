@@ -81,7 +81,7 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
     }, [medicines, billItems]);
 
     useEffect(() => {
-        if (flash?.success) setToast({ message: flash.success, type: 'success' });
+        //if (flash?.success) setToast({ message: flash.success, type: 'success' });
         if (flash?.error) setToast({ message: flash.error, type: 'error' });
     }, [flash]);
 

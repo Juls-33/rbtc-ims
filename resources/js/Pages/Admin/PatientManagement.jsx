@@ -226,12 +226,12 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
                                                 <td className="p-4 border-r text-xs font-bold">{patient.gender}</td>
                                                 <td className="p-4 border-r text-xs">{patient.contact_no}</td>
                                                 <td className="p-4 border-r text-[10px] truncate max-w-[150px]">{patient.address}</td>
-                                                <td className="p-4 border-r text-[10px] font-bold uppercase">{patient.emergency_contact_name}</td>
+                                                <td className="p-4 border-r text-[10px] font-bold">{patient.emergency_contact_name}</td>
                                             </>
                                         ) : (
                                             <>
                                                 <td className="p-4 border-r font-mono text-[11px] font-bold text-slate-500">{patient.patient_id}</td>
-                                                <td className="p-4 border-r font-black text-slate-800 uppercase tracking-tight">{patient.name}</td>
+                                                <td className="p-4 border-r font-black text-slate-800 tracking-tight">{patient.name}</td>
                                                 <td className="p-4 border-r text-xs">{patient.contact_no}</td>
                                                 <td className="p-4 border-r text-center">
                                                     <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${

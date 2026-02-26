@@ -75,8 +75,8 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
         if (validate()) {
             put(route('admin.staff.update', member.id), {
                 onSuccess: () => {
-                    setToastInfo({ show: true, message: 'Personnel Record Updated!', type: 'success' });
-                    handleModalClose();
+                    // setToastInfo({ show: true, message: 'Personnel Record Updated!', type: 'success' });
+                    // handleModalClose();
                 },
                 onError: (err) => {
                     const firstErrorMessage = Object.values(err)[0];
