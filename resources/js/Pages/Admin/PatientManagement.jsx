@@ -1,3 +1,5 @@
+// resources/js/Pages/Admin/PatientManagement.jsx
+
 import React, { useState, useMemo, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, usePage } from '@inertiajs/react';
@@ -11,154 +13,146 @@ import DeletePatientModal from './Partials/DeletePatientModal';
 import AdmitPatientModal from './Partials/AdmitPatientModal';
 import PatientProfile from './Partials/PatientProfile';
 import AddVisitModal from './Partials/AddVisitModal';
-import Toast from '@/Components/Toast';
 
 export default function PatientManagement({ auth, patients = [], selectablePatients, rooms, doctors, inventory = [] }) {
-
+    // 1. All useState Hooks at the top
     const allPatients = Array.isArray(patients) ? patients : (patients.data || []);
     const [activeTab, setActiveTab] = useState('all'); 
     const [searchQuery, setSearchQuery] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
     const [currentPage, setCurrentPage] = useState(1);
+    const [viewMode, setViewMode] = useState('list');
+    const [selectedProfile, setSelectedProfile] = useState(null);
+    const [profileContext, setProfileContext] = useState('inpatient');
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isAdmitModalOpen, setIsAdmitModalOpen] = useState(false);
-    const [selectedPatient, setSelectedPatient] = useState(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [patientToDelete, setPatientToDelete] = useState(null);
-    const [viewMode, setViewMode] = useState('list'); // 'list' or 'profile'
-    const [selectedProfile, setSelectedProfile] = useState(null);
     const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
-    const [profileContext, setProfileContext] = useState('inpatient');
+    const [selectedPatient, setSelectedPatient] = useState(null);
+    const [patientToDelete, setPatientToDelete] = useState(null);
     
     const itemsPerPage = 10;
 
-    const listHeaderTitle = useMemo(() => {
-        if (activeTab === 'inpatient') return 'Patient List (Admission | Inpatient)';
-        if (activeTab === 'outpatient') return 'Patient List (Visits | Outpatient)';
-        return 'Patient List (General Directory)';
-    }, [activeTab]);
-    const filteredData = useMemo(() => {
-        let data = allPatients;
+    // 2. All useMemo Hooks (Order doesn't strictly matter between memos, but they MUST be before any return)
+    
+    const activePatient = useMemo(() => 
+        allPatients.find(p => p.id === selectedProfile), 
+    [allPatients, selectedProfile]);
 
-        if (activeTab === 'inpatient') {
+    const processedData = useMemo(() => {
+        let data = allPatients.map(p => {
+            const hasUnpaidVisit = p.visit_history?.some(v => parseFloat(v.balance) > 0);
+            const hasUnpaidStatement = p.active_admission?.statements?.some(s => s.status === 'UNPAID');
+            return {
+                ...p,
+                bill_status: (hasUnpaidVisit || hasUnpaidStatement) ? 'UNPAID' : 'PAID'
+            };
+        });
 
-            data = data.filter(p => p.has_admissions);
-        } 
-        else if (activeTab === 'outpatient') {
+        if (activeTab === 'inpatient') data = data.filter(p => p.has_admissions);
+        else if (activeTab === 'outpatient') data = data.filter(p => p.has_visits);
 
-            data = data.filter(p => p.has_visits);
-        }
-
-        // Search logic remains the same
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             data = data.filter(p => 
                 p.name.toLowerCase().includes(query) || 
-                p.patient_id?.toLowerCase().includes(query)
+                p.patient_id?.toLowerCase().includes(query) ||
+                p.status?.toLowerCase().includes(query) ||
+                p.bill_status?.toLowerCase().includes(query)
             );
         }
 
-        return data;
-    }, [activeTab, searchQuery, allPatients]);
-
-    // --- PAGINATION LOGIC ---
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-
-    const renderActionButton = () => {
-        const btnProps = { variant: "success", className: "px-6 py-2" };
-        switch (activeTab) {
-            case 'inpatient': return <Button {...btnProps} onClick={() => setIsAdmitModalOpen(true)}>ADMIT PATIENT</Button>;
-            case 'outpatient': return <Button {...btnProps} onClick={() => setIsAddVisitModalOpen(true)}>ADD PATIENT VISIT</Button>;
-            default: return <Button {...btnProps} onClick={() => setIsAddModalOpen(true)}>+ ADD NEW PATIENT</Button>;
-        }
-    };
-    const handleAddVisit = () => {
-        setIsAddVisitModalOpen(true);
-    };
-    const handleDelete = () => {
-        router.delete(route('admin.patients.destroy', patientToDelete.id), {
-            onBefore: () => confirm('Are you sure you want to delete this encrypted record? This cannot be undone.'),
-            onSuccess: () => setIsDeleteModalOpen(false),
+        data.sort((a, b) => {
+            let valA = a[sortConfig.key] || '';
+            let valB = b[sortConfig.key] || '';
+            if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
         });
-    };
-    const confirmDelete = () => {
-        if (patientToDelete) {
-            router.delete(route('admin.patients.destroy', patientToDelete.id), {
-                onSuccess: () => {
-                    setIsDeleteModalOpen(false);
-                    setPatientToDelete(null);
-                }
-            });
-        }
-    };
-    const activePatient = useMemo(() => {
-    if (!selectedProfile) return null;
-        return allPatients.find(p => p.id === selectedProfile);
-    }, [allPatients, selectedProfile]);
 
-    const { flash } = usePage().props;
-    const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' });
+        return data;
+    }, [activeTab, searchQuery, allPatients, sortConfig]);
 
+    const currentItems = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return processedData.slice(start, start + itemsPerPage);
+    }, [currentPage, processedData]);
+
+    const listHeaderTitle = useMemo(() => {
+        if (activeTab === 'inpatient') return 'Inpatient Admission Registry';
+        if (activeTab === 'outpatient') return 'Outpatient Visit History';
+        return 'General Patient Directory';
+    }, [activeTab]);
+
+    // 3. All useEffect Hooks
     useEffect(() => {
-        if (flash?.success) {
-            handleShowToast(flash.success, 'success');
-            // Optional: Clear the flash manually if your middleware doesn't
-            flash.success = null; 
+        setCurrentPage(1);
+    }, [searchQuery, activeTab]);
+
+    // 4. Helper Functions
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
         }
-        if (flash?.error) {
-            handleShowToast(flash.error, 'danger');
-            flash.error = null;
-        }
-    }, [flash]);
-    const handleShowToast = (message, type = 'success') => {
-        setToastInfo({ show: true, message, type });
+        setSortConfig({ key, direction });
     };
+
+    const SortIcon = ({ column }) => {
+        if (sortConfig.key !== column) return <span className="ml-1 opacity-20 text-[10px]">↕</span>;
+        return sortConfig.direction === 'asc' 
+            ? <span className="ml-1 text-blue-600 font-bold">↑</span> 
+            : <span className="ml-1 text-blue-600 font-bold">↓</span>;
+    };
+
     const handleViewProfile = (patient) => {
         setSelectedProfile(patient.id);
         setProfileContext(activeTab === 'outpatient' ? 'outpatient' : 'inpatient');
         setViewMode('profile');
     };
+
+    const renderActionButton = () => {
+        const btnClass = "w-full md:w-auto px-6 py-2 font-black text-[9px] uppercase tracking-widest shadow-md active:scale-95";
+        switch (activeTab) {
+            case 'inpatient': return <Button variant="success" className={btnClass} onClick={() => setIsAdmitModalOpen(true)}>Admit Patient</Button>;
+            case 'outpatient': return <Button variant="success" className={btnClass} onClick={() => setIsAddVisitModalOpen(true)}>Log Visit</Button>;
+            default: return <Button variant="success" className={btnClass} onClick={() => setIsAddModalOpen(true)}>+ Register New</Button>;
+        }
+    };
+
+    const totalPages = Math.ceil(processedData.length / itemsPerPage);
+
+    // --- 🔥 5. CONDITIONAL RETURNS (Only AFTER all hooks are called) ---
+    
     if (viewMode === 'profile' && activePatient) {
-    return (
-        <AuthenticatedLayout header={`Admin / Patient Profile: ${activePatient.name}`}>
-            <PatientProfile 
-                patient={activePatient} 
-                initialTab={profileContext}
-                onBack={() => {
-                    setViewMode('list');
-                    setSelectedProfile(null);
-                }} 
-                doctors={doctors} 
-                rooms={rooms}
-                inventory={inventory}
-            />
-        </AuthenticatedLayout>
-    );
-}
+        return (
+            <AuthenticatedLayout header={`Patient Profile: ${activePatient.name}`}>
+                <PatientProfile 
+                    patient={activePatient} 
+                    initialTab={profileContext}
+                    onBack={() => { setViewMode('list'); setSelectedProfile(null); }} 
+                    doctors={doctors} rooms={rooms} inventory={inventory}
+                />
+            </AuthenticatedLayout>
+        );
+    }
+
+    // Default List View Return
     return (
         <AuthenticatedLayout 
             header="Admin / Patient Management" 
             sectionTitle={
-                <div className="grid grid-cols-1 md:flex w-full shadow-lg border-b border-[#243776]">
+                <div className="grid grid-cols-3 md:flex w-full shadow-lg border-b border-[#243776]">
                     {['all', 'inpatient', 'outpatient'].map((tab) => (
                         <button 
                             key={tab}
-                            onClick={() => { 
-                                setActiveTab(tab); 
-                                setCurrentPage(1); 
-                                setSearchQuery(''); 
-                            }} 
-                            /* 🔥 Added border-b for mobile stacking, md:border-b-0 for desktop */
-                            className={`py-3 md:py-5 text-center transition-all font-black tracking-widest uppercase text-[10px] md:text-xs border-b md:border-b-0 md:border-r border-white/10 last:border-0 flex-1 ${
-                                activeTab === tab 
-                                    ? 'bg-slate-500/40 text-white shadow-inner' 
-                                    : 'bg-[#2E4696] text-white hover:bg-[#3D52A0]'
+                            onClick={() => setActiveTab(tab)} 
+                            className={`py-4 text-center transition-all font-black tracking-widest uppercase text-[10px] md:text-xs border-r border-white/10 last:border-0 flex-1 ${
+                                activeTab === tab ? 'bg-slate-500/40 text-white shadow-inner' : 'bg-[#2E4696] text-white hover:bg-[#3D52A0]'
                             }`}
                         >
-                            {/* Simplified labels for better mobile fit */}
                             {tab === 'all' ? 'Directory' : tab}
                         </button>
                     ))}
@@ -166,185 +160,152 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
             }
         >
             <Head title="Patient Management" />
-            {toastInfo.show && (
-                <Toast 
-                    message={toastInfo.message} 
-                    type={toastInfo.type} 
-                    onClose={() => setToastInfo({ ...toastInfo, show: false })} 
-                />
-            )}
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-h-[600px]">
-                <div className="bg-[#3D52A0] text-white p-4 font-black text-sm uppercase tracking-widest flex justify-between items-center">
+
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[600px] flex flex-col">
+                <div className="bg-[#3D52A0] text-white p-4 font-black text-sm uppercase tracking-widest flex justify-between items-center shrink-0 shadow-md">
                     <span>{listHeaderTitle}</span>
-                    <span className="bg-white/20 px-2 py-0.5 rounded text-[10px]">Records: {filteredData.length}</span>
+                    <span className="bg-white/20 px-3 py-1 rounded-full text-[10px]">Total: {processedData.length}</span>
                 </div>
-                <div className="p-6">
+
+                <div className="p-6 flex-1 flex flex-col">
                     <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                        <input 
-                            type="text" 
-                            value={searchQuery}
-                            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                            placeholder="Search by ID, Name, or Bill Status..."
-                            className="w-full md:w-96 pl-5 pr-4 py-2 border border-slate-300 rounded shadow-sm focus:ring-1 focus:ring-blue-500 outline-none text-sm"
-                        />
+                        <div className="relative w-full md:w-80">
+                            <input 
+                                type="text" 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search by ID, Name, Status..."
+                                className="w-full pl-4 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-1 focus:ring-[#3D52A0] outline-none text-xs transition-all"
+                            />
+                        </div>
                         {renderActionButton()}
                     </div>
 
-                    <div className="overflow-x-auto border border-slate-200 rounded relative">
-                        <table className="w-full text-left text-sm border-collapse table-auto">
-                            <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase text-[11px]">
-                                {activeTab === 'all' ? (
-                                    <tr>
-                                        <th className="p-3 border-r min-w-[150px]">Name</th>
-                                        <th className="p-3 border-r min-w-[100px]">Date of Birth</th>
-                                        <th className="p-3 border-r">Gender</th>
-                                        <th className="p-3 border-r min-w-[100px]">Civil Status</th>
-                                        <th className="p-3 border-r min-w-[120px]">Phone Number</th>
-                                        <th className="p-3 border-r min-w-[150px]">Home Address</th>
-                                        <th className="p-3 border-r min-w-[150px]">Emergency Contact</th>
-                                        <th className="p-3 border-r">Relationship</th>
-                                        <th className="p-3 border-r min-w-[120px]">Emergency Contact No.</th>
-                                        {/* FIXED ACTION HEADER */}
-                                        <th className="p-3 text-center sticky right-0 bg-slate-100 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-20">Action</th>
-                                    </tr>
-                                ) : (
-                                    <tr>
-                                        <th className="p-3 border-r">Patient ID</th>
-                                        <th className="p-3 border-r min-w-[150px]">Full Name</th>
-                                        <th className="p-3 border-r min-w-[100px]">Date of Birth</th>
-                                        <th className="p-3 border-r min-w-[120px]">Contact Number</th>
-                                        <th className="p-3 border-r">Status</th>
-                                        <th className="p-3 border-r">Bill Status</th>
-                                        {/* FIXED ACTION HEADER */}
-                                        <th className="p-3 text-center sticky right-0 bg-slate-100 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-20">Action</th>
-                                    </tr>
-                                )}
+                    <div className="overflow-x-auto border border-slate-200 rounded-xl relative shadow-sm">
+                        <table className="w-full text-left text-sm border-collapse table-auto min-w-[1000px]">
+                            <thead className="bg-slate-50 text-slate-500 font-black uppercase text-[10px] tracking-widest border-b">
+                                <tr>
+                                    {activeTab === 'all' ? (
+                                        <>
+                                            <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
+                                                Name <SortIcon column="name" />
+                                            </th>
+                                            <th className="p-4 border-r">DOB</th>
+                                            <th className="p-4 border-r">Gender</th>
+                                            <th className="p-4 border-r">Phone</th>
+                                            <th className="p-4 border-r min-w-[200px]">Address</th>
+                                            <th className="p-4 border-r">Emergency Contact</th>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('patient_id')}>
+                                                Patient ID <SortIcon column="patient_id" />
+                                            </th>
+                                            <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
+                                                Full Name <SortIcon column="name" />
+                                            </th>
+                                            <th className="p-4 border-r">Contact</th>
+                                            <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('status')}>
+                                                Status <SortIcon column="status" />
+                                            </th>
+                                            <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('bill_status')}>
+                                                Bill Status <SortIcon column="bill_status" />
+                                            </th>
+                                        </>
+                                    )}
+                                    <th className="p-4 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-20 w-40">Actions</th>
+                                </tr>
                             </thead>
-                            <tbody className="text-slate-600">
-                                {currentItems.length > 0 ? (
-                                    currentItems.map((patient) => {
-                                        const hasUnpaidVisit = patient.visit_history?.some(v => parseFloat(v.balance) > 0);
-                                        const hasUnpaidStatement = patient.active_admission?.statements?.some(s => s.status === 'UNPAID');
-                                        const aggregateBillStatus = (hasUnpaidVisit || hasUnpaidStatement) ? 'UNPAID' : 'PAID';
-                                        return (
-                                            <tr key={patient.id} className="border-b hover:bg-slate-50 transition-colors group">
+                            <tbody className="text-slate-600 divide-y divide-slate-100">
+                                {currentItems.map((patient) => (
+                                    <tr key={patient.id} className="hover:bg-slate-50/50 transition-colors group">
+                                        {activeTab === 'all' ? (
+                                            <>
+                                                <td className="p-4 font-black text-slate-800 border-r tracking-tight">{patient.name}</td>
+                                                <td className="p-4 border-r text-xs">{patient.dob}</td>
+                                                <td className="p-4 border-r text-xs font-bold">{patient.gender}</td>
+                                                <td className="p-4 border-r text-xs">{patient.contact_no}</td>
+                                                <td className="p-4 border-r text-[10px] truncate max-w-[150px]">{patient.address}</td>
+                                                <td className="p-4 border-r text-[10px] font-bold uppercase">{patient.emergency_contact_name}</td>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <td className="p-4 border-r font-mono text-[11px] font-bold text-slate-500">{patient.patient_id}</td>
+                                                <td className="p-4 border-r font-black text-slate-800 uppercase tracking-tight">{patient.name}</td>
+                                                <td className="p-4 border-r text-xs">{patient.contact_no}</td>
+                                                <td className="p-4 border-r text-center">
+                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                                                        patient.status === 'ADMITTED' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 
+                                                        patient.status === 'DISCHARGED' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-100'
+                                                    }`}>
+                                                        {activeTab === 'outpatient' ? 'OUTPATIENT' : patient.status}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 border-r text-center">
+                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                                                        patient.bill_status === 'UNPAID' ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                                    }`}>
+                                                        {patient.bill_status}
+                                                    </span>
+                                                </td>
+                                            </>
+                                        )}
+                                        
+                                        <td className="p-3 text-center sticky right-0 bg-white group-hover:bg-slate-50/50 z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] transition-colors">
+                                            <div className="flex flex-col gap-1.5 items-center justify-center">
                                                 {activeTab === 'all' ? (
-                                                    <>
-                                                        <td className="p-3 font-bold text-slate-800 border-r">{patient.name}</td>
-                                                        <td className="p-3 border-r text-xs">{patient.dob}</td>
-                                                        <td className="p-3 border-r text-xs">{patient.gender}</td>
-                                                        <td className="p-3 border-r text-xs">{patient.civil_status}</td>
-                                                        <td className="p-3 border-r text-xs">{patient.contact_no}</td>
-                                                        <td className="p-3 border-r text-[10px] truncate max-w-[100px]">{patient.address}</td>
-                                                        <td className="p-3 border-r text-[10px]">{patient.emergency_contact_name}</td>
-                                                        <td className="p-3 border-r text-[10px]">{patient.emergency_contact_relation}</td>
-                                                        <td className="p-3 border-r text-[10px]">{patient.emergency_contact_number}</td>
-                                                        {/* FIXED ACTION CELL */}
-                                                        <td className="p-4 text-center sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-10">
-                                                            <div className="flex flex-col gap-1">
-                                                                <Button variant="success" className="text-[8px] py-1" onClick={() => { setSelectedPatient(patient); setIsEditModalOpen(true); }}>EDIT</Button>
-                                                                <Button variant="danger" className="text-[8px] py-1" onClick={() => { setPatientToDelete(patient); setIsDeleteModalOpen(true); }}>DELETE</Button>
-                                                            </div>
-                                                        </td>
-                                                    </>
+                                                    <div className="flex flex-col gap-1.5 w-full items-center">
+                                                        <Button 
+                                                            variant="warning" 
+                                                            className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm"
+                                                            onClick={() => { setSelectedPatient(patient); setIsEditModalOpen(true); }}
+                                                        >
+                                                            EDIT
+                                                        </Button>
+                                                        <Button 
+                                                            variant="danger" 
+                                                            className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm"
+                                                            onClick={() => { setPatientToDelete(patient); setIsDeleteModalOpen(true); }}
+                                                        >
+                                                            DELETE
+                                                        </Button>
+                                                    </div>
                                                 ) : (
-                                                    <>
-                                                        <td className="p-3 font-bold border-r">{patient.patient_id}</td>
-                                                        <td className="p-3 font-bold text-slate-800 border-r">{patient.name}</td>
-                                                        <td className="p-3 border-r text-xs">{patient.dob}</td>
-                                                        <td className="p-3 border-r text-xs">{patient.contact_no}</td>
-                                                        <td className="p-3 border-r text-center">
-                                                            {(() => {
-                                                                if (activeTab === 'outpatient') {
-                                                                    return <span className="font-bold text-[10px] px-2 py-0.5 rounded bg-blue-100 text-blue-700">OUTPATIENT</span>;
-                                                                }
-                                                                return (
-                                                                    <span className={`font-bold text-[10px] px-2 py-0.5 rounded ${
-                                                                        patient.status === 'ADMITTED' ? 'bg-emerald-100 text-emerald-700' : 
-                                                                        patient.status === 'DISCHARGED' ? 'bg-amber-100 text-amber-700' : 
-                                                                        'bg-slate-100 text-slate-600'
-                                                                    }`}>
-                                                                        {patient.status}
-                                                                    </span>
-                                                                );
-                                                            })()}
-                                                        </td>
-                                                        <td className="p-3 border-r">
-                                                            <span className={`font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-widest border ${
-                                                                aggregateBillStatus === 'UNPAID' 
-                                                                    ? 'bg-rose-100 text-rose-700 border-rose-200' 
-                                                                    : 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                                                            }`}>
-                                                                {aggregateBillStatus}
-                                                            </span>
-                                                                                                    </td>
-                                                        {/* FIXED ACTION CELL */}
-                                                        <td className="p-3 text-center sticky right-0 bg-white group-hover:bg-slate-50 shadow-[-2px_0_5px_rgba(0,0,0,0.05)] z-10">
-                                                            <Button variant="success" className="text-[9px] px-2 py-1 shadow-sm uppercase font-bold" onClick={() => handleViewProfile(patient)}>VIEW PROFILE</Button>
-                                                        </td>
-                                                    </>
+                                                    <Button 
+                                                        variant="success" 
+                                                        className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm"
+                                                        onClick={() => handleViewProfile(patient)}
+                                                    >
+                                                        VIEW PROFILE
+                                                    </Button>
                                                 )}
-                                            </tr>
-                                        ); 
-                                    })  
-                                ) : (
-                                    <tr>
-                                        <td colSpan={activeTab === 'all' ? 10 : 7} className="p-8 text-center text-slate-400">No records found.</td>
+                                            </div>
+                                        </td>
                                     </tr>
-                                )}
+                                ))}
                             </tbody>
                         </table>
+                        {processedData.length === 0 && (
+                            <div className="p-20 text-center text-slate-400 italic font-medium">No patient records found matching your current filters.</div>
+                        )}
                     </div>
+                </div>
 
+                <div className="p-6 border-t bg-slate-50/30 mt-auto">
                     <Pagination 
                         currentPage={currentPage} 
                         totalPages={totalPages} 
-                        filteredLength={filteredData.length} 
-                        indexOfFirstItem={indexOfFirstItem} 
-                        indexOfLastItem={indexOfLastItem} 
                         onPageChange={setCurrentPage} 
                     />
                 </div>
             </div>
-            <AddPatientModal 
-                isOpen={isAddModalOpen} 
-                onClose={() => setIsAddModalOpen(false)} 
-                onSuccess={(msg) => handleShowToast(msg || 'Patient registered!', 'success')}
-            />
 
-            <EditPatientModal 
-                isOpen={isEditModalOpen} 
-                onClose={() => {
-                    setIsEditModalOpen(false);
-                    setSelectedPatient(null);
-                }}
-                patient={selectedPatient} 
-                onSuccess={(msg) => handleShowToast(msg, 'success')} 
-            />
-
-            <DeletePatientModal 
-                isOpen={isDeleteModalOpen} 
-                onClose={() => {
-                    setIsDeleteModalOpen(false);
-                    setPatientToDelete(null); 
-                }} 
-                patient={patientToDelete} 
-                onSuccess={(msg) => handleShowToast(msg, 'success')} 
-            />
-            <AdmitPatientModal 
-                isOpen={isAdmitModalOpen} 
-                onClose={() => setIsAdmitModalOpen(false)}
-                patients={selectablePatients || []} 
-                rooms={rooms || []}
-                doctors={doctors || []}
-                onSuccess={(msg) => handleShowToast(msg, 'success')} 
-            />
-            <AddVisitModal 
-                isOpen={isAddVisitModalOpen} 
-                onClose={() => setIsAddVisitModalOpen(false)}
-                patients={selectablePatients || []} 
-                onSuccess={(msg) => handleShowToast(msg, 'success')}
-            />
+            {/* Modals */}
+            <AddPatientModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+            <EditPatientModal isOpen={isEditModalOpen} onClose={() => { setIsEditModalOpen(false); setSelectedPatient(null); }} patient={selectedPatient} />
+            <DeletePatientModal isOpen={isDeleteModalOpen} onClose={() => { setIsDeleteModalOpen(false); setPatientToDelete(null); }} patient={patientToDelete} />
+            <AdmitPatientModal isOpen={isAdmitModalOpen} onClose={() => setIsAdmitModalOpen(false)} patients={selectablePatients || []} rooms={rooms || []} doctors={doctors || []} />
+            <AddVisitModal isOpen={isAddVisitModalOpen} onClose={() => setIsAddVisitModalOpen(false)} patients={selectablePatients || []} />
         </AuthenticatedLayout>
     );
 }

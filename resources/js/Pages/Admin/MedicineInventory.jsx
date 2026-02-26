@@ -111,16 +111,36 @@ export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
     const currentItems = filteredAndSortedData.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
 
-    const stats = {
-        totalItems: processedInventory.length,
-        critical: processedInventory.filter(i => i.calculatedTotal < 20 && i.calculatedTotal > 0).length,
-        outOfStock: processedInventory.filter(i => i.calculatedTotal === 0).length,
-        expiringSoon: processedInventory.filter(i => {
-            if (!i.calculatedSoonest) return false;
-            const diff = (new Date(i.calculatedSoonest) - new Date(today)) / (1000 * 60 * 60 * 24);
-            return diff <= 30 && diff >= 0;
-        }).length
-    };
+    const inventoryStatsData = useMemo(() => [
+        { 
+            label: 'Total Items', 
+            value: processedInventory.length, 
+            color: 'text-slate-800', 
+            bg: 'bg-slate-50' 
+        },
+        { 
+            label: 'Critical Stock', 
+            value: processedInventory.filter(i => i.calculatedTotal < 20 && i.calculatedTotal > 0).length, 
+            color: 'text-amber-600', 
+            bg: 'bg-amber-50' 
+        },
+        { 
+            label: 'Expiring Soon', 
+            value: processedInventory.filter(i => {
+                if (!i.calculatedSoonest) return false;
+                const diff = (new Date(i.calculatedSoonest) - new Date(today)) / (1000 * 60 * 60 * 24);
+                return diff <= 30 && diff >= 0;
+            }).length, 
+            color: 'text-blue-600', 
+            bg: 'bg-blue-50' 
+        },
+        { 
+            label: 'Out of Stock', 
+            value: processedInventory.filter(i => i.calculatedTotal === 0).length, 
+            color: 'text-rose-600', 
+            bg: 'bg-rose-50' 
+        },
+    ], [processedInventory, today]);
 
     // --- HANDLERS ---
     const confirmDelete = () => {
@@ -163,12 +183,14 @@ export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
         >
             <Head title="Medicine Inventory" />
 
-            <InventoryStats stats={stats} />
+            <InventoryStats stats={inventoryStatsData} />
 
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <input type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); setExpandedRow(null); }} placeholder="Search..." className="w-full md:w-96 pl-5 pr-4 py-2 border border-slate-300 rounded shadow-sm focus:ring-1 focus:ring-blue-500 outline-none" />
                 {activeTab === 'manage' && (
-                    <Button variant="success" onClick={() => setIsAddModalOpen(true)}> + ADD NEW MEDICINE </Button>
+                    <Button variant="success" 
+                    className="flex-1 lg:flex-none justify-center px-8 py-2.5 rounded-md font-black text-[10px] uppercase tracking-widest shadow-md"
+                    onClick={() => setIsAddModalOpen(true)}> + ADD NEW MEDICINE </Button>
                 )}
             </div>
 

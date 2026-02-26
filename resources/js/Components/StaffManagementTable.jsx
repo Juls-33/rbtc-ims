@@ -8,21 +8,55 @@ import DeactivateStaffModal from '../Pages/Admin/Partials/DeactivateStaffModal';
 import ResetStaffPasswordModal from '../Pages/Admin/Partials/ResetStaffPasswordModal';
 import ActivateStaffModal from '../Pages/Admin/Partials/ActivateStaffModal';
 
-export default function StaffManagementTable({ staff = [], activeTab }) {
-    const [currentPage, setCurrentPage] = useState(1);
+export default function StaffManagementTable({ staff = [], activeTab, searchQuery, sortConfig, onSort }) {
     const [selectedMember, setSelectedMember] = useState(null);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isDeactivateOpen, setIsDeactivateOpen] = useState(false);
     const [isResetPassOpen, setIsResetPassOpen] = useState(false);
     const [isActivateOpen, setIsActivateOpen] = useState(false);
     const [selectedForActivate, setSelectedForActivate] = useState(null);
-    const itemsPerPage = 10;
 
-    const filteredStaff = useMemo(() => {
-        if (activeTab === 'all') return staff;
-        const targetRole = activeTab.endsWith('s') ? activeTab.slice(0, -1) : activeTab;
-        return staff.filter(s => s.role.toLowerCase() === targetRole.toLowerCase());
-    }, [activeTab, staff]);
+    // --- SORT ICON HELPER ---
+    const SortIcon = ({ column }) => {
+        if (sortConfig?.key !== column) return <span className="ml-1 opacity-20 text-[10px]">↕</span>;
+        return sortConfig.direction === 'asc' 
+            ? <span className="ml-1 text-blue-600 font-bold">↑</span> 
+            : <span className="ml-1 text-blue-600 font-bold">↓</span>;
+    };
+
+    // --- THE FILTERING PIPELINE ---
+    const processedStaff = useMemo(() => {
+        let result = [...staff];
+
+        // 1. Role Filtering (Tabs)
+        if (activeTab !== 'all') {
+            const targetRole = activeTab.endsWith('s') ? activeTab.slice(0, -1) : activeTab;
+            result = result.filter(s => s.role.toLowerCase() === targetRole.toLowerCase());
+        }
+
+        // 2. Search Query Filtering
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            result = result.filter(s => 
+                s.name.toLowerCase().includes(query) || 
+                s.staff_id?.toLowerCase().includes(query) ||
+                s.email?.toLowerCase().includes(query)
+            );
+        }
+
+        // 3. Sorting
+        if (sortConfig) {
+            result.sort((a, b) => {
+                let valA = a[sortConfig.key] || '';
+                let valB = b[sortConfig.key] || '';
+                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        return result;
+    }, [staff, activeTab, searchQuery, sortConfig]);
 
     const triggerStatusToggle = (member) => {
         if (member.status === 'INACTIVE') {
@@ -34,72 +68,80 @@ export default function StaffManagementTable({ staff = [], activeTab }) {
         }
     };
 
-    const currentItems = filteredStaff.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
     return (
-        <div className="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
-            <div className="overflow-x-auto relative">
-                {/* table-fixed or min-w is used to ensure horizontal scroll exists */}
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden relative">
+            <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse min-w-[1000px]">
-                    <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 uppercase">
+                    <thead className="bg-slate-50 text-slate-700 font-black uppercase text-[10px] tracking-widest border-b">
                         <tr>
-                            <th className="p-3 border-r w-[120px]">Staff ID</th>
-                            <th className="p-3 border-r min-w-[200px]">Full Name</th>
-                            {activeTab === 'all' && <th className="p-3 border-r w-[100px]">Role</th>}
-                            <th className="p-3 border-r min-w-[200px]">Email</th>
-                            <th className="p-3 border-r w-[150px]">Phone Number</th>
-                            {activeTab === 'all' && <th className="p-3 border-r w-[100px]">Status</th>}
+                            <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => onSort('staff_id')}>
+                                Staff ID <SortIcon column="staff_id" />
+                            </th>
+                            <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => onSort('name')}>
+                                Full Name <SortIcon column="name" />
+                            </th>
+                            {activeTab === 'all' && (
+                                <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => onSort('role')}>
+                                    Role <SortIcon column="role" />
+                                </th>
+                            )}
+                            <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => onSort('email')}>
+                                Email Address <SortIcon column="email" />
+                            </th>
+
+                            <th className="p-4 border-r w-[150px]">Phone</th>
+                            {activeTab === 'all' && (
+                                <th className="p-4 border-r text-center cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => onSort('status')}>
+                                    Status <SortIcon column="status" />
+                                </th>
+                            )}
                             
-                            {/* --- FIXED ACTIONS HEADER --- */}
-                            <th className="p-3 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-20 w-[150px]">
+                            <th className="p-4 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-20 w-[160px]">
                                 Actions
                             </th>
                         </tr>
                     </thead>
-                    <tbody className="text-slate-600">
-                        {currentItems.length > 0 ? (
-                            currentItems.map((member) => {
+                    <tbody className="text-slate-600 divide-y divide-slate-100">
+                        {processedStaff.length > 0 ? (
+                            processedStaff.map((member) => {
                                 const isDeactivated = member.status === 'INACTIVE';
                                 const isDefaultAdmin = member.email === 'admin@rbtc.com';
 
                                 return (
-                                    <tr 
-                                        key={member.id} 
-                                        className={`border-b transition-colors group ${
-                                            isDeactivated ? 'bg-rose-50 hover:bg-rose-100' : 'hover:bg-slate-50'
-                                        }`}
-                                    >
-                                        <td className="p-3 border-r font-bold">{member.staff_id}</td>
-                                        <td className="p-3 border-r font-bold text-slate-800">{member.name}</td>
-                                        {activeTab === 'all' && <td className="p-3 border-r">{member.role}</td>}
-                                        <td className="p-3 border-r italic text-blue-600 underline">{member.email}</td>
-                                        <td className="p-3 border-r">{member.phone}</td>
+                                    <tr key={member.id} className={`transition-colors group ${isDeactivated ? 'bg-rose-50/50 hover:bg-rose-50' : 'hover:bg-slate-50/50'}`}>
+                                        <td className="p-4 border-r font-mono font-bold text-slate-500">{member.staff_id}</td>
+                                        <td className="p-4 border-r font-black text-slate-800 uppercase tracking-tight">{member.name}</td>
+                                        {activeTab === 'all' && <td className="p-4 border-r font-bold text-slate-500">{member.role}</td>}
+                                        <td className="p-4 border-r italic text-blue-600 truncate">{member.email}</td>
+                                        <td className="p-4 border-r font-medium">{member.phone}</td>
                                         {activeTab === 'all' && (
-                                            <td className="p-3 border-r text-center">
-                                                <span className={`font-bold text-[10px] ${isDeactivated ? 'text-rose-600' : 'text-slate-800'}`}>
+                                            <td className="p-4 border-r text-center">
+                                                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                                                    isDeactivated ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                                }`}>
                                                     {member.status}
                                                 </span>
                                             </td>
                                         )}
 
-                                        {/* --- FIXED ACTIONS CELL --- */}
+                                        {/* Sticky Actions */}
                                         <td className={`p-3 sticky right-0 z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] transition-colors ${
-                                            isDeactivated ? 'bg-rose-50 group-hover:bg-rose-100' : 'bg-white group-hover:bg-slate-50'
+                                            isDeactivated ? 'bg-[#fff5f5] group-hover:bg-[#fff0f0]' : 'bg-white group-hover:bg-[#f8fafc]'
                                         }`}>
-                                            <div className="flex flex-col gap-1 items-center">
+                                            <div className="flex flex-col gap-1.5 items-center">
                                                 <Button 
-                                                    variant="success" 
+                                                    variant="warning" 
                                                     onClick={() => { setSelectedMember(member); setIsEditOpen(true); }}
-                                                    className="text-[8px] py-1 px-4 w-24"
+                                                    className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm"
                                                 >
-                                                    EDIT
+                                                    EDIT PROFILE
                                                 </Button>
 
                                                 {!isDefaultAdmin && (
                                                     <Button 
                                                         variant={isDeactivated ? "success" : "danger"} 
                                                         onClick={() => triggerStatusToggle(member)}
-                                                        className="text-[8px] py-1 px-4 w-24"
+                                                        className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm"
                                                     >
                                                         {isDeactivated ? 'ACTIVATE' : 'DEACTIVATE'}
                                                     </Button>
@@ -109,7 +151,7 @@ export default function StaffManagementTable({ staff = [], activeTab }) {
                                                     <Button 
                                                         variant="danger"
                                                         onClick={() => { setSelectedMember(member); setIsResetPassOpen(true); }}
-                                                        className="text-[8px] py-1 px-4 w-24 bg-red-600 animate-pulse border-2 border-red-200"
+                                                        className="text-[9px] py-1.5 w-28 bg-red-600 animate-pulse border-2 border-red-200 font-black"
                                                     >
                                                         RESET REQ!
                                                     </Button>
@@ -121,8 +163,8 @@ export default function StaffManagementTable({ staff = [], activeTab }) {
                             })
                         ) : (
                             <tr>
-                                <td colSpan={activeTab === 'all' ? 7 : 5} className="p-12 text-center text-slate-400 italic">
-                                    No records found for {activeTab}.
+                                <td colSpan={activeTab === 'all' ? 7 : 5} className="p-20 text-center text-slate-400 italic font-medium">
+                                    No personnel match your current search or filters.
                                 </td>
                             </tr>
                         )}
