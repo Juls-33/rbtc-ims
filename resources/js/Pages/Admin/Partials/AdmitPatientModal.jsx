@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/AdmitPatientModal.jsx
-
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useForm, Link } from '@inertiajs/react';
 import Button from '@/Components/Button'; 
@@ -47,7 +45,6 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
         return patients.filter(p => p.name.toLowerCase().includes(query) || p.patient_id?.toLowerCase().includes(query));
     }, [searchTerm, patients]);
 
-    // --- Validation Logic ---
     const validate = () => {
         let isValid = true;
         clearErrors();
@@ -121,7 +118,7 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
                     <button onClick={handleModalClose} className="text-2xl hover:text-red-200 transition-colors leading-none">&times;</button>
                 </div>
 
-                {/* Form Body - Scrollable */}
+                {/* Form Body  */}
                 <form onSubmit={submit} className="flex flex-col overflow-hidden">
                     <div className="p-6 md:p-8 overflow-y-auto flex-1 space-y-6 text-slate-800 scrollbar-thin scrollbar-thumb-slate-200">
                         
@@ -170,8 +167,6 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
                             )}
                             {errors.patient_id && <p className="text-red-500 text-[9px] font-bold italic mt-1 uppercase">{errors.patient_id}</p>}
                         </div>
-
-                        {/* GRID: Date and Doctor */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <Label text="Admission Timestamp" fieldError={errors.admission_date} />
@@ -240,7 +235,7 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
                         </div>
                     </div>
 
-                    {/* Fixed Footer */}
+                    {/* Footer */}
                     <div className="p-6 bg-slate-50 border-t flex flex-col-reverse sm:flex-row justify-end gap-3 shrink-0">
                         <Button type="button" variant="gray" onClick={handleModalClose} className="w-full sm:w-auto px-6 py-2.5 font-black text-[10px] uppercase tracking-widest">Cancel</Button>
                         <Button type="submit" variant="success" onClick={submit} disabled={processing || !data.room_id} className="w-full sm:w-auto px-10 py-2.5 font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 disabled:opacity-50">

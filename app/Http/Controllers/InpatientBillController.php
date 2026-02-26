@@ -37,7 +37,7 @@ class InpatientBillController extends Controller
         });
     }
 
-    // 2. UPDATE MEDICINE (The Inventory Delta Logic)
+    // 2. UPDATE MEDICINE
     public function updateItem(Request $request, $id)
     {
         $request->validate(['quantity' => 'required|integer|min:1']);
@@ -85,7 +85,6 @@ class InpatientBillController extends Controller
     private function syncAdmissionTotals($id)
     {
         $admission = Admission::findOrFail($id);
-        // This is the ONLY place that should perform the math and save it to the DB columns
         $admission->syncLiveTotals();
     }
     public function pay(Request $request)
@@ -99,10 +98,8 @@ class InpatientBillController extends Controller
         return DB::transaction(function () use ($request) {
             $admission = Admission::findOrFail($request->admission_id);
             
-            // 1. Update the amount_paid column first
             $newPaidTotal = round((float)$admission->amount_paid + (float)$request->amount_paid, 2);
             
-            // 2. Update the record
             $admission->update([
                 'amount_paid' => $newPaidTotal,
             ]);

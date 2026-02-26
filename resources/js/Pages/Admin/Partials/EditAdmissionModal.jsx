@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/EditAdmissionModal.jsx
-
 import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';

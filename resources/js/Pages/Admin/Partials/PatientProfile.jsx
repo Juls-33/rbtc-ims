@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/PatientProfile.jsx
-
 import React, { useState, useMemo, useEffect } from 'react';
 import Button from '@/Components/Button';
 import Pagination from '@/Components/Pagination';
@@ -13,7 +11,6 @@ import ViewOutpatientBillModal from './ViewOutpatientBillModal';
 export default function PatientProfile({ patient, initialTab, onBack, doctors, rooms, inventory }) {
     const [activeSubTab, setActiveSubTab] = useState(initialTab === 'outpatient' ? 'visit' : 'admission'); 
     
-    // --- 1. STATES FOR FILTERING & SORTING ---
     const [visitSearch, setVisitSearch] = useState('');
     const [visitSort, setVisitSort] = useState({ key: 'date', direction: 'desc' });
     const [visitPage, setVisitPage] = useState(1);
@@ -22,7 +19,6 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
     const [admSort, setAdmSort] = useState({ key: 'admission_date', direction: 'desc' });
     const itemsPerPage = 5;
 
-    // Modal States
     const [isEditAdmissionOpen, setIsEditAdmissionOpen] = useState(false);
     const [isBillModalOpen, setIsBillModalOpen] = useState(false);
     const [activeAdmissionId, setActiveAdmissionId] = useState(null);
@@ -32,9 +28,6 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
     const [isEditVisitOpen, setIsEditVisitOpen] = useState(false);
     const [isVisitBillOpen, setIsVisitBillOpen] = useState(false);
 
-    // --- 2. LOGIC PIPELINES (Must be above any return) ---
-
-    // Visit Pipeline
     const filteredVisits = useMemo(() => {
         let data = [...(patient?.visit_history || [])];
         if (visitSearch) {
@@ -53,7 +46,6 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
 
     const currentVisits = filteredVisits.slice((visitPage - 1) * itemsPerPage, visitPage * itemsPerPage);
 
-    // Admission Pipeline
     const filteredAdmissions = useMemo(() => {
         let data = [...(patient?.admission_history || [])];
         if (admSearch) {
@@ -69,7 +61,7 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
         return data;
     }, [patient.admission_history, admSearch, admSort]);
 
-    const activePatientData = useMemo(() => patient, [patient]); // For profile logic
+    const activePatientData = useMemo(() => patient, [patient]); 
 
     const selectedAdmissionData = useMemo(() => {
         if (!activeAdmissionId) return null;
@@ -77,7 +69,6 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
         return (patient.admission_history || []).find(a => a.id == activeAdmissionId);
     }, [activeAdmissionId, patient]);
 
-    // --- 3. HELPERS ---
     const SortIcon = ({ config, column }) => {
         if (config.key !== column) return <span className="ml-1 opacity-20">↕</span>;
         return config.direction === 'asc' ? <span className="ml-1 text-blue-600">↑</span> : <span className="ml-1 text-blue-600">↓</span>;
@@ -90,7 +81,6 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
     const handleEditVisit = (visit) => { setSelectedVisit(visit); setIsEditVisitOpen(true); };
     const handleViewVisitBill = (visit) => { setSelectedVisit(visit); setIsVisitBillOpen(true); };
 
-    // --- 4. RENDER ORIGINAL INFO CARD ---
     const renderInfoCard = (typeLabel) => (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
             <div className="bg-[#3D52A0] text-white p-3 flex justify-between items-center font-bold">
@@ -124,7 +114,6 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
         </div>
     );
 
-    // --- 5. CONDITIONAL RENDER (List vs Profile Logic handled in Parent, but SubTab content here) ---
     let tabContent;
 
     if (activeSubTab === 'visit') {
@@ -267,8 +256,6 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
     return (
         <div className="relative space-y-6">
             {tabContent}
-
-            {/* Modals remain exactly as they were */}
             <EditPatientModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} patient={patient} />
             {isEditVisitOpen && <EditVisitModal isOpen={isEditVisitOpen} onClose={() => setIsEditVisitOpen(false)} visit={selectedVisit} />}
             {isVisitBillOpen && <ViewOutpatientBillModal isOpen={isVisitBillOpen} onClose={() => setIsVisitBillOpen(false)} patient={patient} visit={selectedVisit} medicines={inventory} />}

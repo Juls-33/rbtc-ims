@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/DischargeModal.jsx
-
 import { useForm, router } from '@inertiajs/react';
 import React, { useState, useEffect } from 'react';
 import Button from '@/Components/Button';
@@ -71,7 +69,7 @@ export default function DischargeModal({ isOpen, onClose, patient }) {
 
                 <div className="p-4 md:p-8 space-y-6 overflow-y-auto flex-1 no-scrollbar">
                     
-                    {/* PATIENT SUMMARY CARD - Stacks on Mobile */}
+                    {/* PATIENT SUMMARY CARD */}
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-50 p-4 md:p-6 rounded-2xl border border-slate-200 shadow-inner gap-4">
                         <div className="space-y-1 w-full">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient Name</p>
@@ -86,8 +84,6 @@ export default function DischargeModal({ isOpen, onClose, patient }) {
                             <p className="font-black text-slate-800 uppercase text-sm">{patient?.current_room}</p>
                         </div>
                     </div>
-
-                    {/* ITEMIZED SUMMARY TABLE - Horizontal Scroll on Mobile */}
                     <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm">
                         <table className="w-full text-left text-xs border-collapse min-w-[400px]">
                             <thead className="bg-slate-100 text-slate-500 font-black uppercase tracking-widest border-b">
@@ -118,8 +114,6 @@ export default function DischargeModal({ isOpen, onClose, patient }) {
                             </tbody>
                         </table>
                     </div>
-
-                    {/* FINANCIAL ACTION CARD - Stacks Vertically on Mobile */}
                     <div className="bg-[#2E4696] rounded-2xl p-5 md:p-7 text-white shadow-xl space-y-6 border border-white/10 shrink-0">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div className="w-full sm:w-auto">
@@ -138,8 +132,6 @@ export default function DischargeModal({ isOpen, onClose, patient }) {
                                 />
                             </div>
                         </div>
-
-                        {/* ACTION BUTTONS - Stack on Mobile */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <button 
                                 onClick={handleDischargeAndPay}
@@ -158,7 +150,7 @@ export default function DischargeModal({ isOpen, onClose, patient }) {
                     </div>
                 </div>
 
-                {/* FOOTER BUTTONS - Stack on Mobile */}
+                {/* FOOTER */}
                 <div className="p-4 md:p-6 bg-slate-50 border-t flex flex-col sm:flex-row justify-center gap-3 shrink-0">
                     <button 
                         onClick={onClose} 

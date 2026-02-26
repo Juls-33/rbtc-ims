@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/DeletePatientModal.jsx
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
@@ -52,7 +50,6 @@ export default function DeletePatientModal({ isOpen, onClose, patient, onSuccess
 
         destroy(route('admin.patients.destroy', patientId), {
             onSuccess: () => {
-                // 🔥 THE FIX: Correctly triggering the Parent Toast handler
                 if (onSuccess) onSuccess('Patient record permanently deleted.');
                 handleModalClose();
             },
@@ -68,7 +65,6 @@ export default function DeletePatientModal({ isOpen, onClose, patient, onSuccess
 
     return (
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/50 p-2 md:p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            {/* LOCAL ERROR TOAST (While modal is open) */}
             {modalError.show && (
                 <Toast 
                     message={modalError.message} 

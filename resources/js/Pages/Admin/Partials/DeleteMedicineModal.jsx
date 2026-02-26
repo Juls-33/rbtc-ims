@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/DeleteMedicineModal.jsx
-
 import React from 'react';
 import Button from '@/Components/Button';
 
@@ -8,10 +6,10 @@ export default function DeleteMedicineModal({ isOpen, onClose, onConfirm, medici
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 md:p-4 animate-in fade-in duration-200">
-            {/* CONTAINER: flex-col with max-height to handle small screens */}
+            {/* CONTAINER */}
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-md flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden transform transition-all animate-in zoom-in duration-150">
                 
-                {/* FIXED HEADER: shrink-0 ensures it stays at the top */}
+                {/* HEADER */}
                 <div className="bg-red-600 px-6 py-4 flex justify-between items-center shrink-0 shadow-sm">
                     <h2 className="text-white font-black text-base md:text-lg tracking-wide uppercase">Confirm Deletion</h2>
                     <button 
@@ -22,7 +20,7 @@ export default function DeleteMedicineModal({ isOpen, onClose, onConfirm, medici
                     </button>
                 </div>
 
-                {/* SCROLLABLE BODY: flex-1 allows this area to expand/contract */}
+                {/* SCROLLABLE BODY */}
                 <div className="p-6 md:p-8 text-center overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-200">
                     <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-6 shrink-0">
                         <svg className="h-10 w-10 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -47,7 +45,7 @@ export default function DeleteMedicineModal({ isOpen, onClose, onConfirm, medici
                     </div>
                 </div>
 
-                {/* FIXED FOOTER: Buttons stack on mobile for easier tapping */}
+                {/* FOOTER */}
                 <div className="bg-slate-50 px-6 py-4 flex flex-col-reverse sm:flex-row justify-center gap-3 border-t border-slate-100 shrink-0">
                     <Button 
                         variant="gray" 

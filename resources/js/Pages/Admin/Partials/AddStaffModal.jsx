@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from '@inertiajs/react';
-import Button from '@/Components/Button'; // Assuming you have a shared Button component
+import Button from '@/Components/Button'; 
 import Toast from '@/Components/Toast'; 
 
 export default function AddStaffModal({ isOpen, onClose, initialRole }) {
@@ -17,7 +17,6 @@ export default function AddStaffModal({ isOpen, onClose, initialRole }) {
 
     const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' });
 
-    // Sync role based on tab source
     useEffect(() => {
         if (isOpen) {
             const roleMap = {
@@ -29,7 +28,6 @@ export default function AddStaffModal({ isOpen, onClose, initialRole }) {
         }
     }, [isOpen, initialRole]);
 
-    // --- Passive Validation ---
     const validate = () => {
         let isValid = true;
         clearErrors();
@@ -117,10 +115,10 @@ export default function AddStaffModal({ isOpen, onClose, initialRole }) {
                 />
             )}
 
-            {/* CONTAINER: Flex-col with max-height constraint */}
+            {/* CONTAINER */}
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden animate-in zoom-in duration-200">
                 
-                {/* FIXED HEADER */}
+                {/* HEADER */}
                 <div className="bg-[#3D52A0] px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-md">
                     <div>
                         <h2 className="font-black text-lg tracking-tight uppercase leading-none">Staff Registration</h2>
@@ -129,7 +127,7 @@ export default function AddStaffModal({ isOpen, onClose, initialRole }) {
                     <button onClick={handleModalClose} className="text-2xl font-bold hover:text-gray-200 leading-none">&times;</button>
                 </div>
 
-                {/* SCROLLABLE FORM BODY */}
+                {/* BODY */}
                 <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden text-slate-800">
                     <div className="p-6 md:p-8 space-y-6 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-300">
                         
@@ -237,7 +235,7 @@ export default function AddStaffModal({ isOpen, onClose, initialRole }) {
                         </div>
                     </div>
 
-                    {/* FIXED FOOTER: Stacked on mobile, row on desktop */}
+                    {/* FOOTER */}
                     <div className="bg-slate-100 px-6 md:px-8 py-4 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t shrink-0">
                         <Button 
                             type="button" 

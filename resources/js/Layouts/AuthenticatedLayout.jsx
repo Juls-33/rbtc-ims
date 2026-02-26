@@ -14,8 +14,6 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
 
     useEffect(() => {
         if (flash?.success) {
-            // We use Date.now() as a key to force React to treat every 
-            // toast as a brand new element, even if the message is the same.
             setToast({ 
                 id: Date.now(), 
                 message: flash.success, 
@@ -35,7 +33,6 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
         setIsLogoutModalOpen(true);
     };
 
-    // Icons (Re-using your existing definitions)
     const dashboardIcon = <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M520-600v-240h320v240H520ZM120-440v-400h320v400H120Zm400 320v-400h320v400H520Zm-400 0v-240h320v240H120Zm80-400h160v-240H200v240Zm400 320h160v-240H600v240Zm0-480h160v-80H600v80ZM200-200h160v-80H200v80Zm160-320Zm240-160Zm0 240ZM360-280Z"/></svg>;
     const medicineIcon = <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M494-300q-40 40-97 40t-97-40q-40-40-40-96.5t40-96.5l166-167q40-40 97-40t97 40q40 40 40 96.5T660-467L494-300Zm-138-57q23 23 47.5 16.5T437-356l55-56-80-80-56 55q-17 17-17 40t17 40Zm248-246q-23-23-47.5-16.5T523-604l-55 56 80 80 56-55q17-17 17-40t-17-40ZM200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h168q13-36 43.5-58t68.5-22q38 0 68.5 22t43.5 58h168q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm301.5-598.5Q510-807 510-820t-8.5-21.5Q493-850 480-850t-21.5 8.5Q450-833 450-820t8.5 21.5Q467-790 480-790t21.5-8.5ZM200-200v-560 560Z"/></svg>;
     const patientIcon = <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M555-435q-35-35-35-85t35-85q35-35 85-35t85 35q35 35 35 85t-35 85q-35 35-85 35t-85-35ZM400-160v-76q0-21 10-40t28-30q45-27 95.5-40.5T640-360q56 0 106.5 13.5T842-306q18 11 28 30t10 40v76H400Zm86-80h308q-35-20-74-30t-80-10q-41 0-80 10t-74 30Zm182.5-251.5Q680-503 680-520t-11.5-28.5Q657-560 640-560t-28.5 11.5Q600-537 600-520t11.5 28.5Q623-480 640-480t28.5-11.5ZM640-520Zm0 280ZM120-400v-80h320v80H120Zm0-320v-80h480v80H120Zm324 160H120v-80h360q-14 17-22.5 37T444-560Z"/></svg>;
@@ -76,7 +73,7 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
             <div className="fixed top-5 right-5 z-[9999] w-auto max-w-[calc(100%-2.5rem)] md:max-w-sm">
                 {toast && (
                     <Toast 
-                        key={toast.id} // Forces re-render for back-to-back success messages
+                        key={toast.id} 
                         message={toast.message} 
                         type={toast.type} 
                         onClose={() => setToast(null)} 
@@ -135,7 +132,7 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col overflow-hidden relative">
-                {/* Top Bar - Simplified for Mobile */}
+                {/* Top Bar */}
                 <header className="bg-[#2E4696] h-16 flex items-center justify-between px-4 md:px-8 z-20 shadow-md flex-shrink-0">
                     <div className="text-white font-black text-xs md:text-sm uppercase tracking-tighter truncate max-w-[200px] md:max-w-none">
                         {header}
@@ -155,7 +152,7 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
                             )}
                         </button>
 
-                        {/* Mobile Logout (Quick Access) */}
+                        {/* Mobile Logout */}
                         <button onClick={handleLogoutTrigger} className="md:hidden p-2 text-white/70 hover:text-white transition">
                             {logoutIcon}
                         </button>
@@ -172,7 +169,7 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
                 <main className="flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-6 pb-20 md:pb-6 bg-slate-100">
                     <div className="max-w-[1600px] mx-auto bg-white rounded-xl shadow-lg min-h-full overflow-hidden flex flex-col border border-slate-300">
                         
-                        {/* Tab Bar / Section Title - Horizontal Scroll added */}
+                        {/* Tab Bar / Section Title */}
                         <div className="bg-[#3D52A0] border-b border-black/10 min-h-[56px] flex items-center overflow-x-auto no-scrollbar scroll-smooth">
                             <div className="flex w-full min-w-max">
                                 {typeof sectionTitle === 'string' ? (
@@ -180,7 +177,6 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
                                         {sectionTitle}
                                     </h2>
                                 ) : (
-                                    /* This div will now scroll horizontally if its children (buttons) exceed the container width */
                                     <div className="flex-1 h-full flex min-w-0">
                                         {sectionTitle}
                                     </div>

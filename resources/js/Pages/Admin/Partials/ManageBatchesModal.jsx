@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/ManageBatchesModal.jsx
-
 import React, { useState } from 'react';
 import { router } from '@inertiajs/react';
 import Button from '@/Components/Button';
@@ -10,15 +8,12 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
     if (!isOpen) return null;
 
     const generateId = () => "BCH-" + Math.random().toString(36).substring(2, 7).toUpperCase();
-
-    // --- State ---
     const [formData, setFormData] = useState({ batchId: generateId(), quantity: '', expiryDate: '' });
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
     const today = new Date().toISOString().split('T')[0];
 
-    // 🔥 Added errors state to fix the ReferenceError
     const [errors, setErrors] = useState({}); 
     const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' });
     
@@ -31,7 +26,6 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
         setToastInfo({ show: true, message, type });
     };
 
-    // --- Validation Logic ---
     const validate = () => {
         const newErrors = {};
         if (!formData.quantity || parseInt(formData.quantity) <= 0) {
@@ -45,7 +39,6 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
         return Object.keys(newErrors).length === 0;
     };
 
-    // --- Core Persistence Logic ---
     const syncWithServer = (actionType, targetBatch, reason = "Manual Update") => {
         setIsProcessing(true);
         router.post(`/admin/inventory/${medicine.id}/batches`, { 
@@ -154,7 +147,7 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 md:p-4 animate-in fade-in duration-200">
             {toastInfo.show && <Toast message={toastInfo.message} type={toastInfo.type} onClose={() => setToastInfo({ ...toastInfo, show: false })} />}
 
-            {/* CONTAINER: Flex Column with Max Height */}
+            {/* CONTAINER */}
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden animate-in zoom-in duration-150">
                 
                 {/* HEADER */}
@@ -168,8 +161,6 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
 
                 {/* SCROLLABLE BODY */}
                 <div className="p-6 md:p-8 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-300">
-                    
-                    {/* Input Section */}
                     <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4 mb-8">
                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-1">Registration of New Stock</h4>
                         
@@ -224,7 +215,7 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {currentBatches.length > 0 ? currentBatches.map((batch) => {
-                                            const isExpired = batch.expiry < today; // 🔥 Expiry Logic
+                                            const isExpired = batch.expiry < today; 
                                             
                                             return (
                                                 <tr key={batch.id} className={`transition-colors ${isExpired ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-slate-50'}`}>
@@ -301,7 +292,6 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
                                             className="w-4 h-4 text-rose-600 focus:ring-rose-500" 
                                             checked={adjustmentData.type === 'remove'} 
                                             onChange={() => {
-                                                // If they switch to remove and current qty is already too high, cap it immediately
                                                 let qty = adjustmentData.quantity;
                                                 if (parseInt(qty) > parseInt(batchToAdjust.stock)) {
                                                     qty = batchToAdjust.stock;
@@ -366,17 +356,13 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
                     </div>
                 )}
 
-                {/* DELETE OVERLAY */}
+                {/* DELETE */}
                 {batchToDelete && (
                     <div className="absolute inset-0 z-[80] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-2 md:p-6 animate-in fade-in">
                         <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm flex flex-col max-h-[95%] overflow-hidden transform animate-in zoom-in-95">
-                            
-                            {/* Red Alert Header */}
                             <div className="bg-rose-600 text-white px-6 py-4 shrink-0 shadow-sm">
                                 <h3 className="font-black uppercase text-[10px] tracking-[0.2em] text-center">Confirm Batch Removal</h3>
                             </div>
-
-                            {/* Content Body - Scrollable if necessary */}
                             <div className="p-6 md:p-8 space-y-6 text-center overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-200">
                                 <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-2 shrink-0">
                                     <svg className="w-8 h-8 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -399,7 +385,7 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
                                 </p>
                             </div>
 
-                            {/* Mobile-Responsive Footer */}
+                            {/* Footer */}
                             <div className="p-5 bg-slate-50 border-t flex flex-col-reverse sm:flex-row gap-3 shrink-0">
                                 <Button 
                                     variant="gray" 

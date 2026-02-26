@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/EditMedicineModal.jsx
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
@@ -108,7 +106,6 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
                 }
             });
         } else {
-            // Frontend validation failed
             setToastInfo({ 
                 show: true, 
                 message: 'Please fill in all required fields.', 
@@ -133,10 +130,10 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
 
             {isOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 md:p-4">
-                    {/* CONTAINER: flex-col with max-height constraint */}
+                    {/* CONTAINER */}
                     <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden animate-in zoom-in duration-200">
                         
-                        {/* FIXED HEADER: shrink-0 ensures it doesn't compress */}
+                        {/* HEADER */}
                         <div className="bg-[#E6AA68] px-6 py-4 flex justify-between items-center shadow-sm shrink-0">
                             <div>
                                 <h2 className="text-[#5c3a00] font-black text-base md:text-lg uppercase leading-none">Edit Medicine</h2>
@@ -148,7 +145,7 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
                             <button onClick={handleModalClose} className="text-[#5c3a00] hover:text-black text-2xl font-bold leading-none">&times;</button>
                         </div>
 
-                        {/* SCROLLABLE BODY: flex-1 takes up available space */}
+                        {/* SCROLLABLE BODY */}
                         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
                             <div className="p-6 md:p-8 space-y-6 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-300">
                                 
@@ -231,7 +228,7 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
                                 </div>
                             </div>
 
-                            {/* FIXED FOOTER: shrink-0 ensuring it stays at the bottom */}
+                            {/* FOOTER */}
                             <div className="p-6 bg-slate-50 border-t flex flex-col-reverse sm:flex-row justify-end gap-3 shrink-0">
                                 <Button type="button" onClick={handleModalClose} className="w-full sm:w-auto px-6 py-2.5 bg-slate-500 text-white font-black text-[10px] uppercase tracking-widest">Cancel</Button>
                                 <Button type="submit" variant="warning" disabled={processing} className="w-full sm:w-auto px-8 py-2.5 bg-amber-600 text-white font-black text-[10px] uppercase tracking-widest shadow-md">

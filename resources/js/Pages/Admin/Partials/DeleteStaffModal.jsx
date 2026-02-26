@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/DeleteStaffModal.jsx
-
 import React, { useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
@@ -23,8 +21,6 @@ export default function DeleteStaffModal({ isOpen, onClose, member }) {
             data: { reason: data.reason },
             onSuccess: () => {
                 setToastInfo({ show: true, message: 'Account permanently removed from system.', type: 'success' });
-                // We delay the close slightly or close immediately based on UX preference
-                // For deletion, immediate close is usually cleaner if the parent handles the final toast
                 handleModalClose();
             },
             onError: () => {
@@ -44,11 +40,9 @@ export default function DeleteStaffModal({ isOpen, onClose, member }) {
                     onClose={() => setToastInfo({ ...toastInfo, show: false })} 
                 />
             )}
-
-            {/* CONTAINER: Flex column with max-height for mobile responsiveness */}
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden animate-in zoom-in duration-200">
                 
-                {/* FIXED HEADER: Red for destructive action */}
+                {/* HEADER */}
                 <div className="bg-[#C84B4B] text-white px-6 py-4 flex justify-between items-center shrink-0 shadow-md">
                     <div>
                         <h3 className="font-black text-base md:text-lg uppercase tracking-tight leading-none">Security Alert</h3>
@@ -102,7 +96,7 @@ export default function DeleteStaffModal({ isOpen, onClose, member }) {
                         </div>
                     </div>
 
-                    {/* FIXED FOOTER: Responsive stacking */}
+                    {/* FOOTER */}
                     <div className="p-6 bg-slate-100 border-t flex flex-col-reverse sm:flex-row justify-center gap-3 shrink-0">
                         <Button 
                             type="button" 

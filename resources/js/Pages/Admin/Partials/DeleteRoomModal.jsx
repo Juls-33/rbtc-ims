@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/DeleteRoomModal.jsx
-
 import React from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
@@ -21,10 +19,9 @@ export default function DeleteRoomModal({ isOpen, onClose, room, onSuccess }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 md:p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            {/* CONTAINER: flex flex-col with max-height constraint for mobile viewports */}
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-sm flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden animate-in zoom-in duration-150">
                 
-                {/* FIXED HEADER */}
+                {/* HEADER */}
                 <div className="bg-rose-600 text-white px-6 py-4 flex justify-between items-center shrink-0 shadow-md">
                     <h3 className="font-black uppercase tracking-widest text-[11px]">System Confirmation</h3>
                     <button onClick={onClose} className="text-2xl font-bold leading-none hover:text-rose-200 transition-colors">&times;</button>
@@ -55,7 +52,7 @@ export default function DeleteRoomModal({ isOpen, onClose, room, onSuccess }) {
                     </div>
                 </div>
 
-                {/* FIXED FOOTER: flex-col-reverse for mobile-first thumb ergonomics */}
+                {/* FOOTER */}
                 <form onSubmit={submit} className="p-6 bg-slate-50 border-t flex flex-col-reverse sm:flex-row justify-center gap-3 shrink-0">
                     <Button 
                         type="button" 

@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/ViewBillModal.jsx
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useForm, router, usePage } from '@inertiajs/react';
 import Button from '@/Components/Button';
@@ -9,7 +7,6 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
     const { patients, flash } = usePage().props;
     const [toast, setToast] = useState(null);
 
-    // --- DATA SYNC ---
     const activePatient = useMemo(() => patients?.find(p => p.id === patient?.id), [patients, patient]);
     const admission = useMemo(() => {
         if (!activePatient || !admissionId) return null;
@@ -20,7 +17,6 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
     const billItems = admission?.bill_items || [];
     const statements = admission?.statements || [];
 
-    // --- UI STATES ---
     const [selectedStatementIdx, setSelectedStatementIdx] = useState(0);
     const [paymentInput, setPaymentInput] = useState(0);
     const [medSearchTerm, setMedSearchTerm] = useState('');
@@ -52,7 +48,6 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
     const currentStatement = statements[selectedStatementIdx];
     const displayItems = currentStatement?.items || [];
 
-    // --- DYNAMIC TOTALS ---
     const totals = useMemo(() => {
         const statementTotal = parseFloat(currentStatement?.grand_total || 0);
         const overallBalance = parseFloat(admission?.balance || 0);
@@ -64,7 +59,6 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
         return { statementTotal, overallBalance, overallPaid, maxPayable, newBalanceAfterInput, safePaymentInput };
     }, [currentStatement, admission, paymentInput]);
 
-    // --- LOCAL INVENTORY ---
     const localInventory = useMemo(() => {
         let inv = JSON.parse(JSON.stringify(medicines));
         billItems.forEach(item => {
@@ -163,7 +157,7 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-2 md:p-4 backdrop-blur-sm">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col h-[100dvh] md:h-[95vh] animate-in zoom-in-95 duration-200">
                 
-                {/* Header - Adaptive padding */}
+                {/* Header */}
                 <div className="bg-[#3D52A0] text-white p-4 md:p-5 flex justify-between items-center shadow-md shrink-0">
                     <div>
                         <h3 className="font-black text-lg md:text-xl uppercase tracking-tight">Billing System</h3>
@@ -174,7 +168,7 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
 
                 <div className="p-4 md:p-8 space-y-6 overflow-y-auto flex-1 scrollbar-none md:scrollbar-thin">
                     
-                    {/* PERIOD SELECTOR - Stacks on mobile */}
+                    {/* PERIOD SELECTOR */}
                     <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
                         <div className="w-full md:w-auto">
                             <label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Billing Period</label>
@@ -206,7 +200,7 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                         </div>
                     </div>
 
-                    {/* MEDICINE TABLE - Horizontal Scroll for Mobile */}
+                    {/* MEDICINE TABLE */}
                     <div className="space-y-2">
                         <h4 className="font-black text-slate-700 text-[10px] uppercase tracking-widest flex items-center gap-2">
                             <span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Medication & Supplies
@@ -290,7 +284,7 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                         </div>
                     </div>
 
-                    {/* FINANCIAL SUMMARY BOX - Stacks on small screens */}
+                    {/* FINANCIAL SUMMARY BOX */}
                     <div className="bg-[#2E4696] rounded-2xl p-5 md:p-7 text-white shadow-xl space-y-6 border border-white/10 shrink-0">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-white/20 pb-4 gap-2">
                             <span className="text-xs font-black uppercase tracking-widest text-blue-200">Period Total:</span>
@@ -325,7 +319,7 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                     </div>
                 </div>
 
-                {/* Footer Actions - Stacked on Mobile */}
+                {/* Footer Actions */}
                 <div className="p-4 md:p-6 bg-slate-50 border-t flex flex-col md:flex-row justify-center gap-3 shrink-0">
                     <Button variant="gray" onClick={onClose} className="w-full md:w-auto md:px-14 py-3 uppercase font-black text-[11px] tracking-widest order-2 md:order-1">Close</Button>
                     <Button 
@@ -339,8 +333,7 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                 </div>
             </div>
 
-            {/* CONFIRMATION OVERLAYS - Handled in previous responsive fixes */}
-            {/* ... itemToDelete and showPaymentConfirm remain same, but I added w-full max-w-sm to ensure mobile fit */}
+            {/* CONFIRMATION OVERLAYS */}
             {itemToDelete && (
                 <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 animate-in fade-in">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xs overflow-hidden">

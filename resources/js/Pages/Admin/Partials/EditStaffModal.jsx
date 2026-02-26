@@ -1,4 +1,3 @@
-// resources/js/Pages/Admin/Partials/EditStaffModal.jsx
 import React, { useEffect, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
@@ -20,8 +19,6 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
         gender: '',
         address: '', 
     });
-
-    // --- Data Loading ---
     useEffect(() => {
         if (member && isOpen) {
             setData({
@@ -35,8 +32,6 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
             });
         }
     }, [member, isOpen]);
-
-    // --- Passive Validation ---
     const validate = () => {
         let isValid = true;
         clearErrors();
@@ -127,10 +122,10 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
 
             {isOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 md:p-4 animate-in fade-in duration-200">
-                    {/* CONTAINER: Flex Column for Mobile Scroll support */}
+                    {/* CONTAINER */}
                     <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden transform transition-all animate-in zoom-in duration-200">
                         
-                        {/* FIXED HEADER */}
+                        {/* HEADER */}
                         <div className="bg-[#3D52A0] text-white p-4 md:px-6 md:py-4 flex justify-between items-center shrink-0 shadow-md">
                             <div>
                                 <h3 className="font-black text-lg leading-none uppercase tracking-tight">Edit Staff Record</h3>
@@ -145,7 +140,7 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
                         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden text-slate-800">
                             <div className="p-6 md:p-8 space-y-5 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-300">
                                 
-                                {/* 1. Role and Gender - Responsive Grid */}
+                                {/* 1. Role and Gender */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <Label text="Assigned Role" fieldError={errors.role} />
@@ -223,8 +218,7 @@ export default function EditStaffModal({ isOpen, onClose, member }) {
                                     />
                                 </div>
                             </div>
-
-                            {/* FIXED FOOTER */}
+                            {/* FOOTER */}
                             <div className="bg-slate-50 px-6 md:px-8 py-4 flex flex-col gap-3 border-t shrink-0">
                                 <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
                                     <Button 

@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/EditPatientModal.jsx
-
 import React, { useEffect, useMemo, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
@@ -19,10 +17,8 @@ export default function EditPatientModal({ isOpen, onClose, patient, onSuccess }
         emergency_contact_number: '',
     });
 
-    // Local state for INTERNAL red validation errors only
     const [modalError, setModalError] = useState({ show: false, message: '' });
 
-    // --- Data Loading Logic ---
     useEffect(() => {
         if (patient && isOpen) {
             setData({
@@ -74,7 +70,6 @@ export default function EditPatientModal({ isOpen, onClose, patient, onSuccess }
         if (validate()) {
             put(route('admin.patients.update', patient.id), {
                 onSuccess: () => {
-                    // 🔥 Pass control to Parent Toast Handler
                     if (onSuccess) onSuccess('Patient record updated successfully!');
                     handleModalClose(); 
                 },

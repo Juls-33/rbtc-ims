@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/AddMedicineModal.jsx
-
 import React, { useState, useEffect, useMemo } from 'react'; 
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
@@ -74,7 +72,6 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                     });
                     handleModalClose();
                 },
-                // 2. Handle Backend/Server Errors
                 onError: (err) => {
                     console.error("Backend Error:", err);
                     setToastInfo({ 
@@ -85,7 +82,6 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                 },
             });
         } else {
-            // 3. Handle Frontend Validation Failure
             setToastInfo({ 
                 show: true, 
                 message: 'Please fill in all mandatory fields correctly.', 
@@ -110,10 +106,9 @@ export default function AddMedicineModal({ isOpen, onClose }) {
 
             {isOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 md:p-4">
-                    {/* 🔥 MODAL CONTAINER: flex flex-col and max-height for scrolling */}
                     <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden animate-in zoom-in duration-150">
                         
-                        {/* FIXED HEADER */}
+                        {/* HEADER */}
                         <div className="bg-[#2E4696] px-6 py-4 flex justify-between items-center text-white shrink-0">
                             <div>
                                 <h2 className="font-black text-base md:text-lg uppercase leading-none">Add New Medicine</h2>

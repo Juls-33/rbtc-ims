@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/RoomManagement.jsx
-
 import React, { useState, useMemo } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
@@ -11,9 +9,8 @@ import Pagination from '@/Components/Pagination';
 import InventoryStats from '@/Components/InventoryStats';
 
 export default function RoomManagement({ auth, rooms = [] }) {
-    // --- UI STATES ---
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('All'); // Added Status Filter
+    const [statusFilter, setStatusFilter] = useState('All'); 
     const [sortConfig, setSortConfig] = useState({ key: 'room_location', direction: 'asc' });
     
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -24,7 +21,6 @@ export default function RoomManagement({ auth, rooms = [] }) {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 8;
 
-    // --- SORTING ICON HELPER (Same as Medicine Inventory) ---
     const SortIcon = ({ column }) => {
         if (sortConfig.key !== column) return <span className="ml-1 opacity-20 text-[10px]">↕</span>;
         return sortConfig.direction === 'asc' 
@@ -40,7 +36,6 @@ export default function RoomManagement({ auth, rooms = [] }) {
         setSortConfig({ key, direction });
     };
 
-    // --- LOGIC: FILTER -> SORT -> PAGINATE ---
     const filteredRooms = useMemo(() => {
         return rooms.filter(r => {
             const matchesSearch = r.room_location.toLowerCase().includes(searchQuery.toLowerCase());
@@ -55,7 +50,6 @@ export default function RoomManagement({ auth, rooms = [] }) {
             let valA = a[sortConfig.key];
             let valB = b[sortConfig.key];
 
-            // Handle numeric values (rates)
             if (sortConfig.key === 'room_rate') {
                 valA = parseFloat(valA);
                 valB = parseFloat(valB);
@@ -74,7 +68,6 @@ export default function RoomManagement({ auth, rooms = [] }) {
         return sortedRooms.slice(indexOfFirstItem, indexOfLastItem);
     }, [currentPage, sortedRooms]);
 
-    // Reset page on search/filter
     useMemo(() => setCurrentPage(1), [searchQuery, statusFilter]);
 
     const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
@@ -119,10 +112,8 @@ export default function RoomManagement({ auth, rooms = [] }) {
 
             <InventoryStats stats={roomStats} />
 
-            {/* Main Content Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[600px] flex flex-col">
                 
-                {/* Search & Filter Bar (Medicine Inventory Style) */}
                 <div className="p-6 border-b bg-slate-50/30">
                     <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
                         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
@@ -135,8 +126,7 @@ export default function RoomManagement({ auth, rooms = [] }) {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
-                            
-                            {/* Status Filter Dropdown */}
+
                             <select 
                                 className="w-full sm:w-44 border-slate-300 rounded-lg text-sm focus:ring-[#3D52A0] py-2.5 font-bold text-slate-600"
                                 value={statusFilter}
@@ -167,7 +157,6 @@ export default function RoomManagement({ auth, rooms = [] }) {
                     </div>
                 </div>
 
-                {/* 🔥 THE "PADDED" TABLE CONTAINER (Margin/Padding inside white card) */}
                 <div className="p-6 flex-1 flex flex-col">
                     <div className="overflow-x-auto border border-slate-200 rounded-xl relative">
                         <table className="w-full text-left text-sm border-collapse min-w-[800px]">
@@ -240,8 +229,6 @@ export default function RoomManagement({ auth, rooms = [] }) {
                     />
                 </div>
             </div>
-
-            {/* Modals remain same, using global layout toast logic */}
             <AddRoomModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
             <EditRoomModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} room={selectedRoom} />
             <DeleteRoomModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} room={selectedRoom} />

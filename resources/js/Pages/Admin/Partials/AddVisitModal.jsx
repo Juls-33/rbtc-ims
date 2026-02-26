@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/AddVisitModal.jsx
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm } from '@inertiajs/react';
 
@@ -84,12 +82,10 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
         if (validate()) {
             post(route('admin.visits.store'), {
                 onSuccess: () => handleModalClose(),
-                // Global layout listener will handle the success toast
             });
         }
     };
 
-    // 🔥 Red Glow Error Handler
     const inputClass = (error) => `w-full border rounded-lg px-4 py-3 md:py-2 text-sm transition-all outline-none ${
         error 
             ? 'bg-red-50 !border-red-500 ring-2 ring-red-200 focus:!border-red-600' 
@@ -213,7 +209,6 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
                     </div>
                 </form>
 
-                {/* 🔥 RESPONSIVE ACTIONS: Stacked on Mobile */}
                 <div className="p-4 md:p-6 bg-slate-50 border-t flex flex-col md:flex-row justify-center gap-3 shrink-0">
                     <button 
                         type="button" 

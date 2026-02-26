@@ -17,7 +17,6 @@ class DashboardController extends Controller
         $search = $request->input('search');
         $query = Staff::query();
 
-        // Standard plain-text search logic
         if ($search) {
             $query->where(function($q) use ($search) {
                 $q->where('first_name', 'LIKE', "%{$search}%")
@@ -27,7 +26,6 @@ class DashboardController extends Controller
         }
 
         return Inertia::render('Dashboard', [
-            // Apply the search filters to both doctors and nurses
             'doctors' => (clone $query)->where('role', 'Doctor')->get(),
             'nurses'  => (clone $query)->where('role', 'Nurse')->get(),
             

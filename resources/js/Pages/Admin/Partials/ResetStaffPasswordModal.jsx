@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/ResetStaffPasswordModal.jsx
-
 import React from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
@@ -21,12 +19,9 @@ export default function ResetStaffPasswordModal({ isOpen, onClose, member }) {
         put(route('admin.staff.reset-password', member.id), {
             onSuccess: () => {
                 handleModalClose();
-                // Note: The global toast in AuthenticatedLayout will handle the success message
             },
         });
     };
-
-    // 🔥 Red Glow Error Handler
     const inputClass = (error) => `w-full border rounded-lg px-4 py-3 md:py-2 text-sm transition-all outline-none ${
         error 
             ? 'bg-red-50 !border-red-500 ring-2 ring-red-200 focus:!border-red-600' 

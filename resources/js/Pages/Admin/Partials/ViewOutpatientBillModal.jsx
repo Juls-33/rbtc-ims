@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/ViewOutpatientBillModal.jsx
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useForm, router, usePage } from '@inertiajs/react';
 import Button from '@/Components/Button';
@@ -9,7 +7,7 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
     const { patients, flash } = usePage().props;
     const [toast, setToast] = useState(null);
 
-    // --- 1. DATA SYNC ---
+    // DATA SYNC
     const visit = useMemo(() => {
         if (!patients || !initialVisit) return initialVisit;
         const freshPatient = patients.find(p => p.id === patient?.id);
@@ -20,7 +18,7 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
     const billItems = visit?.bill_items || [];
     const CHECKUP_FEE = parseFloat(visit?.checkup_fee || 0);
 
-    // --- 2. DYNAMIC STOCK CALCULATION ---
+    //STOCK CALCULATION
     const localInventory = useMemo(() => {
         let inv = JSON.parse(JSON.stringify(medicines));
         billItems.forEach(item => {
@@ -36,7 +34,6 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
         return inv;
     }, [medicines, billItems]);
 
-    // --- 3. UI STATES ---
     const [paymentInput, setPaymentInput] = useState(0);
     const [medSearchTerm, setMedSearchTerm] = useState('');
     const [isMedDropdownOpen, setIsMedDropdownOpen] = useState(false);
@@ -55,7 +52,6 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
 
     const medDropdownRef = useRef(null); 
 
-    // --- 4. EFFECTS ---
     useEffect(() => {
         if (flash?.success) {
             const isWarning = flash.success.toLowerCase().includes('reduced') || flash.success.toLowerCase().includes('stock');
@@ -71,7 +67,6 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
         }
     }, [isOpen, CHECKUP_FEE]);
 
-    // --- 5. MATH LOGIC ---
     const totals = useMemo(() => {
         const medsTotal = billItems.reduce((sum, item) => sum + (parseInt(item.quantity) * parseFloat(item.unit_price)), 0);
         const grandTotal = CHECKUP_FEE + medsTotal; 
@@ -82,7 +77,6 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
         return { grandTotal, medsTotal, currentBalance, previousPaid, maxPayable };
     }, [billItems, paymentInput, CHECKUP_FEE, visit?.amount_paid]);
 
-    // --- 6. HANDLERS ---
     const handleQtyInput = (val, max, setter) => {
         if (val === "") { setter(""); return; }
         const num = parseInt(val);
@@ -180,7 +174,7 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
 
                 <div className="p-4 md:p-8 space-y-6 overflow-y-auto flex-1 no-scrollbar">
                     
-                    {/* Itemized Table - Horizontal Scroll on Mobile */}
+                    {/* Itemized Table */}
                     <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm bg-white">
                         <table className="w-full text-left text-xs border-collapse min-w-[750px]">
                             <thead className="bg-slate-50 text-slate-500 font-black uppercase tracking-widest border-b">
@@ -189,7 +183,6 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
                                     <th className="p-4 border-r text-center w-28">Qty</th>
                                     <th className="p-4 border-r text-right w-32">Price</th>
                                     <th className="p-4 text-right w-32">Total</th>
-                                    {/* 🔥 Sticky Action Column for Mobile */}
                                     <th className="p-4 text-center w-32 sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-20">Actions</th>
                                 </tr>
                             </thead>
@@ -251,8 +244,6 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
                                         </td>
                                     </tr>
                                 ))}
-
-                                {/* Add Medicine Row */}
                                 <tr className="bg-emerald-50/20" ref={medDropdownRef}>
                                     <td className="p-3 border-r relative">
                                         <input 
@@ -290,8 +281,6 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
                             </tbody>
                         </table>
                     </div>
-
-                    {/* Financial Dashboard - Stacks on Mobile */}
                     <div className="bg-[#2E4696] rounded-2xl p-5 md:p-7 text-white shadow-xl space-y-6 border border-white/10 shrink-0">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-white/20 pb-4 gap-2">
                             <span className="text-xs font-black uppercase tracking-widest text-blue-200">Total Invoice Amount:</span>
@@ -320,8 +309,6 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
                         </div>
                     </div>
                 </div>
-
-                {/* Footer Buttons - Column stack on Mobile */}
                 <div className="p-4 md:p-6 bg-slate-50 border-t flex flex-col md:flex-row justify-center gap-3 shrink-0">
                     <Button variant="gray" onClick={onClose} className="w-full md:w-auto md:px-14 py-3.5 uppercase font-black text-[11px] tracking-widest order-2 md:order-1">Close</Button>
                     <Button 
@@ -335,7 +322,7 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
                 </div>
             </div>
 
-            {/* Confirmation Overlays - Same logic as Inpatient but with mobile max-widths */}
+            {/* Confirmation Overlays */}
             {showPaymentConfirm && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/90 backdrop-blur-md p-4 animate-in fade-in duration-300">
                     <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden transform animate-in zoom-in-95 duration-300">

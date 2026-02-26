@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/PayBillModal.jsx
-
 import React from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
@@ -22,7 +20,7 @@ export default function PayBillModal({ isOpen, onClose, bill, patient }) {
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4 text-slate-800">
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                {/* Invoice Header */}
+                {/* Header */}
                 <div className="bg-[#3D52A0] text-white p-4 flex justify-between items-center">
                     <h3 className="font-bold text-lg">Hospital Bill Invoice #{bill.bill_id}</h3>
                     <button onClick={onClose} className="text-2xl hover:text-rose-200">&times;</button>
@@ -31,7 +29,6 @@ export default function PayBillModal({ isOpen, onClose, bill, patient }) {
                 <div className="p-8 space-y-6">
                     <div className="flex justify-between items-start">
                         <div className="flex items-center gap-4">
-                            {/* Logo Placeholder */}
                             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center border">
                                 <span className="text-[8px] text-center font-bold text-slate-400">RBTC LOGO</span>
                             </div>
@@ -43,8 +40,6 @@ export default function PayBillModal({ isOpen, onClose, bill, patient }) {
                         </div>
                         <p className="text-xs font-bold text-slate-500 uppercase">Patient ID: {patient.patient_id}</p>
                     </div>
-
-                    {/* Itemized Table */}
                     <table className="w-full text-left text-xs border border-slate-200">
                         <thead className="bg-slate-50 border-b">
                             <tr>
@@ -61,7 +56,6 @@ export default function PayBillModal({ isOpen, onClose, bill, patient }) {
                                 <td className="p-3 border-r">{bill.room_rate || 1500}</td>
                                 <td className="p-3 font-bold">{bill.room_charge || 6000}</td>
                             </tr>
-                            {/* Example Medication Rows */}
                             <tr className="border-b">
                                 <td className="p-3 border-r">Paracetamol 500mg</td>
                                 <td className="p-3 border-r text-center">10</td>

@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/EditVisitModal.jsx
-
 import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 
@@ -61,8 +59,6 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
             });
         }
     };
-
-    // 🔥 Red Glow Error Handler (Standardized)
     const inputClass = (error) => `w-full border rounded-lg px-4 py-3 md:py-2 text-sm transition-all outline-none ${
         error 
             ? 'bg-red-50 !border-red-500 ring-2 ring-red-200 focus:!border-red-600' 
@@ -88,7 +84,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200 font-sans">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh] border border-slate-200">
                 
-                {/* Responsive Header */}
+                {/* Header */}
                 <div className="bg-[#3D52A0] text-white p-4 md:p-5 flex justify-between items-center shadow-lg shrink-0">
                     <div>
                         <h3 className="font-black text-sm md:text-lg uppercase tracking-tight leading-none">Edit Visit Details</h3>
@@ -102,7 +98,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
                     >&times;</button>
                 </div>
 
-                {/* Form Body - Scrollable */}
+                {/* Form Body */}
                 <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6 overflow-y-auto no-scrollbar flex-1 text-slate-800">
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -147,8 +143,6 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
                         {errors.reason && <p className="text-red-600 text-[10px] mt-1 font-black italic uppercase">{errors.reason}</p>}
                     </div>
                 </form>
-
-                {/* 🔥 RESPONSIVE ACTIONS: Stacked on Mobile */}
                 <div className="p-4 md:p-6 bg-slate-50 border-t flex flex-col md:flex-row justify-center gap-3 shrink-0">
                     <button 
                         type="button" 

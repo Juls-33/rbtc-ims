@@ -24,10 +24,7 @@ export default function DeactivateStaffModal({ isOpen, onClose, member }) {
 
     return (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/50 p-4 font-sans backdrop-blur-sm">
-            {/* 🔥 Responsive Width and Height Guard */}
             <div className="bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-200 flex flex-col max-h-[90vh]">
-                
-                {/* Red Danger Header */}
                 <div className="bg-[#C84B4B] text-white p-4 flex justify-between items-center shrink-0">
                     <h3 className="font-black text-sm md:text-lg uppercase tracking-widest">Deactivate Account?</h3>
                     <button 
@@ -38,7 +35,7 @@ export default function DeactivateStaffModal({ isOpen, onClose, member }) {
                     </button>
                 </div>
 
-                {/* Form Body - Scrollable on mobile */}
+                {/* Form Body */}
                 <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6 overflow-y-auto">
                     <div className="space-y-4 text-slate-700">
                         <p className="text-sm md:text-base text-center md:text-left leading-relaxed">
@@ -76,8 +73,6 @@ export default function DeactivateStaffModal({ isOpen, onClose, member }) {
                             </select>
                         </div>
                     </div>
-
-                    {/* 🔥 RESPONSIVE BUTTON STACK: Column on mobile, Row on desktop */}
                     <div className="flex flex-col md:flex-row justify-center gap-3 pt-2">
                         <Button 
                             type="button" 

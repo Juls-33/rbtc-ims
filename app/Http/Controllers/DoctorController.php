@@ -23,12 +23,11 @@ class DoctorController extends Controller
         return Inertia::render('Doctor/Patients', [
             'patients' => Patient::all()->map(function($patient) {
                 return [
-                    'id'      => $patient->id,           // The numeric ID for the URL
-                    'p_id'    => $patient->patient_id,   // The "P-00001" for display
+                    'id'      => $patient->id,        
+                    'p_id'    => $patient->patient_id, 
                     'name'    => $patient->full_name,
                     'dob'     => $patient->birth_date,
                     'contact' => $patient->contact_no,
-                    // Pulling the status from the latest admission
                     'status'  => $patient->admissions->last()?->status ?? 'OUTPATIENT',
                 ];
             })

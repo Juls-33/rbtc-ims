@@ -18,7 +18,6 @@ export default function AddRoomModal({ isOpen, onClose, onSuccess }) {
         onClose();
     };
 
-    // --- Validation Logic ---
     const validate = () => {
         let isValid = true;
         clearErrors();
@@ -43,7 +42,6 @@ export default function AddRoomModal({ isOpen, onClose, onSuccess }) {
             post(route('admin.rooms.store'), {
                 onSuccess: () => {
                     setToastInfo({ show: true, message: 'Room registered successfully!', type: 'success' });
-                    // Give user time to see toast or handle success immediately
                     if (onSuccess) onSuccess(); 
                     handleModalClose();
                 },
@@ -86,10 +84,10 @@ export default function AddRoomModal({ isOpen, onClose, onSuccess }) {
                 />
             )}
 
-            {/* CONTAINER: Responsive flex-col with max-height for mobile scrolling */}
+            {/* CONTAINER */}
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-md flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden animate-in zoom-in duration-150">
                 
-                {/* FIXED HEADER */}
+                {/* HEADER */}
                 <div className="bg-[#3D52A0] text-white px-6 py-4 flex justify-between items-center shrink-0 shadow-sm">
                     <div>
                         <h3 className="font-black text-lg uppercase tracking-tight leading-none">Register New Room</h3>
@@ -98,7 +96,7 @@ export default function AddRoomModal({ isOpen, onClose, onSuccess }) {
                     <button onClick={handleModalClose} className="text-white hover:text-red-200 text-2xl font-bold leading-none">&times;</button>
                 </div>
 
-                {/* SCROLLABLE BODY */}
+                {/* BODY */}
                 <form onSubmit={submit} className="flex flex-col overflow-hidden">
                     <div className="p-6 md:p-8 space-y-6 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-300">
                         
@@ -151,7 +149,7 @@ export default function AddRoomModal({ isOpen, onClose, onSuccess }) {
                         </div>
                     </div>
 
-                    {/* FIXED FOOTER: Stacked on mobile for better ergonomics */}
+                    {/* FOOTER */}
                     <div className="p-6 bg-slate-50 border-t flex flex-col-reverse sm:flex-row justify-end gap-3 shrink-0">
                         <Button 
                             type="button" 

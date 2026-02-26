@@ -1,15 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
-
-// Shared Components
 import Button from '@/Components/Button';
 import InventoryStats from '@/Components/InventoryStats';
 import Pagination from '@/Components/Pagination';
 import ManageStockTable from '@/Components/ManageStockTable';
 import StockLedgerTable from '@/Components/StockLedgerTable';
-
-// Page Partials
 import AddMedicineModal from './Partials/AddMedicineModal';
 import EditMedicineModal from './Partials/EditMedicineModal';
 import DeleteMedicineModal from './Partials/DeleteMedicineModal';
@@ -35,8 +31,6 @@ export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
         'LOW STOCK': 2,
         'IN STOCK': 3
     };
-
-    // --- LOGIC: PREPROCESSING ---
     const today = new Date().toISOString().split('T')[0];
     const processedInventory = inventory.map(item => {
         const validBatches = item.batches?.filter(batch => batch.expiry >= today) || [];
@@ -57,15 +51,12 @@ export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
         let data = [];
 
         if (activeTab === 'manage') {
-            // 1. Filter Manage Tab
             data = processedInventory.filter(item => 
                 item.name.toLowerCase().includes(query) || 
                 item.sku.toLowerCase().includes(query) ||
                 item.category.toLowerCase().includes(query) || 
                 item.calculatedStatus.toLowerCase().includes(query)
             );
-
-            // 2. Sort Manage Tab
             data.sort((a, b) => {
                 let aValue = a[sortConfig.key];
                 let bValue = b[sortConfig.key];
@@ -87,7 +78,6 @@ export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
                 return 0;
             });
         } else {
-            // 1. Filter Ledger Tab
             data = logs.filter(log => 
                 log.id.toLowerCase().includes(query) || 
                 log.medicine_name.toLowerCase().includes(query) ||
@@ -152,7 +142,6 @@ export default function MedicineInventory({ auth, inventory = [], logs = [] }) {
     };
 
     const activeMedicine = inventory.find(m => m.id === batchMedicine?.id);
-
     return (
         <AuthenticatedLayout 
             header="Admin / Medicine Inventory" 

@@ -1,10 +1,6 @@
-// resources/js/Pages/Admin/PatientManagement.jsx
-
 import React, { useState, useMemo, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, usePage } from '@inertiajs/react';
-
-// Shared Components
 import Button from '@/Components/Button';
 import Pagination from '@/Components/Pagination';
 import AddPatientModal from './Partials/AddPatientModal';
@@ -15,7 +11,6 @@ import PatientProfile from './Partials/PatientProfile';
 import AddVisitModal from './Partials/AddVisitModal';
 
 export default function PatientManagement({ auth, patients = [], selectablePatients, rooms, doctors, inventory = [] }) {
-    // 1. All useState Hooks at the top
     const allPatients = Array.isArray(patients) ? patients : (patients.data || []);
     const [activeTab, setActiveTab] = useState('all'); 
     const [searchQuery, setSearchQuery] = useState('');
@@ -34,8 +29,6 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
     const [patientToDelete, setPatientToDelete] = useState(null);
     
     const itemsPerPage = 10;
-
-    // 2. All useMemo Hooks (Order doesn't strictly matter between memos, but they MUST be before any return)
     
     const activePatient = useMemo(() => 
         allPatients.find(p => p.id === selectedProfile), 
@@ -86,12 +79,10 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
         return 'General Patient Directory';
     }, [activeTab]);
 
-    // 3. All useEffect Hooks
     useEffect(() => {
         setCurrentPage(1);
     }, [searchQuery, activeTab]);
 
-    // 4. Helper Functions
     const handleSort = (key) => {
         let direction = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -123,8 +114,6 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
     };
 
     const totalPages = Math.ceil(processedData.length / itemsPerPage);
-
-    // --- 🔥 5. CONDITIONAL RETURNS (Only AFTER all hooks are called) ---
     
     if (viewMode === 'profile' && activePatient) {
         return (
@@ -139,7 +128,6 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
         );
     }
 
-    // Default List View Return
     return (
         <AuthenticatedLayout 
             header="Admin / Patient Management" 

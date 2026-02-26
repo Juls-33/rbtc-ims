@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/DischargeWarningModal.jsx
-
 import React, { useEffect, useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import Toast from '@/Components/Toast';
@@ -33,7 +31,7 @@ export default function DischargeWarningModal({ isOpen, onClose, onConfirm, pati
 
             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden transform animate-in zoom-in-95 flex flex-col max-h-[90vh]">
                 
-                {/* DANGER HEADER */}
+                {/* HEADER */}
                 <div className="bg-[#C84B4B] p-6 md:p-8 text-center text-white shrink-0 shadow-md">
                     <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner border border-white/10">
                         <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

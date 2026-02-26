@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/Partials/AddPatientModal.jsx
-
 import React, { useMemo, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
@@ -19,7 +17,6 @@ export default function AddPatientModal({ isOpen, onClose, onSuccess }) {
         emergency_contact_number: '',
     });
 
-    // 🔥 Fix: Consolidate into one internal error state
     const [modalError, setModalError] = useState({ show: false, message: '' });
 
     const handleModalClose = () => {
@@ -62,18 +59,15 @@ export default function AddPatientModal({ isOpen, onClose, onSuccess }) {
         if (validate()) {
             post(route('admin.patients.store'), {
                 onSuccess: () => {
-                    // 🔥 Trigger parent success toast
                     if (onSuccess) onSuccess('Patient Successfully Registered!');
                     handleModalClose(); 
                 },
                 onError: (err) => {
                     const firstMsg = Object.values(err)[0];
-                    // 🔥 Update correctly to modalError
                     setModalError({ show: true, message: `Failed: ${firstMsg}` });
                 }
             });
         } else {
-            // 🔥 Update correctly to modalError
             setModalError({ show: true, message: 'Please correct the highlighted fields.' });
         }
     };
@@ -109,7 +103,6 @@ export default function AddPatientModal({ isOpen, onClose, onSuccess }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 md:p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            {/* 🔥 Fixed the Toast to use the correct state variable */}
             {modalError.show && (
                 <Toast 
                     message={modalError.message} 
@@ -129,7 +122,7 @@ export default function AddPatientModal({ isOpen, onClose, onSuccess }) {
                     <button onClick={handleModalClose} className="text-2xl hover:text-slate-200 transition-colors leading-none">&times;</button>
                 </div>
 
-                {/* Form Body - Scrollable */}
+                {/* Form Body */}
                 <form onSubmit={submit} className="flex flex-col overflow-hidden">
                     <div className="p-6 md:p-8 space-y-8 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-200">
                         
@@ -224,7 +217,7 @@ export default function AddPatientModal({ isOpen, onClose, onSuccess }) {
                         </div>
                     </div>
 
-                    {/* Fixed Footer */}
+                    {/* FOOTER */}
                     <div className="p-6 bg-slate-100 border-t flex flex-col-reverse sm:flex-row justify-end gap-3 shrink-0">
                         <Button type="button" variant="gray" onClick={handleModalClose} className="w-full sm:w-auto px-6 py-2.5 font-black text-[11px] uppercase tracking-widest">Cancel</Button>
                         <Button type="submit" variant="success" disabled={processing} className="w-full sm:w-auto px-8 py-2.5 bg-emerald-600 text-white font-black text-[11px] uppercase tracking-widest shadow-md active:scale-95 disabled:opacity-50">

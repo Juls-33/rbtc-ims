@@ -12,7 +12,6 @@ export default function EditRoomModal({ isOpen, onClose, room, onSuccess }) {
 
     const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' });
 
-    // Load room data when the modal opens or the room changes
     useEffect(() => {
         if (room && isOpen) {
             setData({
@@ -97,7 +96,7 @@ export default function EditRoomModal({ isOpen, onClose, room, onSuccess }) {
 
             <div className="bg-white rounded-lg shadow-2xl w-full max-w-md flex flex-col max-h-[95vh] md:max-h-[90vh] overflow-hidden animate-in zoom-in duration-150">
                 
-                {/* FIXED HEADER - Amber/Gold theme for "Edit" */}
+                {/* HEADER */}
                 <div className="bg-[#E6AA68] text-[#5c3a00] px-6 py-4 flex justify-between items-center shrink-0 shadow-sm">
                     <div>
                         <h3 className="font-black text-lg uppercase tracking-tight leading-none">Edit Room Record</h3>
@@ -155,7 +154,7 @@ export default function EditRoomModal({ isOpen, onClose, room, onSuccess }) {
                         </div>
                     </div>
 
-                    {/* FIXED FOOTER */}
+                    {/* FOOTER */}
                     <div className="p-6 bg-slate-50 border-t flex flex-col-reverse sm:flex-row justify-end gap-3 shrink-0">
                         <Button 
                             type="button" 

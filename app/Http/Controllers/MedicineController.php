@@ -24,8 +24,8 @@ class MedicineController extends Controller
 
                 return [
                     'id' => $medicine->id,
-                    'sku' => $medicine->sku_id,        // Added back
-                    'category' => $medicine->category, // Added back
+                    'sku' => $medicine->sku_id,        
+                    'category' => $medicine->category, 
                     'name' => $medicine->generic_name,
                     'brand_name' => $medicine->brand_name, 
                     'dosage' => $medicine->dosage,
@@ -61,7 +61,6 @@ class MedicineController extends Controller
                     'admin' => $log->staff ? $log->staff->first_name . ' ' . $log->staff->last_name : 'System',
                 ];
             });
-            // REMOVED: ->sortByDesc('is_available') because logs don't have availability
 
         return Inertia::render('Admin/MedicineInventory', [
             'inventory' => $inventory,

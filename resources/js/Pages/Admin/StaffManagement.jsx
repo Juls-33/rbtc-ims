@@ -1,5 +1,3 @@
-// resources/js/Pages/Admin/StaffManagement.jsx
-
 import React, { useState, useMemo } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
@@ -13,8 +11,6 @@ export default function StaffManagement({ auth, staff = [] }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    
-    // 🔥 Added sort state to match the Medicine Inventory logic
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
     const itemsPerPage = 10;
 
@@ -26,14 +22,11 @@ export default function StaffManagement({ auth, staff = [] }) {
         setSortConfig({ key, direction });
     };
 
-    // --- 1. FILTERING ---
     const filteredStaff = useMemo(() => {
         return staff.filter(s => {
-            // 1. Tab/Role Filter
             const targetRole = activeTab === 'all' ? null : activeTab.slice(0, -1);
             const matchesTab = !targetRole || s.role.toLowerCase() === targetRole.toLowerCase();
-            
-            // 2. Multi-Criteria Search (Name, ID, Email, Role, Status)
+
             const query = searchQuery.toLowerCase();
             const matchesSearch = 
                 s.name.toLowerCase().includes(query) || 
@@ -46,7 +39,6 @@ export default function StaffManagement({ auth, staff = [] }) {
         });
     }, [activeTab, searchQuery, staff]);
 
-    // --- 2. SORTING (The missing piece) ---
     const sortedStaff = useMemo(() => {
         const items = [...filteredStaff];
         items.sort((a, b) => {
@@ -59,7 +51,6 @@ export default function StaffManagement({ auth, staff = [] }) {
         return items;
     }, [filteredStaff, sortConfig]);
 
-    // --- 3. PAGINATION ---
     const totalPages = Math.ceil(sortedStaff.length / itemsPerPage);
     const paginatedStaff = useMemo(() => {
         const indexOfLastItem = currentPage * itemsPerPage;
@@ -67,7 +58,6 @@ export default function StaffManagement({ auth, staff = [] }) {
         return sortedStaff.slice(indexOfFirstItem, indexOfLastItem);
     }, [currentPage, sortedStaff]);
 
-    // Reset to page 1 when searching or switching tabs
     useMemo(() => setCurrentPage(1), [searchQuery, activeTab]);
 
     return (
@@ -130,7 +120,6 @@ export default function StaffManagement({ auth, staff = [] }) {
                         </div>
                     </div>
 
-                    {/* 🔥 PASS PROCESSED LIST TO TABLE */}
                     <div className="flex-1 flex flex-col p-2 bg-slate-50/50 rounded-xl border border-slate-100">
                         <StaffManagementTable 
                             staff={paginatedStaff} 
