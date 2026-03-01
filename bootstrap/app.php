@@ -20,6 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'doctor' => DoctorMiddleware::class,
         ]);
+        $middleware->web(append: [
+            \App\Http\Middleware\ForcePasswordChange::class,
+        ]);
 
         //
     })

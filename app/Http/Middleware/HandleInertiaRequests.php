@@ -6,69 +6,58 @@ use Illuminate\Http\Request;
 use Inertia\Middleware;
 use App\Models\MedicineCatalog;
 use App\Models\Admission;
+use App\Models\Staff; // Ensure Staff model is imported
 
 class HandleInertiaRequests extends Middleware
 {
-    /**
-     * The root template that is loaded on the first page visit.
-     *
-     * @var string
-     */
     protected $rootView = 'app';
 
-    /**
-     * Determine the current asset version.
-     */
     public function version(Request $request): ?string
     {
         return parent::version($request);
     }
 
-    /**
-     * Define the props that are shared by default.
-     *
-     * @return array<string, mixed>
-     */
     public function share(Request $request): array
     {
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user() ? [
+                    'id' => $request->user()->id,
+                    'name' => $request->user()->name,
+                    'role' => $request->user()->role, // Added role for unified profile logic
+                    'must_change_password' => $request->user()->must_change_password,
+                ] : null,
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error'   => $request->session()->get('error'),
             ],
             'notifications' => $request->user() && $request->user()->role === 'Admin' 
-            ? $this->getAdminNotifications() 
-            : [],
+                ? $this->getAdminNotifications() 
+                : [],
         ];
     }
+
     private function getAdminNotifications()
     {
         $alerts = [];
-        $staff = \App\Models\Staff::find(auth()->id());
-        $dismissedData = $staff->dismissed_notifications ?? [];
+        $staffUser = Staff::find(auth()->id());
+        
+        if (!$staffUser) return [];
+
+        $dismissedData = $staffUser->dismissed_notifications ?? [];
         $activeDismissedIds = [];
 
-        // Filter: Only keep IDs where the timer is still in the future
         foreach ($dismissedData as $id => $expiry) {
             try {
-                // Check if $expiry looks like a date string
-                // This prevents the "stock_9" parsing error
                 if (is_string($expiry) && strtotime($expiry)) {
                     if (now()->lessThan(\Illuminate\Support\Carbon::parse($expiry))) {
                         $activeDismissedIds[] = $id;
                     }
-                } else {
-                    // If it's the old format (just an ID), we can treat it as 
-                    // "dismissed forever" or just ignore it. 
-                    // Let's ignore old data to let the 12-hour logic take over.
-                    continue; 
                 }
             } catch (\Exception $e) {
-                continue; // Skip any malformed data
+                continue; 
             }
         }
 
@@ -79,8 +68,6 @@ class HandleInertiaRequests extends Middleware
 
         foreach ($criticalMedicines as $med) {
             $notifId = "stock_{$med->id}";
-            
-            // FIX: Check against $activeDismissedIds
             if (!in_array($notifId, $activeDismissedIds)) {
                 $alerts[] = [
                     'id' => $notifId,
@@ -100,8 +87,6 @@ class HandleInertiaRequests extends Middleware
 
         foreach ($unpaidBills as $bill) {
             $notifId = "bill_{$bill->id}";
-            
-            // FIX: Check against $activeDismissedIds
             if (!in_array($notifId, $activeDismissedIds)) {
                 $alerts[] = [
                     'id' => $notifId,
@@ -113,19 +98,24 @@ class HandleInertiaRequests extends Middleware
                 ];
             }
         }
-        $requests = \App\Models\Staff::where('reset_requested', true)->get();
+
+        // 3. Password Reset Requests (The "Quick Reset" Logic)
+        $requests = Staff::where('reset_requested', true)->get();
 
         foreach ($requests as $req) {
-            $notifId = "reset_{$req->id}";
-            
-            // We don't snooze reset requests for safety; they stay until resolved
             $alerts[] = [
-                'id' => $notifId,
+                'id' => "reset_{$req->id}",
                 'group' => 'Security',
                 'title' => 'Password Reset Request',
                 'description' => "{$req->first_name} {$req->last_name} needs a password reset.",
-                'buttonText' => 'MANAGE STAFF',
-                'link' => route('admin.staff'), // Redirects to where the Admin can reset it
+                
+                // 🔥 Added for the Reset Modal to know who it is dealing with
+                'staff_db_id' => $req->id, 
+                'staff_name' => "{$req->first_name} {$req->last_name}",
+                'actionType' => 'QUICK_RESET', 
+                
+                'buttonText' => 'RESET NOW', // Prompt the admin to act immediately
+                'link' => route('admin.staff'), 
             ];
         }
 

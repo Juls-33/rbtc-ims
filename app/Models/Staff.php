@@ -30,6 +30,8 @@ class Staff extends Authenticatable ///implements CipherSweetEncrypted
         'password',
         'dismissed_notifications',
         'reset_requested',
+        'must_change_password',
+        'password_changed_at',
     ];
 
     protected $hidden = [
@@ -42,6 +44,8 @@ class Staff extends Authenticatable ///implements CipherSweetEncrypted
         return [
             'password' => 'hashed',
             'dismissed_notifications' => 'array',
+            'must_change_password' => 'boolean',
+            'password_changed_at' => 'datetime',
         ];
     }
     protected $casts = [

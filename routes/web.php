@@ -36,6 +36,16 @@ Route::get('/', function () {
 Route::post('/recover-admin', [RecoveryController::class, 'recoverAdmin'])->name('admin.recover');
 Route::post('/request-reset', [RecoveryController::class, 'requestReset'])->name('staff.request_reset');
 Route::get('/admin/staff-management/logs', [StaffLogController::class, 'index'])->name('admin.staff.logs');
+Route::middleware(['auth'])->group(function () {
+
+    Route::get('/force-password-change', function () {
+        return Inertia::render('Auth/ForceChangePassword');
+    })->name('password.force-change');
+
+    // The submission route
+    Route::post('/force-password-change', [StaffController::class, 'forceUpdatePassword'])
+        ->name('password.force-update');
+});
 //Route::get('/admin/rooms', [RoomController::class, 'index'])->name('admin.rooms');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/notifications/dismiss', [NotificationController::class, 'dismiss'])->name('notifications.dismiss');

@@ -173,14 +173,15 @@ class StaffController extends Controller
     }
     public function resetPassword(Request $request, Staff $staff)
     {
-        $staff = Staff::findOrFail($id);
+        //$staff = Staff::findOrFail($id);
         $validated = $request->validate([
             'password' => 'required|string|min:8|confirmed',
         ]);
 
         $staff->update([
             'password' => Hash::make($validated['password']),
-            'reset_requested' => false, // ADDED: Clear the flag once reset is successful
+            'reset_requested' => false,
+            'must_change_password' => true, 
         ]);
         StaffLog::create([
             'staff_id'    => auth()->id(),
@@ -190,5 +191,31 @@ class StaffController extends Controller
         ]);
 
         return redirect()->back()->with('success', "Password for {$staff->first_name} has been updated.");
+    }
+    public function forceUpdatePassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        /** @var \App\Models\Staff $user */
+        $user = auth()->user();
+
+        // Update credentials and clear the flag
+        $user->update([
+            'password' => Hash::make($request->password),
+            'must_change_password' => false, 
+            'password_changed_at' => now(),
+        ]);
+
+        // Log the user's self-update
+        StaffLog::create([
+            'staff_id'    => $user->id,
+            'action'      => 'SECURITY UPDATE',
+            'description' => "User successfully completed forced password change.",
+            'ip_address'  => $request->ip(),
+        ]);
+
+        return redirect()->route('dashboard')->with('success', 'Security credentials updated. You now have full access.');
     }
 }
