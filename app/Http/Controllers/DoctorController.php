@@ -15,33 +15,78 @@ class DoctorController extends Controller
 {
     public function dashboard()
     {
-        return Inertia::render('Doctor/Dashboard');
-    }
+        $doctorId = auth()->id();
+        $today = now()->startOfDay();
 
-    public function patients()
+        $todayVisits = PatientVisit::with('patient')
+            ->where('staff_id', $doctorId)
+            ->whereDate('visit_date', now()->today())
+            ->get();
+
+        $appointments = $todayVisits->map(fn($v) => [
+            'time' => $v->created_at->format('g:i A'),
+            'id' => $v->patient->patient_id,
+            'db_id' => $v->patient->id,
+            'name' => $v->patient->full_name,
+            'reason' => $v->reason,
+        ]);
+
+        $stats = [
+            'seen_count' => $todayVisits->count(),
+            'total_target' => 15, 
+            'prescriptions_count' => Prescriptions::where('staff_id', $doctorId)
+                                        ->whereDate('created_at', now()->today())
+                                        ->count(),
+            'next_patient' => $appointments->first(), 
+        ];
+
+        return Inertia::render('Doctor/Dashboard', [
+            'appointments' => $appointments,
+            'stats' => $stats
+        ]);
+    } 
+
+    public function patients(Request $request)
     {
+        $search = strtolower($request->input('search'));
+
+        // 1. Get ALL patients (or a reasonably large chunk)
+        $allPatients = Patient::with(['admissions'])->latest()->get();
+
+        // 2. Filter the collection in PHP (where decryption happens automatically)
+        $filteredPatients = $allPatients->filter(function ($p) use ($search) {
+            if (!$search) return true;
+
+            // Check if search matches decrypted name or ID
+            return str_contains(strtolower($p->first_name), $search) ||
+                str_contains(strtolower($p->last_name), $search) ||
+                str_contains(strtolower($p->patient_id), $search);
+        });
+
+        // 3. Map the filtered results for the frontend
+        $patients = $filteredPatients->map(function ($p) {
+            $latest = $p->admissions->sortByDesc('admission_date')->first();
+            return [
+                'id'      => $p->id,
+                'p_id'    => $p->patient_id, // Decrypted via Model casting
+                'name'    => $p->full_name,   // Decrypted via Model casting
+                'dob'     => $p->birth_date,
+                'contact' => $p->contact_no,
+                'status'  => $latest ? strtoupper($latest->status) : 'OUTPATIENT',
+            ];
+        })->values(); // Reset array keys for JSON
+
         return Inertia::render('Doctor/Patients', [
-            'patients' => Patient::all()->map(function($patient) {
-                return [
-                    'id'      => $patient->id,        
-                    'p_id'    => $patient->patient_id, 
-                    'name'    => $patient->full_name,
-                    'dob'     => $patient->birth_date,
-                    'contact' => $patient->contact_no,
-                    'status'  => $patient->admissions->last()?->status ?? 'OUTPATIENT',
-                ];
-            })
+            'patients' => $patients,
+            'filters'  => $request->only(['search'])
         ]);
     }
 
-    /**
-     * Display a specific Patient's Profile
-     */
     public function showPatient($id)
     {
         $numericId = is_numeric($id) ? (int)$id : (int)str_replace('P-', '', $id);
 
-        $patient = Patient::with(['admissions.room', 'admissions.staff', 'visits', 'prescriptions.medicine'])
+        $patient = Patient::with(['admissions.room', 'admissions.staff', 'visits.staff', 'prescriptions.medicine'])
             ->findOrFail($numericId);
 
         $latestAdmission = $patient->admissions->sortByDesc('admission_date')->first();
@@ -63,14 +108,13 @@ class DoctorController extends Controller
                 'doctor'           => $latestAdmission?->staff ? "Dr. {$latestAdmission->staff->last_name}" : 'N/A',
                 'room'             => $latestAdmission?->room?->room_location ?? 'N/A',
                 'diagnosis'        => $latestAdmission?->diagnosis ?? 'No diagnosis recorded.',
-                'latestNote'       => $patient->medical_history ?? 'No consultation notes available.',
+                'latestNote'       => $latestVisit ? $latestVisit->reason : 'No consultation notes available.',
                 // Safeguard the vitals so React doesn't crash on undefined properties
                 'weight' => $latestVisit->weight ?? '—',
                 'bp'     => $latestVisit->blood_pressure ?? '—', 
                 'hr'     => $latestVisit->heart_rate ?? '—', 
                 'temp'   => $latestVisit->temperature ?? '—',
-                'latestNote' => $latestVisit ? $latestVisit->reason : 'No consultation notes available.',
-            ],
+            ],  
 
             'prescriptionHistory' => $patient->prescriptions
                 ->sortByDesc('created_at')
@@ -95,6 +139,22 @@ class DoctorController extends Controller
                         'time'          => $pres->schedule_time, // Added this so Edit works better
                         'date'          => $pres->date_prescribed,
                     ];
+            }),
+            'consultationHistory' => $patient->visits->sortByDesc('visit_date')->values()->map(function($visit) {
+                return [
+                    'id'         => $visit->id,
+                    'date'       => $visit->visit_date, // Format this as needed
+                    'note'       => $visit->reason,
+                    'doctor' => $visit->staff 
+                        ? "Dr. " . $visit->staff->last_name 
+                        : "Missing ID: " . $visit->staff_id,
+                    'vitals'     => [
+                        'bp'   => $visit->blood_pressure,
+                        'hr'   => $visit->heart_rate,
+                        'temp' => $visit->temperature,
+                        'w'    => $visit->weight,
+                    ]
+                ];
             }),
 
             'medicines' => MedicineCatalog::orderBy('generic_name')->get()->map(function($med) {
@@ -144,6 +204,7 @@ class DoctorController extends Controller
 
         PatientVisit::create([
             'patient_id'     => $id, 
+            'staff_id'       => auth()->id(),
             'visit_date'     => $validated['visit_date'],
             'blood_pressure' => $validated['blood_pressure'],
             'heart_rate'     => $validated['heart_rate'],
@@ -221,5 +282,31 @@ class DoctorController extends Controller
         $prescription->delete();
 
         return back()->with('message', 'Prescription deleted successfully!');
+    }
+
+    public function storeConsultation(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'note'       => 'required|string',
+            'visit_date' => 'required|date',
+        ]);
+
+        // This creates a NEW entry in patient_visits
+        PatientVisit::create([
+            'patient_id' => $id,
+            'staff_id'   => auth()->id(), // Automatic from the logged-in doctor
+            'visit_date' => $validated['visit_date'],
+            'reason'     => $validated['note'], // This maps to your "latestNote" logic
+            // Vitals can remain null for consultation-only visits
+        ]);
+
+        return back()->with('message', 'Consultation note added successfully!');
+    }
+    public function destroyConsultation($id)
+    {
+        $visit = PatientVisit::findOrFail($id);
+        $visit->delete();
+
+        return back()->with('message', 'Consultation note deleted.');
     }
 }

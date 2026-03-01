@@ -109,12 +109,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Vitals
         Route::post('/patients/{id}/vitals', [DoctorController::class, 'updateVitals'])->name('doctor.patients.vitals.update');
         
-        // Prescriptions - POINT THESE TO DoctorController
+        // Prescriptions
         Route::post('/patients/{id}/prescriptions', [DoctorController::class, 'storePrescription'])->name('doctor.prescriptions.store');
         Route::put('/prescriptions/{id}', [DoctorController::class, 'updatePrescription'])->name('doctor.prescriptions.update');
-        
-        // If you have a delete method in DoctorController, point it there too
         Route::delete('/prescriptions/{id}', [DoctorController::class, 'destroyPrescription'])->name('doctor.prescriptions.destroy');
+
+        // Consultation Note
+        Route::post('/patients/{id}/consultation', [DoctorController::class, 'storeConsultation'])->name('doctor.patients.consultation.store');
+        Route::delete('/consultations/{id}', [DoctorController::class, 'destroyConsultation'])->name('doctor.patients.consultation.destroy');
+
+        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
     });
 
     // Nurse Routes

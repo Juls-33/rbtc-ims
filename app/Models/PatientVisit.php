@@ -22,6 +22,7 @@ class PatientVisit extends Model
      */
     protected $fillable = [
         'patient_id',
+        'staff_id',
         'visit_date',
         'blood_pressure',
         'heart_rate', 
@@ -46,5 +47,10 @@ class PatientVisit extends Model
     public function bill_items()
     {
         return $this->hasMany(OutpatientBillItem::class, 'visit_id');
+    }
+    public function staff()
+    {
+        // Ensure the foreign key matches your database (staff_id)
+        return $this->belongsTo(Staff::class, 'staff_id');
     }
 }
