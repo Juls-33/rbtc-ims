@@ -182,17 +182,8 @@ class DoctorController extends Controller
     public function updateVitals(Request $request, $id)
     {
         $validated = $request->validate([
-            'blood_pressure' => [
-            'required', 
-            'string', 
-            'regex:/^([7-9][0-9]|1[0-9]{2})\/([4-9][0-9]|1[0-3][0-9])$/'
-            ],
-
-            'heart_rate' => [
-            'required', 
-            'numeric', 
-            'between:30,220'
-            ],
+            'blood_pressure' => ['required', 'string', 'regex:/^\d{2,3}\/\d{2,3}$/'],
+            'heart_rate' => ['required', 'numeric', 'between:30,220'],
             'temperature'    => 'required|numeric|between:30,45',
             'weight'         => 'required|numeric|between:1,500',
             'visit_date'     => 'required|date',

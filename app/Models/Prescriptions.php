@@ -44,4 +44,9 @@ class Prescriptions extends Model
     {
         return $this->belongsTo(MedicineCatalog::class, 'medicine_id');
     }
+
+    public function logs()
+{
+    return $this->hasMany(MedicationLog::class, 'prescription_id');
+}
 }

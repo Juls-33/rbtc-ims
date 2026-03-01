@@ -1,57 +1,87 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; // <--- The fix
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react'; // Ensure useForm is here
+import Modal from '@/Components/Modal';
+import InputLabel from '@/Components/InputLabel';
+import TextInput from '@/Components/TextInput';
+import InputError from '@/Components/InputError';
+import PrimaryButton from '@/Components/PrimaryButton';
+import SecondaryButton from '@/Components/SecondaryButton';
 
-export default function NursePatientProfile({ auth }) {
-    const [activeTab, setActiveTab] = useState('prescription'); // Defaulted to prescription to show the feature
+export default function NursePatientProfile({ auth , patient, batches = [] }) {
+    const [activeTab, setActiveTab] = useState('prescription'); 
+    const [showVitals, setShowVitals] = useState(false);
     const [showAdministerModal, setShowAdministerModal] = useState(false);
-    const [selectedMedication, setSelectedMedication] = useState(null);
+    const [selectedPrescription, setSelectedPrescription] = useState(null);
 
-    const patient = {
-        id: 'P-00123',
-        name: 'Juan Dela Cruz',
-        dob: '1985-04-10',
-        gender: 'Male',
-        phone: '0917-123-4567',
-        email: 'juan.cruz@gmail.com',
-        address: '123 Sampaguita St., Quezon City',
-        emergencyContact: 'Maria Dela Cruz',
-        emergencyPhone: '0920-123-4567',
-        
-        status: 'ADMITTED',
-        admissionDate: '2025-11-15',
-        doctor: 'Dr. Quack Reyes',
-        room: 'Room 204 (Private)',
-        diagnosis: 'Persistent Migraine (ICD-10 G43) & Chronic Lower Back Pain.',
-        latestNote: 'Patient reported dizziness upon standing. BP checked immediately, found normal. Advised to stand slowly.',
-        
-        bp: '128/82',
-        hr: '72 bpm',
-        temp: '37.0°',
-        weight: '85 kg'
+    const { 
+        data: vitalsData, 
+        setData: setVitalsData, 
+        post: postVitals, 
+        processing: processingVitals, 
+        errors: vitalsErrors, 
+        reset: resetVitals 
+    } = useForm({
+        visit_date: new Date().toISOString().split('T')[0],
+        weight: patient.latest_vitals?.weight || '', // Use real data from prop
+        blood_pressure: patient.latest_vitals?.blood_pressure || '',
+        heart_rate: patient.latest_vitals?.heart_rate || '',
+        temperature: patient.latest_vitals?.temperature || '',
+        reason: '',
+    });
+
+    const submitVitals = (e) => {
+        e.preventDefault();
+        postVitals(route('nurse.vitals.update', patient.id), {
+            onSuccess: () => {
+                setShowVitals(false);
+                resetVitals();
+            },
+        });
     };
 
     const admissionHistory = [
         { id: 'A-00234', admitted: '2025-03-01', discharged: '2025-03-05', reason: 'Dengue Fever' },
-        { id: 'A-00109', admitted: '2022-10-10', discharged: '2022-10-11', reason: 'Minor Observation' },
     ];
 
     const prescriptions = [
-        { name: 'Lisinopril', dose: '10mg QD', status: 'Active' },
-        { name: 'Ibuprofen', dose: '800mg PRN', status: 'Active' },
-        { name: 'Amoxicillin', dose: '500mg TID', status: 'Ended' }
+        { id: 1, date: '2025-11-15', medicine_name: 'Lisinopril', dosage: '10mg', frequency: 'Once Daily', status: 'Active' },
+        { id: 2, date: '2025-11-16', medicine_name: 'Ibuprofen', dosage: '800mg', frequency: 'As needed', status: 'Active' }
     ];
 
-    // Handle opening the modal
-    const openAdministerModal = (med) => {
-        setSelectedMedication(med);
+    const { 
+        data: administerData, 
+        setData: setAdministerData, 
+        post: postAdminister, 
+        processing: processingAdminister, 
+        errors: administerErrors, 
+        reset: resetAdminister 
+    } = useForm({
+        prescription_id: '',
+        batch_number: '',
+        // Fields below are usually for display or sent as verification
+        nurse_id: auth.user.id,
+        nurse_name: auth.user.name,
+    });
+
+    const openAdministerModal = (prescription) => {
+        setSelectedPrescription(prescription);
+        setAdministerData({
+            ...administerData,
+            prescription_id: prescription.id,
+            batch_number: '', // Reset batch for new entry
+        });
         setShowAdministerModal(true);
     };
 
-    // Handle closing the modal
-    const closeAdministerModal = () => {
-        setShowAdministerModal(false);
-        setSelectedMedication(null);
+    const submitAdminister = (e) => {
+        e.preventDefault();
+        postAdminister(route('nurse.prescriptions.administer', selectedPrescription.id), {
+            onSuccess: () => {
+                setShowAdministerModal(false);
+                resetAdminister();
+            },
+        });
     };
 
     return (
@@ -71,63 +101,67 @@ export default function NursePatientProfile({ auth }) {
         >
             <Head title={`Patient: ${patient.name}`} />
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6 relative">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
                 
-                {/* 1. HEADER INFO */}
-                <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-12 text-sm text-gray-800 border-b border-gray-100">
-                    <div className="space-y-3">
-                        <p><span className="font-bold text-gray-900 w-32 inline-block">Date of Birth:</span> {patient.dob}</p>
-                        <p><span className="font-bold text-gray-900 w-32 inline-block">Gender:</span> {patient.gender}</p>
-                        <p><span className="font-bold text-gray-900 w-32 inline-block">Phone:</span> {patient.phone}</p>
-                        <p><span className="font-bold text-gray-900 w-32 inline-block">Email:</span> {patient.email}</p>
+                {/* 1. HEADER INFO - Mirroring your Doctor Layout */}
+                <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-12 text-sm text-gray-800 border-b border-gray-100 bg-gray-50/30">
+                    <div className="space-y-4">
+                        {[
+                            { label: "Date of Birth", value: patient.dob },
+                            { label: "Gender", value: patient.gender },
+                            { label: "Phone", value: patient.phone },
+                            { label: "Email", value: patient.email },
+                        ].map((item, idx) => (
+                            <div key={idx} className="flex items-center">
+                                <div className="w-32 flex-shrink-0 text-gray-500 font-bold uppercase text-[11px]">{item.label}</div>
+                                <div className="font-medium lowercase">{item.value}</div>
+                            </div>
+                        ))}
                     </div>
-                    <div className="space-y-3">
-                        <p><span className="font-bold text-gray-900 w-36 inline-block">Address:</span> {patient.address}</p>
-                        <p className="flex items-start"><span className="font-bold text-gray-900 w-36 inline-block flex-shrink-0">Emergency Contact:</span> <span>{patient.emergencyContact}</span></p>
-                        <p><span className="font-bold text-gray-900 w-36 inline-block">Emergency Phone:</span> {patient.emergencyPhone}</p>
+                    <div className="space-y-4">
+                        {[
+                            { label: "Address", value: patient.address },
+                            { label: "Emergency Contact", value: patient.emergencyContact },
+                            { label: "Emergency Phone", value: patient.emergencyPhone },
+                        ].map((item, idx) => (
+                            <div key={idx} className="flex items-start">
+                                <div className="w-36 flex-shrink-0 text-gray-500 font-bold uppercase text-[11px]">{item.label}</div>
+                                <div className="font-medium">{item.value}</div>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
-                {/* 2. TABS */}
+                {/* 2. TABS - Mirroring your Doctor Layout */}
                 <div className="flex border-t border-gray-200 bg-gray-50 px-6 pt-4 gap-2">
-                    <button
-                        onClick={() => setActiveTab('admission')}
-                        className={`px-6 py-3 text-xs font-bold uppercase tracking-wide rounded-t-lg transition-colors ${
-                            activeTab === 'admission'
-                                ? 'bg-[#30499B] text-white'
-                                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                        }`}
-                    >
-                        Admission History
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('prescription')}
-                        className={`px-6 py-3 text-xs font-bold uppercase tracking-wide rounded-t-lg transition-colors ${
-                            activeTab === 'prescription'
-                                ? 'bg-[#30499B] text-white'
-                                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                        }`}
-                    >
-                        Prescription History
-                    </button>
+                    {[
+                        { id: 'admission', label: 'Admission History' },
+                        { id: 'prescription', label: 'Prescription History' }
+                    ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`px-6 py-3 text-xs font-bold uppercase tracking-wide rounded-t-lg transition-colors ${
+                                activeTab === tab.id ? 'bg-[#30499B] text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
 
                 {/* 3. TAB CONTENT */}
                 <div className="p-8 bg-white min-h-[400px]">
                     
-                    {/* TAB: ADMISSION HISTORY */}
                     {activeTab === 'admission' && (
                         <div className="space-y-8">
-                            {/* Admission Details */}
                             <div className="bg-blue-50/50 rounded-lg border border-blue-100 p-6">
-                                <h3 className="text-[#30499B] font-bold text-sm uppercase mb-4 tracking-wider">Current Admission Details</h3>
+                                <h3 className="text-[#30499B] font-bold text-[15px] uppercase mb-4 tracking-wider">Current Admission Details</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
                                     <div>
                                         <div className="mb-2">
                                             <span className="font-bold text-gray-500 text-xs uppercase block mb-1">Status</span>
-                                            <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold border border-green-200">
-                                                {patient.status}
-                                            </span>
+                                            <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold border border-green-200">{patient.status}</span>
                                         </div>
                                         <div>
                                             <span className="font-bold text-gray-500 text-xs uppercase block mb-1">Date Admitted</span>
@@ -147,112 +181,96 @@ export default function NursePatientProfile({ auth }) {
                                 </div>
                             </div>
 
-                            {/* Medical Notes */}
-                            <div>
-                                <h3 className="text-[#30499B] font-bold text-sm uppercase mb-3 tracking-wider">Medical Notes / Diagnosis</h3>
-                                <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-                                    <p className="text-gray-800 font-medium text-sm mb-4">
-                                        <span className="text-gray-500 uppercase text-xs font-bold block mb-1">Diagnosis:</span>
-                                        {patient.diagnosis}
-                                    </p>
-                                    
-                                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r text-sm text-yellow-900">
-                                        <span className="font-bold text-xs uppercase block mb-1 text-yellow-700">Latest Doctor's Note (Today, 8:00 AM):</span>
-                                        "{patient.latestNote}"
-                                    </div>
-                                </div>
+                            <div className="overflow-hidden border border-gray-200 rounded-lg">
+                                <table className="w-full text-left text-sm bg-white">
+                                    <thead className="bg-gray-100 text-gray-600 uppercase font-bold text-xs">
+                                        <tr>
+                                            <th className="px-4 py-3">Admission ID</th>
+                                            <th className="px-4 py-3">Admitted</th>
+                                            <th className="px-4 py-3">Discharged</th>
+                                            <th className="px-4 py-3">Reason for Stay</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {admissionHistory.map((history, i) => (
+                                            <tr key={i} className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 font-mono text-blue-600 font-bold text-xs">{history.id}</td>
+                                                <td className="px-4 py-3">{history.admitted}</td>
+                                                <td className="px-4 py-3">{history.discharged}</td>
+                                                <td className="px-4 py-3 text-gray-600">{history.reason}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
+                        </div>
+                    )}
 
-                            {/* Past Admission History */}
+                    {activeTab === 'prescription' && (
+                        <div className="space-y-10">
                             <div>
-                                <h3 className="text-[#30499B] font-bold text-sm uppercase mb-3 tracking-wider border-t border-gray-100 pt-6">Past Admission History</h3>
-                                <div className="overflow-hidden border border-gray-200 rounded-lg">
+                                <h3 className="text-[#30499B] font-bold text-[15px] uppercase mb-4 tracking-wider">Active Prescriptions</h3>
+                                <div className="overflow-hidden border border-gray-200 rounded-lg shadow-sm">
                                     <table className="w-full text-left text-sm bg-white">
                                         <thead className="bg-gray-100 text-gray-600 uppercase font-bold text-xs">
                                             <tr>
-                                                <th className="px-4 py-3">Admission ID</th>
-                                                <th className="px-4 py-3">Admitted</th>
-                                                <th className="px-4 py-3">Discharged</th>
-                                                <th className="px-4 py-3">Reason for Stay</th>
+                                                <th className="px-4 py-3">Date</th>
+                                                <th className="px-4 py-3">Medicine</th>
+                                                <th className="px-4 py-3">Dosage & Frequency</th>
+                                                <th className="px-4 py-3 text-right">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
-                                            {admissionHistory.map((history, i) => (
-                                                <tr key={i} className="hover:bg-gray-50">
-                                                    <td className="px-4 py-3 font-mono text-blue-600 font-bold text-xs">{history.id}</td>
-                                                    <td className="px-4 py-3">{history.admitted}</td>
-                                                    <td className="px-4 py-3">{history.discharged}</td>
-                                                    <td className="px-4 py-3 text-gray-600">{history.reason}</td>
+                                            {prescriptions.map((pres) => (
+                                                <tr key={pres.id} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="px-4 py-4 text-gray-500 font-medium">{pres.date}</td>
+                                                    <td className="px-4 py-4 font-bold text-[#30499B]">{pres.medicine_name}</td>
+                                                    <td className="px-4 py-4 text-gray-700">
+                                                        <span className="font-semibold">{pres.dosage}</span>
+                                                        <span className="mx-2 text-gray-300">|</span>
+                                                        <span className="text-xs italic">{pres.frequency}</span>
+                                                    </td>
+                                                    <td className="px-4 py-4 text-right">
+                                                        <PrimaryButton 
+                                                            onClick={() => openAdministerModal(pres)}
+                                                            className="bg-green-700 text-white px-3 py-1 rounded hover:bg-green-500"
+                                                        >
+                                                            Administer
+                                                        </PrimaryButton>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
-                        </div>
-                    )}
 
-                    {/* TAB: PRESCRIPTION HISTORY */}
-                    {activeTab === 'prescription' && (
-                        <div className="space-y-10">
-                            
-                            {/* 1. MEDICATIONS (Top) */}
-                            <div>
-                                <h3 className="text-[#30499B] font-bold text-sm uppercase mb-4">Active Medications</h3>
-                                <div className="grid gap-4">
-                                    {prescriptions.map((med, i) => (
-                                        <div key={i} className={`bg-white border ${med.status === 'Active' ? 'border-gray-200' : 'border-gray-100 bg-gray-50'} p-4 rounded-lg shadow-sm flex justify-between items-center`}>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`text-lg font-bold ${med.status === 'Active' ? 'text-gray-800' : 'text-gray-400'}`}>{med.name}</div>
-                                                    <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${med.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-500'}`}>
-                                                        {med.status}
-                                                    </span>
-                                                </div>
-                                                <div className="text-sm text-gray-500 font-medium">{med.dose}</div>
-                                            </div>
-                                            
-                                            {/* Nurse Action Button */}
-                                            {med.status === 'Active' && (
-                                                <button 
-                                                    onClick={() => openAdministerModal(med)}
-                                                    className="bg-[#2E7D32] hover:bg-green-700 text-white text-xs uppercase font-bold px-4 py-2 rounded shadow transition"
-                                                >
-                                                    Administer
-                                                </button>
-                                            )}
+                            {/* Vitals Section mirroring Doctor layout */}
+                            <div className="bg-blue-50/50 rounded-lg border border-blue-100 p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-[#30499B] font-bold text-[15px] uppercase tracking-wider">
+                                        Current Vital Signs
+                                    </h3>
+                                    <PrimaryButton 
+                                        onClick={() => setShowVitals(true)}
+                                        className="bg-[#30499B] hover:bg-blue-800 text-[11px] py-2 px-4"
+                                    >
+                                        Update Vitals
+                                    </PrimaryButton>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {[
+                                        { label: 'Blood Pressure', value: patient.bp, unit: 'mmHg' },
+                                        { label: 'Heart Rate', value: patient.hr, unit: 'bpm' },
+                                        { label: 'Temperature', value: patient.temp, unit: '°C' },
+                                        { label: 'Weight', value: patient.weight, unit: 'kg' },
+                                    ].map((v) => (
+                                        <div key={v.label} className="bg-white/80 border border-blue-100 rounded-xl p-3 text-center shadow-sm">
+                                            <div className="text-[13px] text-black-400 font-bold uppercase mb-1 tracking-widest">{v.label}</div>
+                                            <div className="text-lg font-black text-[#30499B]">{v.value}</div>
+                                            <div className="text-[13px] text-black-400 font-medium">{v.unit}</div>
                                         </div>
                                     ))}
-                                </div>
-                            </div>
-
-                            {/* 2. VITALS (Bottom) */}
-                            <div>
-                                <div className="flex items-center gap-2 mb-4 border-t border-gray-100 pt-8">
-                                    <div className="w-1 h-4 bg-[#30499B] rounded-full"></div>
-                                    <h3 className="text-[#30499B] font-bold text-sm uppercase tracking-wider">Current Vital Signs</h3>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="bg-white border border-blue-100 rounded-lg p-4 shadow-sm text-center">
-                                        <div className="text-xs text-gray-400 font-bold uppercase mb-1">Blood Pressure</div>
-                                        <div className="text-xl font-extrabold text-[#30499B]">{patient.bp}</div>
-                                        <div className="text-[10px] text-gray-400">mmHg</div>
-                                    </div>
-                                    <div className="bg-white border border-blue-100 rounded-lg p-4 shadow-sm text-center">
-                                        <div className="text-xs text-gray-400 font-bold uppercase mb-1">Heart Rate</div>
-                                        <div className="text-xl font-extrabold text-[#30499B]">{patient.hr}</div>
-                                        <div className="text-[10px] text-gray-400">bpm</div>
-                                    </div>
-                                    <div className="bg-white border border-blue-100 rounded-lg p-4 shadow-sm text-center">
-                                        <div className="text-xs text-gray-400 font-bold uppercase mb-1">Temperature</div>
-                                        <div className="text-xl font-extrabold text-[#30499B]">{patient.temp}</div>
-                                        <div className="text-[10px] text-gray-400">Celsius</div>
-                                    </div>
-                                    <div className="bg-white border border-blue-100 rounded-lg p-4 shadow-sm text-center">
-                                        <div className="text-xs text-gray-400 font-bold uppercase mb-1">Weight</div>
-                                        <div className="text-xl font-extrabold text-[#30499B]">{patient.weight}</div>
-                                        <div className="text-[10px] text-gray-400">kg</div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -260,86 +278,173 @@ export default function NursePatientProfile({ auth }) {
                 </div>
             </div>
 
-            {/* --- ADMINISTER MEDICINE MODAL --- */}
-            {showAdministerModal && selectedMedication && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden animate-fade-in-up">
-                        {/* Header */}
-                        <div className="bg-[#30499B] px-6 py-4 flex justify-between items-center text-white">
-                            <h3 className="font-semibold text-lg">Administer Medicine ({selectedMedication.name})</h3>
-                            <button 
-                                onClick={closeAdministerModal}
-                                className="text-white hover:text-gray-300 transition"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
+
+            {/* Administer Medication Modal */}
+            <Modal show={showAdministerModal} onClose={() => setShowAdministerModal(false)} maxWidth="md">
+                <div className="bg-[#30499B] text-white px-6 py-4 flex justify-between items-center">
+                    <h3 className="font-bold uppercase tracking-wide text-sm">Administer Medication</h3>
+                    <button onClick={() => setShowAdministerModal(false)} className="text-xl hover:text-gray-200">&times;</button>
+                </div>
+
+                <form onSubmit={submitAdminister} className="p-8 space-y-4">
+                    {/* Nurse Info */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <InputLabel value="Nurse's ID" />
+                            <TextInput value={auth.user.id} disabled className="mt-1 block w-full bg-gray-100" />
                         </div>
-                        
-                        {/* Body */}
-                        <div className="p-6 space-y-5">
-                            {/* Nurse ID */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Nurse's ID</label>
-                                <input 
-                                    type="text" 
-                                    value="N-002" 
-                                    readOnly 
-                                    className="w-full bg-gray-50 border border-gray-300 rounded px-3 py-2 text-gray-600 focus:outline-none"
-                                />
-                            </div>
-
-                            {/* Nurse Name */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Nurse's Name</label>
-                                <input 
-                                    type="text" 
-                                    value="Laura F. Bailey" 
-                                    readOnly 
-                                    className="w-full bg-gray-50 border border-gray-300 rounded px-3 py-2 text-gray-600 focus:outline-none"
-                                />
-                            </div>
-
-                            {/* Batch Selection */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Batch</label>
-                                <select className="w-full border border-gray-300 rounded px-3 py-2 text-gray-800 focus:ring-blue-500 focus:border-blue-500">
-                                    <option>Batch #8809 [Exp : Dec 2026] | Others</option>
-                                    <option>Batch #9910 [Exp : Jan 2027] | New</option>
-                                </select>
-                                <p className="text-[10px] text-gray-500 italic mt-1">*Oldest Batch Selected by Default*</p>
-                            </div>
-
-                            {/* Dosage Input */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Dosage</label>
-                                <input 
-                                    type="text" 
-                                    defaultValue={selectedMedication.dose.split(' ')[0]} // Extracts "10mg" from "10mg QD"
-                                    className="w-full border border-gray-300 rounded px-3 py-2 text-gray-800 focus:ring-blue-500 focus:border-blue-500"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Footer Buttons */}
-                        <div className="p-6 pt-0 flex justify-end gap-3">
-                            <button 
-                                onClick={closeAdministerModal}
-                                className="px-5 py-2 rounded bg-slate-500 hover:bg-slate-600 text-white font-bold text-sm uppercase transition"
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                className="px-5 py-2 rounded bg-[#2E7D32] hover:bg-green-700 text-white font-bold text-sm uppercase transition shadow"
-                            >
-                                Save
-                            </button>
+                        <div>
+                            <InputLabel value="Nurse's Name" />
+                            <TextInput value={auth.user.name} disabled className="mt-1 block w-full bg-gray-100" />
                         </div>
                     </div>
-                </div>
-            )}
 
+                    {/* Prescription Info */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <InputLabel value="Medicine Name" />
+                            <TextInput 
+                                value={selectedPrescription?.medicine_name || ''} 
+                                disabled 
+                                className="mt-1 block w-full bg-gray-100 font-semibold text-[#30499B]" 
+                            />
+                        </div>
+                        <div>
+                            <InputLabel value="Prescribed Dosage" />
+                            <TextInput 
+                                value={selectedPrescription?.dosage || ''} 
+                                disabled 
+                                className="mt-1 block w-full bg-gray-100 font-semibold text-[#30499B]" 
+                            />
+                        </div>
+                    </div>
+
+                    {/* Batch Selection */}
+                    <div>
+                        <InputLabel value="Select Available Batch" />
+                            <select 
+                                required
+                                value={administerData.batch_number} 
+                                onChange={e => setAdministerData('batch_number', e.target.value)} 
+                                className="..."
+                            >
+                                <option value="">-- Select Batch Number --</option>
+                                {batches.map(batch => (
+                                    <option key={batch.id} value={batch.batch_number}>
+                                        {batch.batch_number} (Exp: {batch.expiry_date})
+                                    </option>
+                                ))}
+                            </select>
+                        <InputError message={administerErrors.batch_number} className="mt-1" />
+                    </div>
+
+                    <div className="flex justify-end gap-3 mt-6">
+                        <SecondaryButton onClick={() => setShowAdministerModal(false)}>
+                            CANCEL
+                        </SecondaryButton>
+                        <PrimaryButton 
+                            className="bg-green-600 hover:bg-green-700" 
+                            disabled={processingAdminister}
+                        >
+                            {processingAdminister ? 'PROCESSING...' : 'CONFIRM ADMINISTRATION'}
+                        </PrimaryButton>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Update Vitals Modal */}
+            <Modal show={showVitals} onClose={() => setShowVitals(false)} maxWidth="md">
+                <div className="bg-[#30499B] text-white px-6 py-4 flex justify-between items-center">
+                    <h3 className="font-bold uppercase tracking-wide text-sm">Update Patient Vitals</h3>
+                    <button onClick={() => setShowVitals(false)} className="text-xl hover:text-gray-200">&times;</button>
+                </div>
+
+                <form onSubmit={submitVitals} className="p-8 space-y-4">
+                    <div>
+                        <InputLabel value="Patient's ID" />
+                        <TextInput className="w-full bg-gray-50 mt-1" value={patient.id} disabled />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <InputLabel value="Date of Visit" />
+                            <TextInput 
+                                type="date" 
+                                className="w-full mt-1" 
+                                value={vitalsData.visit_date} 
+                                onChange={e => setVitalsData('visit_date', e.target.value)} 
+                            />
+                            <InputError message={vitalsErrors.visit_date} />
+                        </div>
+                        <div>
+                            <InputLabel value="Weight (kg)" />
+                            <TextInput 
+                                className="w-full mt-1" 
+                                value={vitalsData.weight} 
+                                onChange={e => setVitalsData('weight', e.target.value)} 
+                            />
+                            <InputError message={vitalsErrors.weight} />
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <InputLabel value="Reason / Nursing Notes" />
+                        <textarea
+                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#30499B] focus:ring-[#30499B] text-sm"
+                            rows="3"
+                            placeholder="Initial assessment or reason for vitals check..."
+                            value={vitalsData.reason}
+                            onChange={e => setVitalsData('reason', e.target.value)}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                        <div>
+                            <InputLabel value="Blood Pressure" />
+                            <TextInput 
+                                className="w-full mt-1" 
+                                placeholder="120/80"
+                                value={vitalsData.blood_pressure} 
+                                onChange={e => setVitalsData('blood_pressure', e.target.value)} 
+                            />
+                            <InputError message={vitalsErrors.blood_pressure} />
+                        </div>
+                        <div>
+                            <InputLabel value="Heart Rate" />
+                            <TextInput 
+                                type="number" 
+                                className="w-full mt-1" 
+                                placeholder="BPM"
+                                value={vitalsData.heart_rate} 
+                                onChange={e => setVitalsData('heart_rate', e.target.value)} 
+                            />
+                            <InputError message={vitalsErrors.heart_rate} />
+                        </div>
+                        <div>
+                            <InputLabel value="Temp (°C)" />
+                            <TextInput 
+                                className="w-full mt-1" 
+                                placeholder="36.5"
+                                value={vitalsData.temperature} 
+                                onChange={e => setVitalsData('temperature', e.target.value)} 
+                            />
+                            <InputError message={vitalsErrors.temperature} />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-center gap-4 mt-6">
+                        <SecondaryButton onClick={() => setShowVitals(false)}>
+                            Cancel
+                        </SecondaryButton>
+                        <PrimaryButton 
+                            className="bg-[#30499B] hover:bg-blue-800" 
+                            disabled={processingVitals}
+                        >
+                            Save Vitals
+                        </PrimaryButton>
+                    </div>
+                </form>
+            </Modal>
         </AuthenticatedLayout>
     );
 }
