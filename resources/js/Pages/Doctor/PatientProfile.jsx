@@ -213,7 +213,7 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                             { label: "Email", value: patient.email },
                         ].map((item, idx) => (
                             <div key={idx} className="flex items-center">
-                                <div className="w-32 flex-shrink-0 text-gray-500 font-bold uppercase text-[11px]">{item.label}</div>
+                                <div className="w-32 flex-shrink-0 text-gray-500 font-bold uppercase text-[12px]">{item.label}</div>
                                 <div className="font-medium lowercase">{item.value}</div>
                             </div>
                         ))}
@@ -227,7 +227,7 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                             { label: "Emergency Phone", value: patient.emergencyPhone },
                         ].map((item, idx) => (
                             <div key={idx} className="flex items-start">
-                                <div className="w-36 flex-shrink-0 text-gray-500 font-bold uppercase text-[11px]">{item.label}</div>
+                                <div className="w-36 flex-shrink-0 text-gray-500 font-bold uppercase text-[12px]">{item.label}</div>
                                 <div className="font-medium">{item.value}</div>
                             </div>
                         ))}
@@ -261,7 +261,7 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                             
                             {/* Admission Details */}
                             <div className="bg-blue-50/50 rounded-lg border border-blue-100 p-6">
-                                <h3 className="text-[#30499B] font-bold text-sm uppercase mb-4 tracking-wider">Current Admission Details</h3>
+                                <h3 className="text-[#30499B] font-bold text-[15px] uppercase mb-4 tracking-wider">Current Admission Details</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
                                     <div>
                                         <div className="mb-2">
@@ -290,7 +290,7 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
 
                             {/* Medical Notes */}
                             <div>
-                                <h3 className="text-[#30499B] font-bold text-sm uppercase mb-3 tracking-wider">Medical Notes</h3>
+                                <h3 className="text-[#30499B] font-bold text-[15px] uppercase mb-3 tracking-wider">Medical Notes</h3>
                                 <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm space-y-4">
                                     
                                     
@@ -358,7 +358,7 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
 
                             {/* Past Admission History */}
                             <div>
-                                <h3 className="text-[#30499B] font-bold text-sm uppercase mb-3 tracking-wider border-t border-gray-100 pt-6">Past Admission History</h3>
+                                <h3 className="text-[#30499B] font-bold text-[15px] uppercase mb-3 tracking-wider border-t border-gray-100 pt-6">Past Admission History</h3>
                                 <div className="overflow-hidden border border-gray-200 rounded-lg">
                                     <table className="w-full text-left text-sm bg-white">
                                         <thead className="bg-gray-100 text-gray-600 uppercase font-bold text-xs">
@@ -386,14 +386,13 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                     )}
 
                     {/* TAB: PRESCRIPTION HISTORY */}
-                    {/* TAB: PRESCRIPTION HISTORY */}
                     {activeTab === 'prescription' && (
                         <div className="space-y-10">
                             
                             {/* 1. MEDICATIONS SECTION (Now at the top) */}
                             <div>
                                 <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-[#30499B] font-bold text-sm uppercase tracking-wider">Prescription History</h3>
+                                    <h3 className="text-[#30499B] font-bold text-[15px] uppercase tracking-wider">Prescription History</h3>
                                     <PrimaryButton 
                                         onClick={() => setShowPrescriptionModal(true)}
                                         className="bg-[#2E7D32] hover:bg-green-700 text-[11px] py-2"
@@ -464,10 +463,9 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                             {/* 2. CURRENT VITALS (Bottom) */}
                             <div className="bg-blue-50/50 rounded-lg border border-blue-100 p-6">
                                 <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-[#30499B] font-bold text-sm uppercase tracking-wider">
+                                    <h3 className="text-[#30499B] font-bold text-[15px] uppercase tracking-wider">
                                         Current Vital Signs
                                     </h3>
-                                    {/* Updated to PrimaryButton */}
                                     <PrimaryButton 
                                         onClick={() => setShowVitals(true)}
                                         className="bg-[#30499B] hover:bg-blue-800 text-[11px] py-2 px-4"
@@ -483,9 +481,9 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                                         { label: 'Weight', value: patient.weight, unit: 'kg' },
                                     ].map((v) => (
                                         <div key={v.label} className="bg-white/80 border border-blue-100 rounded-xl p-3 text-center shadow-sm hover:border-[#30499B] transition-colors">
-                                            <div className="text-[10px] text-gray-400 font-bold uppercase mb-1 tracking-widest">{v.label}</div>
+                                            <div className="text-[13px] text-black-400 font-bold uppercase mb-1 tracking-widest">{v.label}</div>
                                             <div className="text-lg font-black text-[#30499B]">{v.value || '--'}</div>
-                                            <div className="text-[10px] text-gray-400 font-medium">{v.unit}</div>
+                                            <div className="text-[13px] text-black-400 font-medium">{v.unit}</div>
                                         </div>
                                     ))}
                                 </div>

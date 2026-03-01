@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MedicineController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\DoctorController;
+use App\Http\Controllers\NurseController;
 use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\AdmissionController;
 use App\Http\Controllers\PatientVisitController;
@@ -123,12 +124,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // Nurse Routes
-    Route::prefix('nurse')->group(function () {
-    Route::get('/dashboard', fn() => Inertia::render('Nurse/Dashboard'))->name('nurse.dashboard');
-    Route::get('/patients', fn() => Inertia::render('Nurse/Patients'))->name('nurse.patients');
-    Route::get('/patients/{id}', fn($id) => Inertia::render('Nurse/PatientProfile', ['id' => $id])) ->name('nurse.patients.profile');
-    Route::get('/profile', fn() => Inertia::render('Nurse/Profile'))->name('nurse.profile');
-});
+    Route::middleware(['auth', 'nurse'])->prefix('nurse')->group(function () {
+        Route::get('/dashboard', [NurseController::class, 'dashboard'])->name('nurse.dashboard');
+        Route::get('/patients', [NurseController::class, 'patients'])->name('nurse.patients');
+        Route::get('/patients/{id}', [NurseController::class, 'showPatient'])->name('nurse.patients.profile');
+        Route::post('/patients/{id}/vitals', [NurseController::class, 'updateVitals'])->name('nurse.vitals.update');
+        Route::post('/prescriptions/{prescription}/administer', [NurseController::class, 'administerMedication'])
+        ->name('nurse.prescriptions.administer');
+
+        Route::get('/profile', fn() => Inertia::render('Nurse/Profile'))->name('nurse.profile');
+    });
 });
 
 
