@@ -81,6 +81,7 @@ class StaffController extends Controller
                     'address'    => $validated['address'],
                     'status'     => 'ACTIVE',
                     'password'   => Hash::make($validated['password']),
+                    'must_change_password' => true,
                 ]);
 
                 // 3. Log the action

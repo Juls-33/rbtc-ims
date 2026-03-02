@@ -26,7 +26,8 @@ class Staff extends Authenticatable ///implements CipherSweetEncrypted
         'address',
         'gender',
         'role',
-        'status', // Added
+        'status',
+        'must_change_password',
         'password',
         'dismissed_notifications',
         'reset_requested',
