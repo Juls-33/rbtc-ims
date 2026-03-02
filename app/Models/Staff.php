@@ -5,10 +5,6 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-// use Spatie\LaravelCipherSweet\Concerns\UsesCipherSweet;
-// use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
-// use ParagonIE\CipherSweet\EncryptedRow;
-// use ParagonIE\CipherSweet\BlindIndex;
 
 class Staff extends Authenticatable ///implements CipherSweetEncrypted
 

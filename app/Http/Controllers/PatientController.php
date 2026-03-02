@@ -48,15 +48,19 @@ class PatientController extends Controller
         ->get() 
         ->map(function ($patient) {
             
-            // 🔥 THE JIT SYNC: Ensure database columns are updated for time elapsed
-            // This fixes the "Started Feb 21, now Feb 23" discrepancy.
+            // THE JIT SYNC: Ensure database columns are updated for time elapsed
             $patient->admissions->each(function($adm) {
                 if (strtolower($adm->status) === 'admitted') {
                     $adm->syncLiveTotals(); 
                 }
             });
 
-            $allAdmissions = $patient->admissions->sortByDesc('admission_date');
+            $allAdmissions = $patient->admissions->sort(function($a, $b) {
+                if ($a->admission_date === $b->admission_date) {
+                    return $b->id <=> $a->id; // Higher ID comes first
+                }
+                return strtotime($b->admission_date) <=> strtotime($a->admission_date);
+            })->values();
 
             // Re-fetch the collections after sync to get fresh data in memory
             $active = $allAdmissions->first(fn($adm) => strtolower($adm->status) === 'admitted');
@@ -82,7 +86,7 @@ class PatientController extends Controller
                 'has_admissions'  => $allAdmissions->count() > 0,
                 'has_visits'      => $patient->visits->count() > 0,
                 'latest_admission_status' => $latest ? strtoupper($latest->status) : null,
-                'status'     => $latest ? strtoupper($latest->status) : 'OUTPATIENT',
+                'status' => $active ? 'ADMITTED' : ($latest ? strtoupper($latest->status) : 'OUTPATIENT'),
                 'type'       => ($active || $latest) ? 'inpatient' : 'outpatient',
                 
                 'current_room'        => $active?->room?->room_location ?? 'N/A',
@@ -244,10 +248,15 @@ class PatientController extends Controller
         // Load patient with all necessary history
         $patient = Patient::with(['admissions.room', 'admissions.staff', 'visits', 'prescriptions.medicine'])->findOrFail($id);
 
-        // Get the most recent admission for "Current Status"
-        $latestAdmission = $patient->admissions->sortByDesc('admission_date')->first();
+        $allAdmissions = $patient->admissions->sort(function($a, $b) {
+            if ($a->admission_date === $b->admission_date) {
+                return $b->id <=> $a->id;
+            }
+            return strtotime($b->admission_date) <=> strtotime($a->admission_date);
+        });
+        $activeAdmission = $allAdmissions->first(fn($adm) => strtolower($adm->status) === 'admitted');
+        $latestAdmission = $allAdmissions->first();
         
-        // Get latest vitals from PatientVisit model
         $latestVisit = $patient->visits->sortByDesc('visit_date')->first();
 
         return Inertia::render('Doctor/PatientProfile', [
@@ -261,8 +270,8 @@ class PatientController extends Controller
                 'address'          => $patient->address,
                 'emergencyContact' => $patient->emergency_contact_name,
                 'emergencyPhone'   => $patient->emergency_contact_number,
-                'status'           => $latestAdmission ? strtoupper($latestAdmission->status) : 'OUTPATIENT',
-                'admissionDate'    => $latestAdmission?->admission_date ?? 'N/A',
+                'status' => $activeAdmission ? 'ADMITTED' : ($latestAdmission ? strtoupper($latestAdmission->status) : 'OUTPATIENT'),
+                'admissionDate' => ($activeAdmission ?? $latestAdmission)?->admission_date ?? 'N/A',
                 'doctor'           => $latestAdmission?->staff ? "Dr. {$latestAdmission->staff->last_name}" : 'N/A',
                 'room'             => $latestAdmission?->room?->room_location ?? 'N/A',
                 'diagnosis'        => $latestAdmission?->diagnosis ?? 'No active diagnosis.',
