@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('medication_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('prescription_id')->constrained()->onDelete('cascade');
-            $table->foreignId('nurse_id')->constrained('users'); // Points to the nurse
+            $table->foreignId('nurse_id')->constrained('staff');
             $table->string('batch_number');
             $table->timestamp('administered_at');
             $table->timestamps();

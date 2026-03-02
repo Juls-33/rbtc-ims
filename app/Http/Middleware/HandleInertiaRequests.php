@@ -23,9 +23,17 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user() ? [
-                    'id' => $request->user()->id,
-                    'name' => $request->user()->name,
-                    'role' => $request->user()->role, // Added role for unified profile logic
+                    'id'                   => $request->user()->id,
+                    'staff_id'             => $request->user()->staff_id, 
+                    'first_name'           => $request->user()->first_name, 
+                    'last_name'            => $request->user()->last_name, 
+                    'name'                 => $request->user()->name,
+                    'email'                => $request->user()->email,
+                    'role'                 => $request->user()->role,
+                    'gender'               => $request->user()->gender, 
+                    'contact_no'           => $request->user()->contact_no, 
+                    'address'              => $request->user()->address, 
+                    'created_at'           => $request->user()->created_at, 
                     'must_change_password' => $request->user()->must_change_password,
                 ] : null,
             ],

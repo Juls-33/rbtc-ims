@@ -20,37 +20,42 @@ use App\Http\Controllers\OutpatientBillController;
 use App\Http\Controllers\InpatientBillController;
 
 Route::get('/', function () {
-    // If already logged in, send them to their dashboard
     if (auth()->check()) {
         $role = auth()->user()->role;
         return redirect()->route($role === 'Admin' ? 'dashboard' : strtolower($role) . '.dashboard');
     }
 
-    // Otherwise, render the integrated Welcome/Login page
     return Inertia::render('Welcome', [
         'canResetPassword' => Route::has('password.request'),
         'status' => session('status'),
     ]);
 })->name('welcome');
 
-//Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 Route::post('/recover-admin', [RecoveryController::class, 'recoverAdmin'])->name('admin.recover');
 Route::post('/request-reset', [RecoveryController::class, 'requestReset'])->name('staff.request_reset');
 Route::get('/admin/staff-management/logs', [StaffLogController::class, 'index'])->name('admin.staff.logs');
-Route::middleware(['auth'])->group(function () {
 
+// --- SECURITY TRAP: Forced Password Change ---
+Route::middleware(['auth'])->group(function () {
     Route::get('/force-password-change', function () {
         return Inertia::render('Auth/ForceChangePassword');
     })->name('password.force-change');
 
-    // The submission route
     Route::post('/force-password-change', [StaffController::class, 'forceUpdatePassword'])
         ->name('password.force-update');
 });
-//Route::get('/admin/rooms', [RoomController::class, 'index'])->name('admin.rooms');
+
+// --- AUTHENTICATED SYSTEM ROUTES ---
 Route::middleware(['auth', 'verified'])->group(function () {
+    
+    // 🔥 UNIFIED PROFILE ROUTES (Shared by all roles)
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
     Route::post('/notifications/dismiss', [NotificationController::class, 'dismiss'])->name('notifications.dismiss');
     Route::post('/notifications/dismiss-all', [NotificationController::class, 'dismissAll'])->name('notifications.dismiss_all');
+
     // Admin Routes
     Route::prefix('admin')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -81,70 +86,59 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/admissions/{admission}', [AdmissionController::class, 'update'])->name('admin.admissions.update');
         Route::post('/admissions/discharge', [AdmissionController::class, 'discharge'])->name('admin.admissions.discharge');
         Route::post('/visits', [PatientVisitController::class, 'store'])->name('admin.visits.store');
-        Route::delete('/admissions/{id}', [App\Http\Controllers\AdmissionController::class, 'destroy'])->name('admin.admissions.destroy');
+        Route::delete('/admissions/{id}', [AdmissionController::class, 'destroy'])->name('admin.admissions.destroy');
 
-        // Rooms - CLEANED UP
+        // Rooms
         Route::get('/rooms', [RoomController::class, 'index'])->name('admin.rooms');
         Route::post('/rooms', [RoomController::class, 'store'])->name('admin.rooms.store');
         Route::put('/rooms/{room}', [RoomController::class, 'update'])->name('admin.rooms.update');
         Route::delete('/rooms/{room}', [RoomController::class, 'destroy'])->name('admin.rooms.destroy');
 
         // Outpatient Billing
-        Route::post('billing/outpatient', [OutpatientBillController::class, 'store'])
-         ->name('admin.billing.outpatient.store');
-        Route::post('billing/add-item', [OutpatientBillController::class, 'addItem'])
-            ->name('admin.billing.addItem');
+        Route::post('billing/outpatient', [OutpatientBillController::class, 'store'])->name('admin.billing.outpatient.store');
+        Route::post('billing/add-item', [OutpatientBillController::class, 'addItem'])->name('admin.billing.addItem');
         Route::put('billing/update-item/{id}', [OutpatientBillController::class, 'updateItem'])->name('admin.billing.updateItem');
         Route::delete('billing/remove-item/{id}', [OutpatientBillController::class, 'removeItem'])->name('admin.billing.removeItem');
-        Route::delete('/admin/visits/{id}', [PatientVisitController::class, 'destroy'])
-            ->name('admin.visits.destroy');
+        Route::delete('/admin/visits/{id}', [PatientVisitController::class, 'destroy'])->name('admin.visits.destroy');
         Route::put('visits/{id}/fee', [PatientVisitController::class, 'updateFee'])->name('admin.visits.updateFee');
 
-        //Inpatient Billing
+        // Inpatient Billing
         Route::prefix('billing/inpatient')->group(function () {
             Route::post('add-item', [InpatientBillController::class, 'addItem'])->name('admin.billing.inpatient.addItem');
             Route::put('update-item/{id}', [InpatientBillController::class, 'updateItem'])->name('admin.billing.inpatient.updateItem');
             Route::delete('remove-item/{id}', [InpatientBillController::class, 'removeItem'])->name('admin.billing.inpatient.removeItem');
-            // Ensure this payment route is also here if you use it for inpatients
             Route::post('pay', [InpatientBillController::class, 'pay'])->name('admin.billing.inpatient.pay');
         });
     });
 
     // Doctor Routes
-    Route::middleware(['auth', 'doctor'])->group(function () {
-        Route::get('/dashboard', [DoctorController::class, 'dashboard'])->name('doctor.dashboard');
-        Route::get('/patients', [DoctorController::class, 'patients'])->name('doctor.patients');
-        Route::get('/patients/{id}', [DoctorController::class, 'showPatient'])->name('doctor.patients.profile');
-        Route::get('/profile', fn() => Inertia::render('Doctor/Profile'))->name('doctor.profile');
+    Route::middleware(['doctor'])->group(function () {
+        Route::get('/doctor/dashboard', [DoctorController::class, 'dashboard'])->name('doctor.dashboard');
+        Route::get('/doctor/patients', [DoctorController::class, 'patients'])->name('doctor.patients');
+        Route::get('/doctor/patients/{id}', [DoctorController::class, 'showPatient'])->name('doctor.patients.profile');
         
         // Vitals
-        Route::post('/patients/{id}/vitals', [DoctorController::class, 'updateVitals'])->name('doctor.patients.vitals.update');
+        Route::post('/doctor/patients/{id}/vitals', [DoctorController::class, 'updateVitals'])->name('doctor.patients.vitals.update');
         
         // Prescriptions
-        Route::post('/patients/{id}/prescriptions', [DoctorController::class, 'storePrescription'])->name('doctor.prescriptions.store');
-        Route::put('/prescriptions/{id}', [DoctorController::class, 'updatePrescription'])->name('doctor.prescriptions.update');
-        Route::delete('/prescriptions/{id}', [DoctorController::class, 'destroyPrescription'])->name('doctor.prescriptions.destroy');
+        Route::post('/doctor/patients/{id}/prescriptions', [DoctorController::class, 'storePrescription'])->name('doctor.prescriptions.store');
+        Route::put('/doctor/prescriptions/{id}', [DoctorController::class, 'updatePrescription'])->name('doctor.prescriptions.update');
+        Route::delete('/doctor/prescriptions/{id}', [DoctorController::class, 'destroyPrescription'])->name('doctor.prescriptions.destroy');
 
         // Consultation Note
-        Route::post('/patients/{id}/consultation', [DoctorController::class, 'storeConsultation'])->name('doctor.patients.consultation.store');
-        Route::delete('/consultations/{id}', [DoctorController::class, 'destroyConsultation'])->name('doctor.patients.consultation.destroy');
-
-        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-        Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
+        Route::post('/doctor/patients/{id}/consultation', [DoctorController::class, 'storeConsultation'])->name('doctor.patients.consultation.store');
+        Route::delete('/doctor/consultations/{id}', [DoctorController::class, 'destroyConsultation'])->name('doctor.patients.consultation.destroy');
     });
 
     // Nurse Routes
-    Route::middleware(['auth', 'nurse'])->prefix('nurse')->group(function () {
+    Route::middleware(['nurse'])->prefix('nurse')->group(function () {
         Route::get('/dashboard', [NurseController::class, 'dashboard'])->name('nurse.dashboard');
         Route::get('/patients', [NurseController::class, 'patients'])->name('nurse.patients');
         Route::get('/patients/{id}', [NurseController::class, 'showPatient'])->name('nurse.patients.profile');
         Route::post('/patients/{id}/vitals', [NurseController::class, 'updateVitals'])->name('nurse.vitals.update');
         Route::post('/prescriptions/{prescription}/administer', [NurseController::class, 'administerMedication'])
-        ->name('nurse.prescriptions.administer');
-
-        Route::get('/profile', fn() => Inertia::render('Nurse/Profile'))->name('nurse.profile');
+            ->name('nurse.prescriptions.administer');
     });
 });
-
 
 require __DIR__.'/auth.php';
