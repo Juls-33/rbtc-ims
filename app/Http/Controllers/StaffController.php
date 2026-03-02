@@ -15,27 +15,47 @@ class StaffController extends Controller
     /**
      * Display the personnel directory.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $staff = Staff::orderBy('created_at', 'desc')
-            ->get()
-            ->map(fn ($member) => [
-                'id'         => $member->id,
-                'staff_id'   => $member->staff_id,
-                'name'       => "{$member->first_name} {$member->last_name}",
-                'first_name' => $member->first_name,
-                'last_name'  => $member->last_name,
-                'role'       => $member->role,
-                'email'      => $member->email,
-                'phone'      => $member->contact_no,
-                'gender'     => $member->gender,
-                'address'    => $member->address,
-                'status'     => strtoupper($member->status),
-                'reset_requested'  => (bool) $member->reset_requested,
-            ]);
+        $query = Staff::query();
+
+        if ($request->search) {
+            $searchTerm = "%{$request->search}%";
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('first_name', 'LIKE', $searchTerm)
+                ->orWhere('last_name', 'LIKE', $searchTerm)
+                ->orWhere('staff_id', 'LIKE', $searchTerm)
+                ->orWhere('email', 'LIKE', $searchTerm);
+            });
+        }
+
+        if ($request->tab && $request->tab !== 'all') {
+            $role = ucfirst(rtrim($request->tab, 's')); 
+            $query->where('role', $role);
+        }
+
+        $staffPaginator = $query->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+
+        $staffPaginator->getCollection()->transform(fn ($member) => [
+            'id'               => $member->id,
+            'staff_id'         => $member->staff_id,
+            'name'             => "{$member->first_name} {$member->last_name}",
+            'first_name'       => $member->first_name,
+            'last_name'        => $member->last_name,
+            'role'             => $member->role,
+            'email'            => $member->email,
+            'phone'            => $member->contact_no,
+            'gender'           => $member->gender,
+            'address'          => $member->address,
+            'status'           => strtoupper($member->status),
+            'reset_requested'  => (bool) $member->reset_requested,
+        ]);
 
         return Inertia::render('Admin/StaffManagement', [
-            'staff' => $staff
+            'staff'   => $staffPaginator, 
+            'filters' => $request->only(['search', 'tab']),
         ]);
     }
 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import Button from '@/Components/Button';
 import Pagination from '@/Components/Pagination';
 import AddPatientModal from './Partials/AddPatientModal';
@@ -10,10 +10,10 @@ import AdmitPatientModal from './Partials/AdmitPatientModal';
 import PatientProfile from './Partials/PatientProfile';
 import AddVisitModal from './Partials/AddVisitModal';
 
-export default function PatientManagement({ auth, patients = [], selectablePatients, rooms, doctors, inventory = [] }) {
-    const allPatients = Array.isArray(patients) ? patients : (patients.data || []);
-    const [activeTab, setActiveTab] = useState('all'); 
-    const [searchQuery, setSearchQuery] = useState('');
+export default function PatientManagement({ auth, patients, filters, selectablePatients, rooms, doctors, inventory = [] }) {
+    const allPatients = patients.data || [];
+    const [searchQuery, setSearchQuery] = useState(filters.search || '');
+    const [activeTab, setActiveTab] = useState(filters.tab || 'all');
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState('list');
@@ -34,6 +34,21 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
         allPatients.find(p => p.id === selectedProfile), 
     [allPatients, selectedProfile]);
 
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            router.get(route('admin.patients'), 
+                { 
+                    search: searchQuery, 
+                    tab: activeTab,
+                    // Note: We don't pass 'page' here so it defaults to 1 on new search
+                }, 
+                { preserveState: true, replace: true, preserveScroll: true }
+            );
+        }, 300);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery, activeTab]);
+   
     const processedData = useMemo(() => {
         let data = allPatients.map(p => {
             const hasUnpaidVisit = p.visit_history?.some(v => parseFloat(v.balance) > 0);
@@ -44,19 +59,7 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
             };
         });
 
-        if (activeTab === 'inpatient') data = data.filter(p => p.has_admissions);
-        else if (activeTab === 'outpatient') data = data.filter(p => p.has_visits);
-
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            data = data.filter(p => 
-                p.name.toLowerCase().includes(query) || 
-                p.patient_id?.toLowerCase().includes(query) ||
-                p.status?.toLowerCase().includes(query) ||
-                p.bill_status?.toLowerCase().includes(query)
-            );
-        }
-
+        // Local sorting (Only sorts the 10 visible items)
         data.sort((a, b) => {
             let valA = a[sortConfig.key] || '';
             let valB = b[sortConfig.key] || '';
@@ -66,22 +69,15 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
         });
 
         return data;
-    }, [activeTab, searchQuery, allPatients, sortConfig]);
+    }, [allPatients, sortConfig]);
 
-    const currentItems = useMemo(() => {
-        const start = (currentPage - 1) * itemsPerPage;
-        return processedData.slice(start, start + itemsPerPage);
-    }, [currentPage, processedData]);
+    const currentItems = processedData;
 
     const listHeaderTitle = useMemo(() => {
         if (activeTab === 'inpatient') return 'Inpatient Admission Registry';
         if (activeTab === 'outpatient') return 'Outpatient Visit History';
         return 'General Patient Directory';
     }, [activeTab]);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchQuery, activeTab]);
 
     const handleSort = (key) => {
         let direction = 'asc';
@@ -105,13 +101,23 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
     };
 
     const renderActionButton = () => {
-        const btnClass = "w-full md:w-auto px-6 py-2 font-black text-[9px] uppercase tracking-widest shadow-md active:scale-95";
-        switch (activeTab) {
-            case 'inpatient': return <Button variant="success" className={btnClass} onClick={() => setIsAdmitModalOpen(true)}>Admit Patient</Button>;
-            case 'outpatient': return <Button variant="success" className={btnClass} onClick={() => setIsAddVisitModalOpen(true)}>Log Visit</Button>;
-            default: return <Button variant="success" className={btnClass} onClick={() => setIsAddModalOpen(true)}>+ Register New</Button>;
-        }
-    };
+    const btnClass = "px-6 py-2 font-black text-[9px] uppercase tracking-widest shadow-md active:scale-95";
+    
+    return (
+        <div className="flex gap-2 w-full md:w-auto">
+            <Link 
+                href={route('admin.patient.logs')}
+                className="flex-1 lg:flex-none justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center border border-slate-300 transition-all"
+                            >
+                View Audit Logs
+            </Link>
+
+            {activeTab === 'inpatient' && <Button variant="success" className={btnClass} onClick={() => setIsAdmitModalOpen(true)}>Admit Patient</Button>}
+            {activeTab === 'outpatient' && <Button variant="success" className={btnClass} onClick={() => setIsAddVisitModalOpen(true)}>Log Visit</Button>}
+            {activeTab === 'all' && <Button variant="success" className={btnClass} onClick={() => setIsAddModalOpen(true)}>+ Register New</Button>}
+        </div>
+    );
+};
 
     const totalPages = Math.ceil(processedData.length / itemsPerPage);
     
@@ -152,7 +158,7 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[600px] flex flex-col">
                 <div className="bg-[#3D52A0] text-white p-4 font-black text-sm uppercase tracking-widest flex justify-between items-center shrink-0 shadow-md">
                     <span>{listHeaderTitle}</span>
-                    <span className="bg-white/20 px-3 py-1 rounded-full text-[10px]">Total: {processedData.length}</span>
+                    <span className="bg-white/20 px-3 py-1 rounded-full text-[10px]">Total Records: {patients.total}</span>
                 </div>
 
                 <div className="p-6 flex-1 flex flex-col">
@@ -281,9 +287,7 @@ export default function PatientManagement({ auth, patients = [], selectablePatie
 
                 <div className="p-6 border-t bg-slate-50/30 mt-auto">
                     <Pagination 
-                        currentPage={currentPage} 
-                        totalPages={totalPages} 
-                        onPageChange={setCurrentPage} 
+                        data={patients}
                     />
                 </div>
             </div>

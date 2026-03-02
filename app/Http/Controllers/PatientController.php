@@ -12,31 +12,29 @@ use Illuminate\Support\Facades\DB;
 
 class PatientController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // 1. Fetch selection data for Modals
-        $selectablePatients = Patient::with(['admissions' => function($query) {
-            $query->latest('admission_date');
-        }])
-        ->orderBy('last_name')
-        ->get()
-        ->map(fn ($p) => [
-            'id'   => $p->id,
-            'name' => $p->full_name,
-            'patient_id' => $p->patient_id,
-            'status' => ($p->admissions->first() && strtolower($p->admissions->first()->status) === 'admitted') 
-                        ? 'ADMITTED' 
-                        : 'OUTPATIENT',
-        ]);
+        // 1. Build the Query with Server-Side Filters
+        $query = Patient::query();
 
-        $rooms = Room::select('id', 'room_location', 'room_rate', 'status')->get();
+        if ($request->search) {
+            $searchTerm = $request->search;
 
-        $doctors = Staff::whereRaw('LOWER(role) = ?', ['doctor'])
-            ->select('id', 'first_name', 'last_name')
-            ->get();
+            $query->where(function($q) use ($searchTerm) {
+                $q->whereBlind('first_name', 'first_name_index', $searchTerm)
+                ->orWhereBlind('last_name', 'last_name_index', $searchTerm)
+                ->orWhere('id', $searchTerm); 
+            });
+        }
 
-        // 2. Fetch Patients and PERFORM ACTIVE SYNC
-        $patients = Patient::with([
+        if ($request->tab === 'inpatient') {
+            $query->has('admissions');
+        } elseif ($request->tab === 'outpatient') {
+            $query->has('visits');
+        }
+
+        // 2. Fetch Paginated Results (This prevents the lag)
+        $patientsPaginator = $query->with([
             'admissions.room', 
             'admissions.staff', 
             'admissions.roomStays', 
@@ -45,24 +43,27 @@ class PatientController extends Controller
             'visits.bill_items.batch'      
         ])
         ->latest()
-        ->get() 
-        ->map(function ($patient) {
+        ->paginate(10)
+        ->withQueryString();
+
+        // 3. 🔥 TRANSFORM: Map only the 10 records on the current page
+        $patientsPaginator->getCollection()->transform(function ($patient) {
             
-            // THE JIT SYNC: Ensure database columns are updated for time elapsed
+            // JIT SYNC: Only runs for the 10 patients currently visible
             $patient->admissions->each(function($adm) {
                 if (strtolower($adm->status) === 'admitted') {
                     $adm->syncLiveTotals(); 
                 }
             });
 
+            // Deterministic sort for admissions
             $allAdmissions = $patient->admissions->sort(function($a, $b) {
                 if ($a->admission_date === $b->admission_date) {
-                    return $b->id <=> $a->id; // Higher ID comes first
+                    return $b->id <=> $a->id;
                 }
                 return strtotime($b->admission_date) <=> strtotime($a->admission_date);
             })->values();
 
-            // Re-fetch the collections after sync to get fresh data in memory
             $active = $allAdmissions->first(fn($adm) => strtolower($adm->status) === 'admitted');
             $latest = $allAdmissions->first();
 
@@ -81,12 +82,11 @@ class PatientController extends Controller
                 'emergency_contact_relation' => $patient->emergency_contact_relation,
                 'emergency_contact_number' => $patient->emergency_contact_number,
                 
-                'bill_status' => 'UNPAID', 
                 'is_admitted'     => $active !== null, 
                 'has_admissions'  => $allAdmissions->count() > 0,
                 'has_visits'      => $patient->visits->count() > 0,
                 'latest_admission_status' => $latest ? strtoupper($latest->status) : null,
-                'status' => $active ? 'ADMITTED' : ($latest ? strtoupper($latest->status) : 'OUTPATIENT'),
+                'status'     => $active ? 'ADMITTED' : ($latest ? strtoupper($latest->status) : 'OUTPATIENT'),
                 'type'       => ($active || $latest) ? 'inpatient' : 'outpatient',
                 
                 'current_room'        => $active?->room?->room_location ?? 'N/A',
@@ -94,25 +94,21 @@ class PatientController extends Controller
                 'discharge_date'      => $active?->discharge_date, 
                 'attending_physician' => $active?->staff ? "Dr. {$active->staff->first_name} {$active->staff->last_name}" : 'N/A',
                 
-                // --- ADMISSION HISTORY TABLE ---
-                'admission_history' => $allAdmissions->map(function ($adm) {
-                    return [
-                        'id'             => $adm->id,
-                        'admission_date' => $adm->admission_date,
-                        'discharge_date' => $adm->discharge_date,
-                        'diagnosis'      => $adm->diagnosis,
-                        'total_bill'     => (float)$adm->total_bill,   
-                        'balance'        => (float)$adm->balance, 
-                        'amount_paid'    => (float)$adm->amount_paid,
-                        'statements'     => $adm->getStatements(),
-                        'room_stays'     => $adm->roomStays,
-                        'bill_items'     => $adm->billItems,
-                        'staff'          => $adm->staff,
-                        'room'           => $adm->room,
-                    ];
-                })->values(),
+                'admission_history' => $allAdmissions->map(fn($adm) => [
+                    'id'             => $adm->id,
+                    'admission_date' => $adm->admission_date,
+                    'discharge_date' => $adm->discharge_date,
+                    'diagnosis'      => $adm->diagnosis,
+                    'total_bill'     => (float)$adm->total_bill,   
+                    'balance'        => (float)$adm->balance, 
+                    'amount_paid'    => (float)$adm->amount_paid,
+                    'statements'     => $adm->getStatements(),
+                    'room_stays'     => $adm->roomStays,
+                    'bill_items'     => $adm->billItems,
+                    'staff'          => $adm->staff,
+                    'room'           => $adm->room,
+                ])->values(),
 
-                // --- ACTIVE ADMISSION (FOR MODAL) ---
                 'active_admission' => $active ? [
                     'id'                 => $active->id,
                     'patient_name'       => $patient->full_name,
@@ -124,7 +120,6 @@ class PatientController extends Controller
                     'status'             => $active->status,
                     'statements'         => $active->getStatements(), 
                     'amount_paid'        => (float)$active->amount_paid,
-                    // Use database snapshots updated by the sync above
                     'total_bill'         => (float)$active->total_bill,
                     'balance'            => (float)$active->balance,
                     'room_stays'         => $active->roomStays, 
@@ -144,45 +139,55 @@ class PatientController extends Controller
                     'status'      => $visit->status,
                     'bill_items'  => $visit->bill_items->map(fn($item) => [
                         'id'          => $item->id,
-                        'medicine_id' => $item->medicine_id,
-                        'batch_id'    => $item->batch_id,
-                        'quantity'    => $item->quantity,
-                        'unit_price'  => (float)$item->unit_price,
-                        'total_price' => (float)$item->total_price,
                         'medicine'    => $item->medicine ? [
                             'generic_name' => $item->medicine->generic_name,
                             'brand_name'   => $item->medicine->brand_name,
                         ] : null,
+                        'quantity'    => $item->quantity,
+                        'unit_price'  => (float)$item->unit_price,
+                        'total_price' => (float)$item->total_price,
                     ]),
                 ]),
             ];
-        });      
+        });
 
-        $inventory = \App\Models\MedicineCatalog::with(['batches' => function($query) {
-            $query->where('current_quantity', '>', 0)->orderBy('expiry_date', 'asc');
-        }])->get()->map(function($m) {
-            return [
-                'id' => $m->id,
-                'name' => $m->generic_name,
-                'brand_name' => $m->brand_name,
-                'price' => (float)$m->price_per_unit,
-                'totalStock' => (int)$m->batches->sum('current_quantity'),
-                'is_available' => $m->batches->sum('current_quantity') > 0,
-                'batches' => $m->batches->map(fn($b) => [
-                    'id'     => $b->id,           
-                    'sku_id' => $b->sku_batch_id, 
-                    'expiry' => $b->expiry_date,
-                    'stock'  => (int)$b->current_quantity,
-                ]),
-            ];
-        })->sortByDesc('is_available')->values();
+        // 4. Auxiliary Data for Modals
+        $selectablePatients = Patient::with(['admissions' => fn($q) => $q->latest()])
+            ->orderBy('last_name')
+            ->get()
+            ->map(fn($p) => [
+                'id'   => $p->id,
+                'name' => $p->full_name,
+                'status' => ($p->admissions->first() && strtolower($p->admissions->first()->status) === 'admitted') ? 'ADMITTED' : 'OUTPATIENT',
+            ]);
+
+        $rooms = Room::select('id', 'room_location', 'room_rate', 'status')->get();
+        $doctors = Staff::whereRaw('LOWER(role) = ?', ['doctor'])->select('id', 'first_name', 'last_name')->get();
+
+        $inventory = \App\Models\MedicineCatalog::with(['batches' => fn($q) => $q->where('current_quantity', '>', 0)->orderBy('expiry_date', 'asc')])
+        ->get()
+        ->map(fn($m) => [
+            'id' => $m->id,
+            'name' => $m->generic_name,
+            'brand_name' => $m->brand_name,
+            'price' => (float)$m->price_per_unit,
+            'sku_id' => $m->sku_id, 
+            'totalStock' => (int)$m->batches->sum('current_quantity'),
+            'batches' => $m->batches->map(fn($b) => [
+                'id' => $b->id, 
+                'sku_id' => $b->sku_batch_id, 
+                'expiry' => $b->expiry_date, 
+                'stock' => (int)$b->current_quantity,
+            ]),
+        ]);
 
         return Inertia::render('Admin/PatientManagement', [
-            'patients'           => $patients,
+            'patients'           => $patientsPaginator, // 🔥 Corrected: Passing the Paginator object
             'selectablePatients' => $selectablePatients,
             'rooms'              => $rooms,
             'inventory'          => $inventory,
-            'doctors'            => $doctors
+            'doctors'            => $doctors,
+            'filters'            => $request->only(['search', 'tab']) // Pass filters back to React
         ]);
     }
 
@@ -230,17 +235,27 @@ class PatientController extends Controller
     public function destroy(Request $request, Patient $patient)
     {
         $request->validate([
-            'password' => ['required', 'current_password'], // Laravel helper to check auth user password
-            'reason'   => 'required|string',
+            'password' => ['required', 'current_password'],
+            'reason'   => 'required|string|min:5',
         ]);
 
-        // Log the deletion reason for accountability
-        \Log::info("Patient {$patient->id} deleted by " . auth()->user()->name . ". Reason: " . $request->reason);
+        $staff = auth()->user();
+        $patientName = $patient->full_name;
 
-        $patient->delete();
+        // 🔥 Archive instead of delete
+        $patient->archive($request->reason, $staff->id);
+
+        // 🔥 Audit Trail
+        \App\Models\PatientLog::create([
+            'staff_id'    => $staff->id,
+            'patient_id'  => null, // Null because the original record is gone
+            'action'      => 'ARCHIVED',
+            'description' => "Patient {$patientName} (ID: {$patient->patient_id}) archived. Reason: {$request->reason}",
+            'ip_address'  => $request->ip(),
+        ]);
 
         return redirect()->route('admin.patients')
-        ->with('success', 'Patient record has been permanently removed.');
+            ->with('success', "Patient record for {$patientName} has been moved to the Archive.");
     }
 
     public function show($id)

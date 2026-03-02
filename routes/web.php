@@ -18,6 +18,7 @@ use App\Http\Controllers\StaffLogController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\OutpatientBillController;
 use App\Http\Controllers\InpatientBillController;
+use App\Http\Controllers\ArchiveController;
 
 Route::get('/', function () {
     if (auth()->check()) {
@@ -48,7 +49,6 @@ Route::middleware(['auth'])->group(function () {
 // --- AUTHENTICATED SYSTEM ROUTES ---
 Route::middleware(['auth', 'verified'])->group(function () {
     
-    // 🔥 UNIFIED PROFILE ROUTES (Shared by all roles)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -109,6 +109,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::delete('remove-item/{id}', [InpatientBillController::class, 'removeItem'])->name('admin.billing.inpatient.removeItem');
             Route::post('pay', [InpatientBillController::class, 'pay'])->name('admin.billing.inpatient.pay');
         });
+        Route::get('/archive', [ArchiveController::class, 'index'])->name('admin.archive');
+        Route::post('/archive/{id}/restore', [ArchiveController::class, 'restore'])->name('admin.archive.restore');
+        Route::get('/patient-logs', [App\Http\Controllers\PatientLogController::class, 'index'])->name('admin.patient.logs');
+        Route::delete('/archive/{id}', [ArchiveController::class, 'destroy'])->name('admin.archive.destroy');
     });
 
     // Doctor Routes

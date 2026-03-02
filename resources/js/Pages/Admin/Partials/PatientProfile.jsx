@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Button from '@/Components/Button';
-import Pagination from '@/Components/Pagination';
+import ClientPagination from '@/Components/ClientPagination';
 import EditAdmissionModal from './EditAdmissionModal';
 import ViewBillModal from './ViewBillModal';
 import DischargeModal from './DischargeModal';
 import EditPatientModal from './EditPatientModal';
 import EditVisitModal from './EditVisitModal';
 import ViewOutpatientBillModal from './ViewOutpatientBillModal';
+import DeletePatientModal from './DeletePatientModal';
 
 export default function PatientProfile({ patient, initialTab, onBack, doctors, rooms, inventory }) {
     const [activeSubTab, setActiveSubTab] = useState(initialTab === 'outpatient' ? 'visit' : 'admission'); 
@@ -17,6 +18,7 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
 
     const [admSearch, setAdmSearch] = useState('');
     const [admSort, setAdmSort] = useState({ key: 'admission_date', direction: 'desc' });
+    const [admPage, setAdmPage] = useState(1);
     const itemsPerPage = 5;
 
     const [isEditAdmissionOpen, setIsEditAdmissionOpen] = useState(false);
@@ -27,20 +29,41 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
     const [selectedVisit, setSelectedVisit] = useState(null);
     const [isEditVisitOpen, setIsEditVisitOpen] = useState(false);
     const [isVisitBillOpen, setIsVisitBillOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     const filteredVisits = useMemo(() => {
         let data = [...(patient?.visit_history || [])];
+        
         if (visitSearch) {
             const q = visitSearch.toLowerCase();
-            data = data.filter(v => v.visit_id.toLowerCase().includes(q) || v.reason.toLowerCase().includes(q));
+            data = data.filter(v => 
+                v.visit_id.toLowerCase().includes(q) || 
+                v.reason.toLowerCase().includes(q)
+            );
         }
+
         data.sort((a, b) => {
-            let vA = a[visitSort.key], vB = b[visitSort.key];
-            if (visitSort.key === 'balance') { vA = parseFloat(vA); vB = parseFloat(vB); }
+            let vA = a[visitSort.key];
+            let vB = b[visitSort.key];
+
+            if (visitSort.key === 'date') {
+                vA = Date.parse(vA) || 0;
+                vB = Date.parse(vB) || 0;
+            } 
+            else if (visitSort.key === 'balance') {
+                vA = parseFloat(vA) || 0;
+                vB = parseFloat(vB) || 0;
+            } 
+            else {
+                vA = (vA || "").toString().toLowerCase();
+                vB = (vB || "").toString().toLowerCase();
+            }
+
             if (vA < vB) return visitSort.direction === 'asc' ? -1 : 1;
             if (vA > vB) return visitSort.direction === 'asc' ? 1 : -1;
             return 0;
         });
+
         return data;
     }, [patient.visit_history, visitSearch, visitSort]);
 
@@ -54,12 +77,21 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
         }
         data.sort((a, b) => {
             let vA = a[admSort.key], vB = b[admSort.key];
+
+          
+            if (admSort.key === 'admission_date') {
+                vA = new Date(vA).getTime();
+                vB = new Date(vB).getTime();
+            }
+
             if (vA < vB) return admSort.direction === 'asc' ? -1 : 1;
             if (vA > vB) return admSort.direction === 'asc' ? 1 : -1;
             return 0;
         });
         return data;
     }, [patient.admission_history, admSearch, admSort]);
+
+    const currentAdmissions = filteredAdmissions.slice((admPage - 1) * itemsPerPage, admPage * itemsPerPage);
 
     const activePatientData = useMemo(() => patient, [patient]); 
 
@@ -86,7 +118,7 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
             <div className="bg-[#3D52A0] text-white p-3 flex justify-between items-center font-bold">
                 <span>Patient Information ({typeLabel})</span>
                 <div className="flex gap-2">
-                    <Button variant="danger" className="text-[10px] px-4" onClick={() => {/* Trigger Delete */}}>DELETE PATIENT RECORD</Button>
+                    <Button variant="danger" className="text-[10px] px-4" onClick={() => setIsDeleteModalOpen(true)}>DELETE PATIENT RECORD</Button>
                     <Button variant='success' onClick={() => setIsEditModalOpen(true)} className="text-[10px] px-4">EDIT DETAILS</Button>
                     <button onClick={onBack} className="text-[10px] font-black hover:bg-white/20 ml-2 bg-white/10 px-3 py-1.5 rounded transition-all uppercase tracking-tighter border border-white/20">
                         {"< Back to List"}
@@ -169,7 +201,7 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
                             </table>
                         </div>
                         <div className="mt-4">
-                            <Pagination currentPage={visitPage} totalPages={Math.ceil(filteredVisits.length / itemsPerPage)} onPageChange={setVisitPage} />
+                            <ClientPagination currentPage={visitPage} totalPages={Math.ceil(filteredVisits.length / itemsPerPage)} onPageChange={setVisitPage} totalResults={filteredVisits.length} itemsPerPage={itemsPerPage} />
                         </div>
                     </div>
                 </div>
@@ -238,7 +270,7 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
                                                 ₱ {parseFloat(adm.balance || 0).toLocaleString()}
                                             </td>
                                             <td className="p-3 text-center">
-                                                <Button variant="success" className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm" onClick={() => handleViewBill(adm.id)}>VIEW INVOICE</Button>
+                                                <Button variant="success" className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm" onClick={() => handleViewBill(adm.id)}>VIEW BILL</Button>
                                             </td>
                                         </tr>
                                     )) : (
@@ -246,6 +278,9 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
                                     )}
                                 </tbody>
                             </table>
+                            <div className="mt-4">
+                                <ClientPagination currentPage={admPage} totalPages={Math.ceil(filteredAdmissions.length / itemsPerPage)} onPageChange={setAdmPage} totalResults={filteredAdmissions.length} itemsPerPage={itemsPerPage} />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -257,6 +292,7 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
         <div className="relative space-y-6">
             {tabContent}
             <EditPatientModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} patient={patient} />
+                <DeletePatientModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} patient={patient} onBack={onBack} />
             {isEditVisitOpen && <EditVisitModal isOpen={isEditVisitOpen} onClose={() => setIsEditVisitOpen(false)} visit={selectedVisit} />}
             {isVisitBillOpen && <ViewOutpatientBillModal isOpen={isVisitBillOpen} onClose={() => setIsVisitBillOpen(false)} patient={patient} visit={selectedVisit} medicines={inventory} />}
             {isEditAdmissionOpen && patient.active_admission && <EditAdmissionModal isOpen={isEditAdmissionOpen} onClose={() => setIsEditAdmissionOpen(false)} admission={patient.active_admission} doctors={doctors} rooms={rooms} />}

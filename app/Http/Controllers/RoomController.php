@@ -8,10 +8,49 @@ use App\Models\StaffLog;
 
 class RoomController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $query = Room::query();
+
+        if ($request->search) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('room_location', 'LIKE', "%{$searchTerm}%")
+                ->orWhere('room_rate', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        if ($request->status && $request->status !== 'All') {
+            $query->where('status', $request->status);
+        }
+
+        $sortField = $request->input('sort', 'room_location');
+        $sortDirection = $request->input('direction', 'asc');
+
+        $allowedSorts = ['room_location', 'room_rate', 'status'];
+        if (in_array($sortField, $allowedSorts)) {
+            $query->orderBy($sortField, $sortDirection);
+        }
+        $statsData = Room::selectRaw("
+            count(*) as total,
+            count(case when status = 'Available' then 1 end) as available,
+            count(case when status = 'Occupied' then 1 end) as occupied,
+            count(case when status in ('Maintenance', 'Cleaning') then 1 end) as maintenance
+        ")->first();
+
+        $stats = [
+            ['label' => 'Total Units', 'value' => $statsData->total, 'color' => 'text-slate-800', 'bg' => 'bg-slate-50'],
+            ['label' => 'Available Now', 'value' => $statsData->available, 'color' => 'text-emerald-600', 'bg' => 'bg-emerald-50'],
+            ['label' => 'Currently Occupied', 'value' => $statsData->occupied, 'color' => 'text-blue-600', 'bg' => 'bg-blue-50'],
+            ['label' => 'Under Maintenance', 'value' => $statsData->maintenance, 'color' => 'text-amber-600', 'bg' => 'bg-amber-50'],
+        ];
+
+        $rooms = $query->paginate(10)->withQueryString();
+
         return Inertia::render('Admin/Partials/RoomManagement', [
-            'rooms' => Room::orderBy('room_location', 'asc')->get()
+            'rooms' => $rooms,
+            'roomStats' => $stats,
+            'filters' => $request->only(['search', 'status', 'sort', 'direction'])
         ]);
     }
 

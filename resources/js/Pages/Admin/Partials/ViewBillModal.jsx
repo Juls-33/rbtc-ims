@@ -7,7 +7,10 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
     const { patients, flash } = usePage().props;
     const [toast, setToast] = useState(null);
 
-    const activePatient = useMemo(() => patients?.find(p => p.id === patient?.id), [patients, patient]);
+    const activePatient = useMemo(() => {
+        const patientList = patients?.data || (Array.isArray(patients) ? patients : []);
+        return patientList.find(p => p.id === patient?.id) || patient;
+    }, [patients, patient]);
     const admission = useMemo(() => {
         if (!activePatient || !admissionId) return null;
         if (activePatient.active_admission?.id === admissionId) return activePatient.active_admission;
@@ -73,6 +76,25 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
         });
         return inv;
     }, [medicines, billItems]);
+    const filteredMedicineResults = useMemo(() => {
+        if (!medSearchTerm) return localInventory;
+        const query = medSearchTerm.toLowerCase();
+        return localInventory.filter(m => 
+            m.name.toLowerCase().includes(query) || 
+            m.brand_name.toLowerCase().includes(query)
+        );
+    }, [localInventory, medSearchTerm]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (medDropdownRef.current && !medDropdownRef.current.contains(event.target)) {
+                setIsMedDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
 
     useEffect(() => {
         //if (flash?.success) setToast({ message: flash.success, type: 'success' });
@@ -166,8 +188,7 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                     <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-3xl leading-none">&times;</button>
                 </div>
 
-                <div className="p-4 md:p-8 space-y-6 overflow-y-auto flex-1 scrollbar-none md:scrollbar-thin">
-                    
+                <div className="p-4 md:p-8 space-y-6 overflow-y-auto flex-1 no-scrollbar pb-64">
                     {/* PERIOD SELECTOR */}
                     <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
                         <div className="w-full md:w-auto">
@@ -205,7 +226,7 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                         <h4 className="font-black text-slate-700 text-[10px] uppercase tracking-widest flex items-center gap-2">
                             <span className="w-2 h-2 bg-emerald-500 rounded-full"></span> Medication & Supplies
                         </h4>
-                        <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm bg-white">
+                        <div className="overflow-visible border border-slate-200 rounded-xl shadow-sm bg-white">
                             <table className="w-full text-left text-xs border-collapse min-w-[700px]">
                                 <thead className="bg-slate-50 text-slate-500 font-black uppercase tracking-widest border-b">
                                     <tr>
@@ -213,69 +234,66 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                                         <th className="p-4 border-r text-center w-28">Qty</th>
                                         <th className="p-4 border-r text-right w-32">Price</th>
                                         <th className="p-4 text-right w-32">Total</th>
-                                        <th className="p-4 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-20 w-32">Actions</th>
+                                        <th className="p-4 text-center sticky right-0 bg-slate-50 z-20 w-32 shadow-[-4px_0_10px_rgba(0,0,0,0.05)]">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {displayItems.map((item) => (
-                                        <tr key={item.id} className={`border-b transition-colors ${editingId === item.id ? 'bg-amber-50' : 'hover:bg-slate-50/50'}`}>
+                                        <tr key={item.id} className="border-b hover:bg-slate-50/50 transition-colors">
                                             <td className="p-4 border-r font-bold text-slate-800">{item.description}</td>
-                                            <td className="p-4 border-r text-center">
-                                                {editingId === item.id ? (
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        <button onClick={() => editQty > 1 && setEditQty(editQty - 1)} className="w-7 h-7 bg-white border rounded shadow-sm font-bold">-</button>
-                                                        <input type="number" className="w-12 text-center p-1 border rounded text-xs font-black" value={editQty} onChange={(e) => setEditQty(parseInt(e.target.value) || 1)} />
-                                                        <button onClick={() => setEditQty(editQty + 1)} className="w-7 h-7 bg-white border rounded shadow-sm font-bold">+</button>
-                                                    </div>
-                                                ) : <span className="font-black text-sm">{item.quantity}</span>}
-                                            </td>
+                                            <td className="p-4 border-r text-center font-black text-sm">{item.quantity}</td>
                                             <td className="p-4 border-r text-right font-mono">₱{parseFloat(item.unit_price).toLocaleString()}</td>
                                             <td className="p-4 text-right font-black text-emerald-700">₱{parseFloat(item.total_price).toLocaleString()}</td>
-                                            <td className="p-4 text-center space-x-3 sticky right-0 bg-white shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-10">
-                                                {editingId === item.id ? (
-                                                    <button onClick={() => saveEdit(item)} className="text-emerald-600 font-black uppercase text-[10px] hover:underline">Save</button>
-                                                ) : (
-                                                    <>
-                                                        <button onClick={() => {setEditingId(item.id); setEditQty(item.quantity);}} className="text-blue-600 font-black uppercase text-[10px] hover:underline">Edit</button>
-                                                        <button onClick={() => setItemToDelete(item)} className="text-rose-600 font-black uppercase text-[10px] hover:underline">Del</button>
-                                                    </>
-                                                )}
+                                            <td className="p-4 text-center sticky right-0 bg-white z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)]">
+                                                <button onClick={() => setItemToDelete(item)} className="text-rose-600 font-black uppercase text-[10px] hover:underline">Del</button>
                                             </td>
                                         </tr>
                                     ))}
                                     
-                                    {/* SEARCH ROW */}
-                                    <tr className="bg-emerald-50/30" ref={medDropdownRef}>
-                                        <td className="p-3 border-r relative">
+                                    {/* SEARCH ROW - 🔥 FIXED: Same overflow-visible logic as outpatient */}
+                                    <tr className="bg-emerald-50/30 relative overflow-visible" ref={medDropdownRef}>
+                                        <td className="p-3 border-r relative overflow-visible">
                                             <input 
                                                 type="text" 
                                                 placeholder="Search medicine..." 
-                                                className="w-full border-slate-200 rounded-lg text-xs font-bold py-2.5 focus:ring-emerald-500 shadow-sm"
+                                                className="w-full border-slate-200 rounded-lg text-xs font-bold py-2.5 px-4 focus:ring-emerald-500 shadow-sm"
                                                 value={medSearchTerm}
                                                 onChange={(e) => {setMedSearchTerm(e.target.value); setIsMedDropdownOpen(true);}}
                                                 onFocus={() => setIsMedDropdownOpen(true)}
                                             />
                                             {isMedDropdownOpen && (
-                                                <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-white border rounded-xl shadow-2xl max-h-56 overflow-y-auto">
-                                                    {localInventory.filter(m => m.name.toLowerCase().includes(medSearchTerm.toLowerCase())).map(m => (
-                                                        <button key={m.id} disabled={m.totalStock <= 0} className={`w-full text-left px-4 py-3 border-b flex justify-between items-center transition-colors ${m.totalStock > 0 ? 'hover:bg-emerald-50' : 'opacity-50 cursor-not-allowed bg-slate-50'}`} onClick={() => handlePickMedicine(m)}>
-                                                            <div><p className="font-bold text-slate-800 text-sm">{m.name}</p><p className="text-[9px] uppercase font-black text-slate-400">Stock: {m.totalStock}</p></div>
-                                                            <span className="font-bold text-emerald-600 font-mono">₱{m.price}</span>
+                                                <div className="absolute z-[999] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-56 overflow-y-auto">
+                                                    {filteredMedicineResults.map(m => (
+                                                        <button 
+                                                            key={m.id} 
+                                                            type="button"
+                                                            disabled={m.totalStock <= 0} 
+                                                            className={`w-full text-left px-4 py-3 border-b flex justify-between items-center transition-colors ${m.totalStock > 0 ? 'hover:bg-emerald-50' : 'opacity-50 cursor-not-allowed bg-slate-50'}`} 
+                                                            onClick={() => handlePickMedicine(m)}
+                                                        >
+                                                            <div>
+                                                                <p className="font-bold text-slate-800 text-sm">{m.name}</p>
+                                                                <p className="text-[9px] uppercase font-black text-slate-400">{m.brand_name} • Stock: {m.totalStock}</p>
+                                                            </div>
+                                                            <span className="font-bold text-emerald-600 font-mono">₱{m.price.toLocaleString()}</span>
                                                         </button>
                                                     ))}
+                                                    {filteredMedicineResults.length === 0 && (
+                                                        <div className="p-4 text-center text-slate-400 text-xs italic">No results found.</div>
+                                                    )}
                                                 </div>
                                             )}
                                         </td>
                                         <td className="p-3 border-r text-center">
                                             <div className="flex items-center justify-center gap-1">
                                                 <button onClick={() => setMedQty(q => Math.max(1, q - 1))} className="w-7 h-7 bg-white border rounded-lg font-bold hover:bg-slate-100 shadow-sm">-</button>
-                                                <input type="number" className="w-10 text-center p-0 border-none bg-transparent font-black text-xs" value={medQty} onChange={(e) => handleQtyInput(e.target.value, selectedBatch?.stock || 99, setMedQty)} />
+                                                <input type="number" className="w-10 text-center p-0 border-none bg-transparent font-black text-xs" value={medQty} readOnly />
                                                 <button onClick={() => setMedQty(q => q + 1)} className="w-7 h-7 bg-white border rounded-lg font-bold hover:bg-slate-100 shadow-sm">+</button>
                                             </div>
                                         </td>
                                         <td colSpan="3" className="p-3">
-                                            <Button variant="success" className="w-full text-[10px] font-black tracking-widest py-2.5 rounded-lg" onClick={handleAddMedicine} disabled={!selectedMed || isSubmittingMed}>
-                                                {isSubmittingMed ? 'ADDING...' : 'ADD TO BILL'}
+                                            <Button variant="success" className="w-full text-[10px] font-black tracking-widest py-2.5 rounded-lg shadow-sm" onClick={handleAddMedicine} disabled={!selectedMed || isSubmittingMed}>
+                                                {isSubmittingMed ? 'ADDING...' : '+ ADD TO STATEMENT'}
                                             </Button>
                                         </td>
                                     </tr>

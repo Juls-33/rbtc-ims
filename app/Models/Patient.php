@@ -9,10 +9,11 @@ use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
 use ParagonIE\CipherSweet\Constants;
 use ParagonIE\CipherSweet\EncryptedRow;
 use ParagonIE\CipherSweet\BlindIndex;
+use App\Traits\Archivable;
 
 class Patient extends Model implements CipherSweetEncrypted
 {   
-    use HasFactory, UsesCipherSweet;
+    use HasFactory, UsesCipherSweet, Archivable;
 
     protected $fillable = [
         'first_name', 

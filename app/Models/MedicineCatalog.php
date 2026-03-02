@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\Archivable;
 
 class MedicineCatalog extends Model
 {
-    use HasFactory;
+    use HasFactory, Archivable;
 
     // Explicitly define the table name if it differs from the plural 'medicine_catalogs'
     protected $table = 'medicine_catalog';

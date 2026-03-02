@@ -57,8 +57,8 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
     const staffIcon = <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M160-80q-33 0-56.5-23.5T80-160v-440q0-33 23.5-56.5T160-680h200v-120q0-33 23.5-56.5T440-880h80q33 0 56.5 23.5T600-800v120h200q33 0 56.5 23.5T880-600v440q0 33-23.5 56.5T800-80H160Zm0-80h640v-440H600q0 33-23.5 56.5T520-520h-80q-33 0-56.5-23.5T360-600H160v440Zm80-80h240v-18q0-17-9.5-31.5T444-312q-20-9-40.5-13.5T360-330q-23 0-43.5 4.5T276-312q-17 8-26.5 22.5T240-258v18Zm320-60h160v-60H560v60Zm-157.5-77.5Q420-395 420-420t-17.5-42.5Q385-480 360-480t-42.5 17.5Q300-445 300-420t17.5 42.5Q335-360 360-360t42.5-17.5ZM560-420h160v-60H560v60ZM440-600h80v-200h-80v200Zm40 220Z"/></svg>;
     const roomIcon = <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M80-200v-240q0-27 11-49t29-39v-112q0-50 35-85t85-35h160q23 0 43 8.5t37 23.5q17-15 37-23.5t43-8.5h160q50 0 85 35t35 85v112q18 17 29 39t11 49v240h-80v-80H160v80H80Zm440-360h240v-80q0-17-11.5-28.5T720-680H560q-17 0-28.5 11.5T520-640v80Zm-320 0h240v-80q0-17-11.5-28.5T400-680H240q-17 0-28.5 11.5T200-640v80Zm-40 200h640v-80q0-17-11.5-28.5T760-480H200q-17 0-28.5 11.5T160-440v80Zm640 0H160h640Z"/></svg>
     const logoutIcon = <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>;
+    const archiveIcon = <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#FFFFFF"><path d="m480-240 160-160-56-56-64 64v-168h-80v168l-64-64-56 56 160 160ZM200-640v440h560v-440H200Zm0 520q-33 0-56.5-23.5T120-200v-499q0-14 4.5-27t13.5-24l50-61q11-14 27.5-21.5T250-840h460q18 0 34.5 7.5T772-811l50 61q9 11 13.5 24t4.5 27v499q0 33-23.5 56.5T760-120H200Zm16-600h528l-34-40H250l-34 40Zm264 300Z"/></svg>;
 
-    // 🔥 Unified Navigation: All roles point to 'profile.edit' for Profile
     const navigation = {
         Admin: [
             { name: 'Dashboard', routeName: 'dashboard', href: route('dashboard'), icon: dashboardIcon },
@@ -66,6 +66,7 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
             { name: 'Patient Management', routeName: 'admin.patients', href: route('admin.patients'), icon: patientIcon },
             { name: 'Staff Management', routeName: 'admin.staff', href: route('admin.staff'), icon: staffIcon },
             { name: 'Room Management', routeName: 'admin.rooms', href: route('admin.rooms'), icon: roomIcon },
+            { name: 'Archive Bin', routeName: 'admin.archive', href: route('admin.archive'),icon: archiveIcon },
         ],
         Doctor: [
             { name: 'Dashboard', routeName: 'doctor.dashboard', href: route('doctor.dashboard'), icon: dashboardIcon },
@@ -81,7 +82,6 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
 
     const links = navigation[auth.user.role] || [];
 
-    // 🔥 Simplified: Same route for everyone
     const getProfileRoute = () => route('profile.edit');
 
     return (

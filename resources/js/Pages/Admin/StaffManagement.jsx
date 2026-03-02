@@ -1,46 +1,30 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import Button from '@/Components/Button';
 import Pagination from '@/Components/Pagination';
 import AddStaffModal from './Partials/AddStaffModal'; 
 import StaffManagementTable from '@/Components/StaffManagementTable';
 
-export default function StaffManagement({ auth, staff = [] }) {
-    const [activeTab, setActiveTab] = useState('all'); 
-    const [searchQuery, setSearchQuery] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
+export default function StaffManagement({ auth, staff, filters }) {
+    const [activeTab, setActiveTab] = useState(filters.tab || 'all'); 
+    const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
-    const itemsPerPage = 10;
 
-    const handleSort = (key) => {
-        let direction = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
-    };
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            router.get(route('admin.staff'), 
+                { search: searchQuery, tab: activeTab }, 
+                { preserveState: true, replace: true, preserveScroll: true }
+            );
+        }, 300);
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery, activeTab]);
 
-    const filteredStaff = useMemo(() => {
-        return staff.filter(s => {
-            const targetRole = activeTab === 'all' ? null : activeTab.slice(0, -1);
-            const matchesTab = !targetRole || s.role.toLowerCase() === targetRole.toLowerCase();
-
-            const query = searchQuery.toLowerCase();
-            const matchesSearch = 
-                s.name.toLowerCase().includes(query) || 
-                s.staff_id?.toLowerCase().includes(query) ||
-                s.email?.toLowerCase().includes(query) ||
-                s.role?.toLowerCase().includes(query) ||
-                s.status?.toLowerCase().includes(query);
-            
-            return matchesTab && matchesSearch;
-        });
-    }, [activeTab, searchQuery, staff]);
-
-    const sortedStaff = useMemo(() => {
-        const items = [...filteredStaff];
+    const currentStaff = useMemo(() => {
+        const items = [...(staff.data || [])];
+        // Optional: Local sorting of just the 10 items
         items.sort((a, b) => {
             const valA = a[sortConfig.key] || '';
             const valB = b[sortConfig.key] || '';
@@ -49,17 +33,15 @@ export default function StaffManagement({ auth, staff = [] }) {
             return 0;
         });
         return items;
-    }, [filteredStaff, sortConfig]);
+    }, [staff.data, sortConfig]);
 
-    const totalPages = Math.ceil(sortedStaff.length / itemsPerPage);
-    const paginatedStaff = useMemo(() => {
-        const indexOfLastItem = currentPage * itemsPerPage;
-        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-        return sortedStaff.slice(indexOfFirstItem, indexOfLastItem);
-    }, [currentPage, sortedStaff]);
-
-    useMemo(() => setCurrentPage(1), [searchQuery, activeTab]);
-
+    const handleSort = (key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+    
     return (
         <AuthenticatedLayout 
             header="Admin / Staff Management" 
@@ -87,7 +69,7 @@ export default function StaffManagement({ auth, staff = [] }) {
                 <div className="bg-[#3D52A0] text-white p-4 flex justify-between items-center shrink-0">
                     <h2 className="font-black text-sm md:text-lg uppercase tracking-tight">Personnel Directory</h2>
                     <span className="bg-white/20 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-tighter">
-                        Filtered Count: {filteredStaff.length}
+                        Total Records: {staff.total}
                     </span>
                 </div>
                 
@@ -122,23 +104,19 @@ export default function StaffManagement({ auth, staff = [] }) {
 
                     <div className="flex-1 flex flex-col p-2 bg-slate-50/50 rounded-xl border border-slate-100">
                         <StaffManagementTable 
-                            staff={paginatedStaff} 
+                            staff={currentStaff} 
                             activeTab={activeTab}
                             sortConfig={sortConfig}
                             onSort={handleSort}
                         />
                         
-                        {paginatedStaff.length === 0 && (
+                        {currentStaff.length === 0 && (
                             <div className="p-20 text-center text-slate-400 italic font-medium">No results found for your filters.</div>
                         )}
                     </div>
 
                     <div className="mt-6 pt-4 border-t border-slate-100">
-                        <Pagination 
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            onPageChange={setCurrentPage}
-                        />
+                        <Pagination data={staff} />
                     </div>
                 </div>
             </div>

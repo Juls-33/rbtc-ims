@@ -11,60 +11,123 @@ use Illuminate\Support\Facades\DB;
 
 class MedicineController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $inventory = MedicineCatalog::with(['batches' => function($query) {
-                // Keep the FEFO sorting for the billing logic
+        $query = MedicineCatalog::query();
+        if ($request->search) {
+            $searchTerm = "%{$request->search}%";
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('generic_name', 'LIKE', $searchTerm)
+                  ->orWhere('brand_name', 'LIKE', $searchTerm)
+                  ->orWhere('category', 'LIKE', $searchTerm)
+                  ->orWhere('sku_id', 'LIKE', $searchTerm);
+            });
+        }
+        $inventoryPaginator = $query->with(['batches' => function($query) {
                 $query->where('current_quantity', '>', 0)
-                    ->orderBy('expiry_date', 'asc'); 
-            }])->get()->map(function($medicine) {
-                
-                $totalStock = $medicine->batches->sum('current_quantity');
-                $defaultBatch = $medicine->batches->first(); 
+                      ->orderBy('expiry_date', 'asc'); 
+            }])
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
 
-                return [
-                    'id' => $medicine->id,
-                    'sku' => $medicine->sku_id,        
-                    'category' => $medicine->category, 
-                    'name' => $medicine->generic_name,
-                    'brand_name' => $medicine->brand_name, 
-                    'dosage' => $medicine->dosage,
-                    'price' => $medicine->price_per_unit,
-                    'totalStock' => $totalStock,
-                    'is_available' => $totalStock > 0,
-                    'default_batch' => $defaultBatch ? [
-                        'id' => $defaultBatch->sku_batch_id,
-                        'expiry' => $defaultBatch->expiry_date,
-                        'stock' => $defaultBatch->current_quantity,
-                    ] : null,
-                    'batches' => $medicine->batches->map(fn($b) => [
-                        'id' => $b->sku_batch_id,
-                        'expiry' => $b->expiry_date,
-                        'stock' => $b->current_quantity,
-                    ]),
-                ];
-            })
-            ->sortByDesc('is_available')
-            ->values();
+        $inventoryPaginator->getCollection()->transform(function($medicine) {
+            $totalStock = $medicine->batches->sum('current_quantity');
+            $defaultBatch = $medicine->batches->first(); 
+
+            return [
+                'id' => $medicine->id,
+                'sku' => $medicine->sku_id,        
+                'category' => $medicine->category, 
+                'name' => $medicine->generic_name,
+                'brand_name' => $medicine->brand_name, 
+                'dosage' => $medicine->dosage,
+                'price' => (float)$medicine->price_per_unit,
+                'totalStock' => $totalStock,
+                'is_available' => $totalStock > 0,
+                'default_batch' => $defaultBatch ? [
+                    'id' => $defaultBatch->sku_batch_id,
+                    'expiry' => $defaultBatch->expiry_date,
+                    'stock' => $defaultBatch->current_quantity,
+                ] : null,
+                'batches' => $medicine->batches->map(fn($b) => [
+                    'id' => $b->sku_batch_id,
+                    'expiry' => $b->expiry_date,
+                    'stock' => $b->current_quantity,
+                ]),
+            ];
+        });
 
         $logs = StockLog::with(['batch.medicine', 'staff'])
             ->latest()
-            ->get()
-            ->map(function($log) {
-                return [
-                    'dateTime' => $log->created_at->format('Y-m-d H:i'),
-                    'id' => $log->batch->sku_batch_id ?? 'N/A',
-                    'medicine_name' => $log->batch->medicine->generic_name ?? 'Catalog Update',
-                    'action' => $log->change_amount != 0 ? ($log->change_amount > 0 ? 'STOCK IN' : 'DISPENSE') : 'CATALOG MOD',
-                    'amount' => $log->change_amount == 0 ? '—' : ($log->change_amount > 0 ? '+' : '') . $log->change_amount,
-                    'reason' => $log->reason,
-                    'admin' => $log->staff ? $log->staff->first_name . ' ' . $log->staff->last_name : 'System',
-                ];
-            });
+            ->paginate(10, ['*'], 'log_page') // Use a different page name to avoid conflict
+            ->withQueryString();
+
+        $logs->getCollection()->transform(function($log) {
+            return [
+                'dateTime' => $log->created_at->format('Y-m-d H:i'),
+                'id' => $log->batch->sku_batch_id ?? 'N/A',
+                'medicine_name' => $log->batch->medicine->generic_name ?? 'Catalog Update',
+                'action' => $log->change_amount != 0 ? ($log->change_amount > 0 ? 'STOCK IN' : 'DISPENSE') : 'CATALOG MOD',
+                'amount' => $log->change_amount == 0 ? '—' : ($log->change_amount > 0 ? '+' : '') . $log->change_amount,
+                'reason' => $log->reason,
+                'admin' => $log->staff ? $log->staff->first_name . ' ' . $log->staff->last_name : 'System',
+            ];
+        });
+
+        // $inventory = MedicineCatalog::with(['batches' => function($query) {
+        //         // Keep the FEFO sorting for the billing logic
+        //         $query->where('current_quantity', '>', 0)
+        //             ->orderBy('expiry_date', 'asc'); 
+        //     }])->get()->map(function($medicine) {
+                
+        //         $totalStock = $medicine->batches->sum('current_quantity');
+        //         $defaultBatch = $medicine->batches->first(); 
+
+        //         return [
+        //             'id' => $medicine->id,
+        //             'sku' => $medicine->sku_id,        
+        //             'category' => $medicine->category, 
+        //             'name' => $medicine->generic_name,
+        //             'brand_name' => $medicine->brand_name, 
+        //             'dosage' => $medicine->dosage,
+        //             'price' => $medicine->price_per_unit,
+        //             'totalStock' => $totalStock,
+        //             'is_available' => $totalStock > 0,
+        //             'default_batch' => $defaultBatch ? [
+        //                 'id' => $defaultBatch->sku_batch_id,
+        //                 'expiry' => $defaultBatch->expiry_date,
+        //                 'stock' => $defaultBatch->current_quantity,
+        //             ] : null,
+        //             'batches' => $medicine->batches->map(fn($b) => [
+        //                 'id' => $b->sku_batch_id,
+        //                 'expiry' => $b->expiry_date,
+        //                 'stock' => $b->current_quantity,
+        //             ]),
+        //         ];
+        //     })
+        //     ->sortByDesc('is_available')
+        //     ->values();
+
+        // $logs = StockLog::with(['batch.medicine', 'staff'])
+        //     ->latest()
+        //     ->get()
+        //     ->map(function($log) {
+        //         return [
+        //             'dateTime' => $log->created_at->format('Y-m-d H:i'),
+        //             'id' => $log->batch->sku_batch_id ?? 'N/A',
+        //             'medicine_name' => $log->batch->medicine->generic_name ?? 'Catalog Update',
+        //             'action' => $log->change_amount != 0 ? ($log->change_amount > 0 ? 'STOCK IN' : 'DISPENSE') : 'CATALOG MOD',
+        //             'amount' => $log->change_amount == 0 ? '—' : ($log->change_amount > 0 ? '+' : '') . $log->change_amount,
+        //             'reason' => $log->reason,
+        //             'admin' => $log->staff ? $log->staff->first_name . ' ' . $log->staff->last_name : 'System',
+        //         ];
+        //     });
 
         return Inertia::render('Admin/MedicineInventory', [
-            'inventory' => $inventory,
-            'logs' => $logs 
+            'inventory' => $inventoryPaginator, // 🔥 Now an object with .data and .links
+            'logs' => $logs,
+            'filters' => $request->only(['search'])
         ]);
     }
 
