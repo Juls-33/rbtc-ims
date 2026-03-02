@@ -16,17 +16,18 @@ class ProfileUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'string',
-                'lowercase',
-                'email',
-                'max:255',
-                Rule::unique('staff', 'email')->ignore($this->user()->id),
-            ],
-            'address' => ['nullable', 'string', 'max:500'],
-            'phone'   => ['nullable', 'string', 'max:20'],
-        ];
+        'first_name' => ['required', 'string', 'max:255'], 
+        'last_name'  => ['required', 'string', 'max:255'], 
+        'email' => [
+            'required',
+            'string',
+            'lowercase',
+            'email',
+            'max:255',
+            Rule::unique('staff', 'email')->ignore($this->user()->id), 
+        ],
+        'address'    => ['nullable', 'string', 'max:500'],
+        'contact_no' => ['nullable', 'string', 'max:20'], 
+    ];
     }
 }
