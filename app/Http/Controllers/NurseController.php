@@ -37,32 +37,51 @@ class NurseController extends Controller
 
     public function patients(Request $request)
     {
-        $search = strtolower($request->input('search'));
-
-        $allPatients = Patient::with(['admissions'])->latest()->get();
-
-        $filteredPatients = $allPatients->filter(function ($p) use ($search) {
-            if (!$search) return true;
-            return str_contains(strtolower($p->first_name), $search) ||
-                   str_contains(strtolower($p->last_name), $search) ||
-                   str_contains(strtolower($p->patient_id), $search);
+        // 1. Build Query - Start with the "Only Admitted" constraint
+        $query = Patient::whereHas('admissions', function($q) {
+            $q->where('status', 'admitted');
         });
 
-        $patients = $filteredPatients->map(function ($p) {
-            $latest = $p->admissions->sortByDesc('admission_date')->first();
+        // 2. SEARCH: Exact Word Match (Only searching within Admitted patients)
+        if ($request->search) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->whereBlind('first_name', 'first_name_index', $searchTerm)
+                ->orWhereBlind('last_name', 'last_name_index', $searchTerm)
+                ->orWhere('id', $searchTerm); 
+            });
+        }
+
+        // 3. SORTING: Raw DB columns only
+        $sortKey = $request->input('sort', 'id');
+        $sortDir = $request->input('direction', 'desc');
+        $sortMap = ['id' => 'id', 'dob' => 'birth_date'];
+        $dbSortKey = $sortMap[$sortKey] ?? 'id';
+
+        // 4. PAGINATE & TRANSFORM
+        $patientsPaginator = $query->with(['admissions' => function($q) {
+                $q->where('status', 'admitted'); 
+            }])
+            ->orderBy($dbSortKey, $sortDir)
+            ->paginate(10)
+            ->withQueryString();
+
+        $patientsPaginator->getCollection()->transform(function ($p) {
+            $active = $p->admissions->first();
+            
             return [
                 'id'      => $p->id,
                 'p_id'    => $p->patient_id, 
-                'name'    => $p->full_name,   
+                'name'    => $p->full_name,
                 'dob'     => $p->birth_date,
                 'contact' => $p->contact_no,
-                'status'  => $latest ? strtoupper($latest->status) : 'OUTPATIENT',
+                'status'  => 'ADMITTED', // Hardcoded as the query ensures this
             ];
-        })->values();
+        });
 
         return Inertia::render('Nurse/Patients', [
-            'patients' => $patients,
-            'filters'  => $request->only(['search'])
+            'patients' => $patientsPaginator,
+            'filters'  => $request->only(['search', 'sort', 'direction'])
         ]);
     }
 

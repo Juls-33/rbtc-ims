@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import Button from '@/Components/Button';
 import Pagination from '@/Components/Pagination';
 import AddPatientModal from './Partials/AddPatientModal';
@@ -14,8 +14,10 @@ export default function PatientManagement({ auth, patients, filters, selectableP
     const allPatients = patients.data || [];
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [activeTab, setActiveTab] = useState(filters.tab || 'all');
-    const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
-    const [currentPage, setCurrentPage] = useState(1);
+    
+    // 🔥 FIXED: Changed default sort from 'name' to 'patient_id'
+    const [sortConfig, setSortConfig] = useState({ key: 'patient_id', direction: 'desc' });
+    
     const [viewMode, setViewMode] = useState('list');
     const [selectedProfile, setSelectedProfile] = useState(null);
     const [profileContext, setProfileContext] = useState('inpatient');
@@ -37,15 +39,10 @@ export default function PatientManagement({ auth, patients, filters, selectableP
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
             router.get(route('admin.patients'), 
-                { 
-                    search: searchQuery, 
-                    tab: activeTab,
-                    // Note: We don't pass 'page' here so it defaults to 1 on new search
-                }, 
+                { search: searchQuery, tab: activeTab }, 
                 { preserveState: true, replace: true, preserveScroll: true }
             );
         }, 300);
-
         return () => clearTimeout(delayDebounceFn);
     }, [searchQuery, activeTab]);
    
@@ -59,7 +56,6 @@ export default function PatientManagement({ auth, patients, filters, selectableP
             };
         });
 
-        // Local sorting (Only sorts the 10 visible items)
         data.sort((a, b) => {
             let valA = a[sortConfig.key] || '';
             let valB = b[sortConfig.key] || '';
@@ -70,14 +66,6 @@ export default function PatientManagement({ auth, patients, filters, selectableP
 
         return data;
     }, [allPatients, sortConfig]);
-
-    const currentItems = processedData;
-
-    const listHeaderTitle = useMemo(() => {
-        if (activeTab === 'inpatient') return 'Inpatient Admission Registry';
-        if (activeTab === 'outpatient') return 'Outpatient Visit History';
-        return 'General Patient Directory';
-    }, [activeTab]);
 
     const handleSort = (key) => {
         let direction = 'asc';
@@ -101,32 +89,22 @@ export default function PatientManagement({ auth, patients, filters, selectableP
     };
 
     const renderActionButton = () => {
-    const btnClass = "px-6 py-2 font-black text-[9px] uppercase tracking-widest shadow-md active:scale-95";
-    
-    return (
-        <div className="flex gap-2 w-full md:w-auto">
-            <Link 
-                href={route('admin.patient.logs')}
-                className="flex-1 lg:flex-none justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center border border-slate-300 transition-all"
-                            >
-                View Audit Logs
-            </Link>
+        const btnClass = "px-6 py-2 font-black text-[9px] uppercase tracking-widest shadow-md active:scale-95";
+        return (
+            <div className="flex gap-2 w-full md:w-auto">
+                <Link href={route('admin.patient.logs')} className="flex-1 lg:flex-none justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center border border-slate-300 transition-all">View Audit Logs</Link>
+                {activeTab === 'inpatient' && <Button variant="success" className={btnClass} onClick={() => setIsAdmitModalOpen(true)}>Admit Patient</Button>}
+                {activeTab === 'outpatient' && <Button variant="success" className={btnClass} onClick={() => setIsAddVisitModalOpen(true)}>Log Visit</Button>}
+                {activeTab === 'all' && <Button variant="success" className={btnClass} onClick={() => setIsAddModalOpen(true)}>+ Register New</Button>}
+            </div>
+        );
+    };
 
-            {activeTab === 'inpatient' && <Button variant="success" className={btnClass} onClick={() => setIsAdmitModalOpen(true)}>Admit Patient</Button>}
-            {activeTab === 'outpatient' && <Button variant="success" className={btnClass} onClick={() => setIsAddVisitModalOpen(true)}>Log Visit</Button>}
-            {activeTab === 'all' && <Button variant="success" className={btnClass} onClick={() => setIsAddModalOpen(true)}>+ Register New</Button>}
-        </div>
-    );
-};
-
-    const totalPages = Math.ceil(processedData.length / itemsPerPage);
-    
     if (viewMode === 'profile' && activePatient) {
         return (
             <AuthenticatedLayout header={`Patient Profile: ${activePatient.name}`}>
                 <PatientProfile 
-                    patient={activePatient} 
-                    initialTab={profileContext}
+                    patient={activePatient} initialTab={profileContext}
                     onBack={() => { setViewMode('list'); setSelectedProfile(null); }} 
                     doctors={doctors} rooms={rooms} inventory={inventory}
                 />
@@ -140,15 +118,7 @@ export default function PatientManagement({ auth, patients, filters, selectableP
             sectionTitle={
                 <div className="grid grid-cols-3 md:flex w-full shadow-lg border-b border-[#243776]">
                     {['all', 'inpatient', 'outpatient'].map((tab) => (
-                        <button 
-                            key={tab}
-                            onClick={() => setActiveTab(tab)} 
-                            className={`py-4 text-center transition-all font-black tracking-widest uppercase text-[10px] md:text-xs border-r border-white/10 last:border-0 flex-1 ${
-                                activeTab === tab ? 'bg-slate-500/40 text-white shadow-inner' : 'bg-[#2E4696] text-white hover:bg-[#3D52A0]'
-                            }`}
-                        >
-                            {tab === 'all' ? 'Directory' : tab}
-                        </button>
+                        <button key={tab} onClick={() => setActiveTab(tab)} className={`py-4 text-center transition-all font-black tracking-widest uppercase text-[10px] md:text-xs border-r border-white/10 last:border-0 flex-1 ${activeTab === tab ? 'bg-slate-500/40 text-white shadow-inner' : 'bg-[#2E4696] text-white hover:bg-[#3D52A0]'}`}>{tab === 'all' ? 'All Patients' : tab}</button>
                     ))}
                 </div>
             }
@@ -157,20 +127,14 @@ export default function PatientManagement({ auth, patients, filters, selectableP
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[600px] flex flex-col">
                 <div className="bg-[#3D52A0] text-white p-4 font-black text-sm uppercase tracking-widest flex justify-between items-center shrink-0 shadow-md">
-                    <span>{listHeaderTitle}</span>
+                    <span>{activeTab === 'inpatient' ? 'Inpatient Admission Registry' : activeTab === 'outpatient' ? 'Outpatient Visit History' : 'General Patient Directory'}</span>
                     <span className="bg-white/20 px-3 py-1 rounded-full text-[10px]">Total Records: {patients.total}</span>
                 </div>
 
                 <div className="p-6 flex-1 flex flex-col">
                     <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <div className="relative w-full md:w-80">
-                            <input 
-                                type="text" 
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search by ID, Name, Status..."
-                                className="w-full pl-4 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-1 focus:ring-[#3D52A0] outline-none text-xs transition-all"
-                            />
+                            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by ID or Exact Name..." className="w-full pl-4 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-1 focus:ring-[#3D52A0] outline-none text-xs transition-all" />
                         </div>
                         {renderActionButton()}
                     </div>
@@ -181,9 +145,7 @@ export default function PatientManagement({ auth, patients, filters, selectableP
                                 <tr>
                                     {activeTab === 'all' ? (
                                         <>
-                                            <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
-                                                Name <SortIcon column="name" />
-                                            </th>
+                                            <th className="p-4 border-r">Name</th>
                                             <th className="p-4 border-r">DOB</th>
                                             <th className="p-4 border-r">Gender</th>
                                             <th className="p-4 border-r">Phone</th>
@@ -195,9 +157,7 @@ export default function PatientManagement({ auth, patients, filters, selectableP
                                             <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('patient_id')}>
                                                 Patient ID <SortIcon column="patient_id" />
                                             </th>
-                                            <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
-                                                Full Name <SortIcon column="name" />
-                                            </th>
+                                            <th className="p-4 border-r">Full Name</th>
                                             <th className="p-4 border-r">Contact</th>
                                             <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('status')}>
                                                 Status <SortIcon column="status" />
@@ -207,11 +167,11 @@ export default function PatientManagement({ auth, patients, filters, selectableP
                                             </th>
                                         </>
                                     )}
-                                    <th className="p-4 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-20 w-40">Actions</th>
+                                    <th className="p-4 text-center sticky right-0 bg-gray-50 z-20 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] w-40">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="text-slate-600 divide-y divide-slate-100">
-                                {currentItems.map((patient) => (
+                                {processedData.map((patient) => (
                                     <tr key={patient.id} className="hover:bg-slate-50/50 transition-colors group">
                                         {activeTab === 'all' ? (
                                             <>
@@ -228,50 +188,22 @@ export default function PatientManagement({ auth, patients, filters, selectableP
                                                 <td className="p-4 border-r font-black text-slate-800 tracking-tight">{patient.name}</td>
                                                 <td className="p-4 border-r text-xs">{patient.contact_no}</td>
                                                 <td className="p-4 border-r text-center">
-                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                                                        patient.status === 'ADMITTED' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 
-                                                        patient.status === 'DISCHARGED' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-100'
-                                                    }`}>
-                                                        {activeTab === 'outpatient' ? 'OUTPATIENT' : patient.status}
-                                                    </span>
+                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${patient.status === 'ADMITTED' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : patient.status === 'DISCHARGED' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-100'}`}>{activeTab === 'outpatient' ? 'OUTPATIENT' : patient.status}</span>
                                                 </td>
                                                 <td className="p-4 border-r text-center">
-                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                                                        patient.bill_status === 'UNPAID' ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                                    }`}>
-                                                        {patient.bill_status}
-                                                    </span>
+                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${patient.bill_status === 'UNPAID' ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>{patient.bill_status}</span>
                                                 </td>
                                             </>
                                         )}
-                                        
                                         <td className="p-3 text-center sticky right-0 bg-white group-hover:bg-slate-50/50 z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] transition-colors">
                                             <div className="flex flex-col gap-1.5 items-center justify-center">
                                                 {activeTab === 'all' ? (
                                                     <div className="flex flex-col gap-1.5 w-full items-center">
-                                                        <Button 
-                                                            variant="warning" 
-                                                            className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm"
-                                                            onClick={() => { setSelectedPatient(patient); setIsEditModalOpen(true); }}
-                                                        >
-                                                            EDIT
-                                                        </Button>
-                                                        <Button 
-                                                            variant="danger" 
-                                                            className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm"
-                                                            onClick={() => { setPatientToDelete(patient); setIsDeleteModalOpen(true); }}
-                                                        >
-                                                            DELETE
-                                                        </Button>
+                                                        <Button variant="warning" className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm" onClick={() => { setSelectedPatient(patient); setIsEditModalOpen(true); }}>EDIT</Button>
+                                                        <Button variant="danger" className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm" onClick={() => { setPatientToDelete(patient); setIsDeleteModalOpen(true); }}>DELETE</Button>
                                                     </div>
                                                 ) : (
-                                                    <Button 
-                                                        variant="success" 
-                                                        className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm"
-                                                        onClick={() => handleViewProfile(patient)}
-                                                    >
-                                                        VIEW PROFILE
-                                                    </Button>
+                                                    <Button variant="success" className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm" onClick={() => handleViewProfile(patient)}>VIEW PROFILE</Button>
                                                 )}
                                             </div>
                                         </td>
@@ -279,20 +211,15 @@ export default function PatientManagement({ auth, patients, filters, selectableP
                                 ))}
                             </tbody>
                         </table>
-                        {processedData.length === 0 && (
-                            <div className="p-20 text-center text-slate-400 italic font-medium">No patient records found matching your current filters.</div>
-                        )}
+                        {processedData.length === 0 && <div className="p-20 text-center text-slate-400 italic font-medium">No records found matching your filters.</div>}
                     </div>
                 </div>
 
                 <div className="p-6 border-t bg-slate-50/30 mt-auto">
-                    <Pagination 
-                        data={patients}
-                    />
+                    <Pagination data={patients} />
                 </div>
             </div>
 
-            {/* Modals */}
             <AddPatientModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
             <EditPatientModal isOpen={isEditModalOpen} onClose={() => { setIsEditModalOpen(false); setSelectedPatient(null); }} patient={selectedPatient} />
             <DeletePatientModal isOpen={isDeleteModalOpen} onClose={() => { setIsDeleteModalOpen(false); setPatientToDelete(null); }} patient={patientToDelete} />

@@ -48,40 +48,71 @@ class DoctorController extends Controller
 
     public function patients(Request $request)
     {
-        $search = strtolower($request->input('search'));
+        $doctorId = auth()->id();
+        
+        // 1. Build Query
+        $query = Patient::query();
 
-        // 1. Get ALL patients (or a reasonably large chunk)
-        $allPatients = Patient::with(['admissions'])->latest()->get();
-
-        // 2. Filter the collection in PHP (where decryption happens automatically)
-        $filteredPatients = $allPatients->filter(function ($p) use ($search) {
-            if (!$search) return true;
-
-            // Check if search matches decrypted name or ID
-            return str_contains(strtolower($p->first_name), $search) ||
-                str_contains(strtolower($p->last_name), $search) ||
-                str_contains(strtolower($p->patient_id), $search);
+        // 2. SCOPE: Assignment Logic (Must be an 'AND' block)
+        $query->where(function($q) use ($doctorId) {
+            $q->whereHas('admissions', fn($aq) => $aq->where('staff_id', $doctorId))
+            ->orWhereHas('visits', fn($vq) => $vq->where('staff_id', $doctorId));
         });
 
-        // 3. Map the filtered results for the frontend
-        $patients = $filteredPatients->map(function ($p) {
+        // 3. SEARCH: Using your exact model's Blind Index logic
+        if ($request->search) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->whereBlind('first_name', 'first_name_index', $searchTerm)
+                ->orWhereBlind('last_name', 'last_name_index', $searchTerm)
+                ->orWhere('id', $searchTerm); 
+            });
+        }
+
+        // 4. STATUS FILTER
+        if ($request->status) {
+            $status = $request->status;
+            if ($status === 'OUTPATIENT') {
+                $query->whereDoesntHave('admissions', fn($aq) => $aq->where('status', 'ADMITTED'));
+            } else {
+                $query->whereHas('admissions', fn($aq) => $aq->where('status', $status));
+            }
+        }
+
+        // 5. SORTING: Removed 'name' as requested. 
+        $sortKey = $request->input('sort', 'id');
+        $sortDir = $request->input('direction', 'desc');
+
+        $sortMap = [
+            'id'   => 'id',
+            'dob'  => 'birth_date',
+        ];
+
+        $dbSortKey = $sortMap[$sortKey] ?? 'id';
+        $query->orderBy($dbSortKey, $sortDir);
+
+        // 6. FETCH & TRANSFORM
+        $patientsPaginator = $query->with(['admissions'])
+            ->paginate(10)
+            ->withQueryString();
+
+        $patientsPaginator->getCollection()->transform(function ($p) {
             $latest = $p->admissions->sortByDesc('admission_date')->first();
             return [
                 'id'      => $p->id,
-                'p_id'    => $p->patient_id, // Decrypted via Model casting
-                'name'    => $p->full_name,   // Decrypted via Model casting
+                'p_id'    => $p->patient_id, 
+                'name'    => $p->full_name,
                 'dob'     => $p->birth_date,
                 'contact' => $p->contact_no,
                 'status'  => $latest ? strtoupper($latest->status) : 'OUTPATIENT',
             ];
-        })->values(); // Reset array keys for JSON
+        });
 
         return Inertia::render('Doctor/Patients', [
-            'patients' => $patients,
-            'filters'  => $request->only(['search'])
+            'patients' => $patientsPaginator,
+            'filters'  => $request->only(['search', 'status', 'sort', 'direction'])
         ]);
     }
-
     public function showPatient($id)
     {
         $numericId = is_numeric($id) ? (int)$id : (int)str_replace('P-', '', $id);

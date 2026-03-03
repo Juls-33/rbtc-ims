@@ -46,7 +46,7 @@ class PatientController extends Controller
         ->paginate(10)
         ->withQueryString();
 
-        // 3. 🔥 TRANSFORM: Map only the 10 records on the current page
+        // 3.  TRANSFORM: Map only the 10 records on the current page
         $patientsPaginator->getCollection()->transform(function ($patient) {
             
             // JIT SYNC: Only runs for the 10 patients currently visible
@@ -182,7 +182,7 @@ class PatientController extends Controller
         ]);
 
         return Inertia::render('Admin/PatientManagement', [
-            'patients'           => $patientsPaginator, // 🔥 Corrected: Passing the Paginator object
+            'patients'           => $patientsPaginator, 
             'selectablePatients' => $selectablePatients,
             'rooms'              => $rooms,
             'inventory'          => $inventory,
