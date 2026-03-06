@@ -117,7 +117,6 @@ class HandleInertiaRequests extends Middleware
                 'title' => 'Password Reset Request',
                 'description' => "{$req->first_name} {$req->last_name} needs a password reset.",
                 
-                // 🔥 Added for the Reset Modal to know who it is dealing with
                 'staff_db_id' => $req->id, 
                 'staff_name' => "{$req->first_name} {$req->last_name}",
                 'actionType' => 'QUICK_RESET', 

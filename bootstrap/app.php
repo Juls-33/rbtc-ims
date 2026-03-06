@@ -15,17 +15,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            \App\Http\Middleware\ForcePasswordChange::class, // Run this site-wide
         ]);
 
+        // 2. Route Aliases (These map the strings in web.php to the actual classes)
         $middleware->alias([
             'nurse' => \App\Http\Middleware\NurseMiddleware::class,
             'doctor' => \App\Http\Middleware\DoctorMiddleware::class,
-        ]);
-        $middleware->web(append: [
-            \App\Http\Middleware\ForcePasswordChange::class,
+            'force.password.change' => \App\Http\Middleware\ForcePasswordChange::class,
         ]);
 
-        //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

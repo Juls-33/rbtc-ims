@@ -35,11 +35,10 @@ export default function Welcome({ status, canResetPassword }) {
 
     const handleRequestReset = (e) => {
         e.preventDefault();
-        requestForm.post(route('staff.request_reset'), {
+        requestForm.post(route('password.email'), { 
             onSuccess: () => setMode('login'),
         });
     };
-
     const handleAdminRecovery = (e) => {
         e.preventDefault();
         recoveryForm.post(route('admin.recover'));
@@ -137,24 +136,25 @@ export default function Welcome({ status, canResetPassword }) {
                             <div className="mb-10">
                                 <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Reset Help</h2>
                                 <p className="text-slate-500 text-sm mt-1 text-pretty italic">
-                                    Enter your email below. The Administrator will be notified to reset your password.
+                                    Enter your institutional email below. We will send y
                                 </p>
                             </div>
 
                             <form onSubmit={handleRequestReset} className="space-y-6">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Your Institutional Email</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Institutional Email</label>
                                     <input
                                         type="email"
                                         value={requestForm.data.email}
                                         onChange={(e) => requestForm.setData('email', e.target.value)}
-                                        className="w-full border-slate-200 rounded-lg p-3 text-sm"
+                                        className="w-full border-slate-200 rounded-lg p-3 text-sm focus:ring-[#2E4696] focus:border-[#2E4696]"
                                         required
                                     />
+                                    {requestForm.errors.email && <p className="text-red-500 text-[10px] mt-1 font-bold">{requestForm.errors.email}</p>}
                                 </div>
 
-                                <Button type="submit" disabled={requestForm.processing} className="w-full py-4 bg-[#4CAF50] hover:bg-[#3d8b40] text-white font-black uppercase tracking-widest shadow-xl">
-                                    {requestForm.processing ? 'Sending Request...' : 'Notify Administrator'}
+                                <Button type="submit" disabled={requestForm.processing} className="w-full py-4 bg-[#2E4696] hover:bg-[#25397a] text-white font-black uppercase tracking-widest shadow-xl">
+                                    {requestForm.processing ? 'Sending Link...' : 'Send Reset Link'}
                                 </Button>
 
                                 <div className="flex flex-col gap-4 text-center mt-6">

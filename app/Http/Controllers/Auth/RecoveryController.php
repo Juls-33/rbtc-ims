@@ -44,20 +44,20 @@ class RecoveryController extends Controller
     }
 
     // For the Staff: Triggers the Admin Notification we built earlier
-    public function requestReset(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email',
-        ]);
+    // public function requestReset(Request $request)
+    // {
+    //     $request->validate([
+    //         'email' => 'required|email',
+    //     ]);
 
-        $staff = Staff::where('email', $request->email)->first();
+    //     $staff = Staff::where('email', $request->email)->first();
         
-        if ($staff) {
-            $staff->update(['reset_requested' => true]);
+    //     if ($staff) {
+    //         $staff->update(['reset_requested' => true]);
             
-            return back()->with('success', 'Security reset request sent to system administrators.');
-        }
+    //         return back()->with('success', 'Security reset request sent to system administrators.');
+    //     }
 
-        return back()->withErrors(['email' => 'Institutional email address not found.']);
-    }
+    //     return back()->withErrors(['email' => 'Institutional email address not found.']);
+    // }
 }

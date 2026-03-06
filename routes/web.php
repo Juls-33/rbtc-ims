@@ -33,10 +33,9 @@ Route::get('/', function () {
 })->name('welcome');
 
 Route::post('/recover-admin', [RecoveryController::class, 'recoverAdmin'])->name('admin.recover');
-Route::post('/request-reset', [RecoveryController::class, 'requestReset'])->name('staff.request_reset');
+// Route::post('/request-reset', [RecoveryController::class, 'requestReset'])->name('staff.request_reset');
 Route::get('/admin/staff-management/logs', [StaffLogController::class, 'index'])->name('admin.staff.logs');
 
-// --- SECURITY TRAP: Forced Password Change ---
 Route::middleware(['auth'])->group(function () {
     Route::get('/force-password-change', function () {
         return Inertia::render('Auth/ForceChangePassword');
@@ -47,7 +46,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // --- AUTHENTICATED SYSTEM ROUTES ---
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'force.password.change'])->group(function () {
     
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

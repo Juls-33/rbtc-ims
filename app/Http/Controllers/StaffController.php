@@ -216,27 +216,29 @@ class StaffController extends Controller
     public function forceUpdatePassword(Request $request)
     {
         $request->validate([
-            'password' => 'required|string|min:8|confirmed',
+            'password' => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::defaults()],
         ]);
 
         /** @var \App\Models\Staff $user */
         $user = auth()->user();
 
-        // Update credentials and clear the flag
         $user->update([
             'password' => Hash::make($request->password),
             'must_change_password' => false, 
             'password_changed_at' => now(),
         ]);
 
-        // Log the user's self-update
-        StaffLog::create([
+        // Keep your logging logic from the working version
+        \App\Models\StaffLog::create([
             'staff_id'    => $user->id,
             'action'      => 'SECURITY UPDATE',
             'description' => "User successfully completed forced password change.",
             'ip_address'  => $request->ip(),
         ]);
 
-        return redirect()->route('dashboard')->with('success', 'Security credentials updated. You now have full access.');
+        $role = strtolower($user->role); 
+        $routeName = ($user->role === 'Admin') ? 'dashboard' : "{$role}.dashboard";
+
+        return redirect()->route($routeName)->with('success', 'Security credentials updated.');
     }
 }
