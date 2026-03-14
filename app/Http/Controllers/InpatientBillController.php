@@ -7,6 +7,7 @@ use App\Models\Admission;
 use App\Models\MedicineBatch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class InpatientBillController extends Controller
 {
@@ -109,5 +110,19 @@ class InpatientBillController extends Controller
 
             return redirect()->back()->with('success', 'Payment of ₱' . number_format($request->amount_paid, 2) . ' recorded.');
         });
+    }
+    public function generatePDF($id)
+    {
+        $admission = Admission::with(['patient', 'roomStays', 'billItems', 'staff'])->findOrFail($id);
+
+        $data = [
+            'title' => 'Inpatient Final Statement',
+            'date' => now()->format('M d, Y'),
+            'admission' => $admission,
+            'statements' => $admission->statements, // 30-day period logic
+        ];
+
+        $pdf = Pdf::loadView('inpatient_invoice', $data);
+        return $pdf->stream("Invoice_A-{$admission->id}.pdf");
     }
 }

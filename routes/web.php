@@ -35,6 +35,8 @@ Route::get('/', function () {
 Route::post('/recover-admin', [RecoveryController::class, 'recoverAdmin'])->name('admin.recover');
 // Route::post('/request-reset', [RecoveryController::class, 'requestReset'])->name('staff.request_reset');
 Route::get('/admin/staff-management/logs', [StaffLogController::class, 'index'])->name('admin.staff.logs');
+Route::get('billing/inpatient/{id}/pdf', [InpatientBillController::class, 'generatePDF'])->name('admin.billing.inpatient.pdf');
+Route::get('billing/outpatient/{id}/pdf', [OutpatientBillController::class, 'generatePDF'])->name('admin.billing.outpatient.pdf');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/force-password-change', function () {

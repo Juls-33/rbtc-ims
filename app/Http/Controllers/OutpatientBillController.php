@@ -8,6 +8,7 @@ use App\Models\OutpatientBillItem;
 use App\Models\PatientVisit;
 use App\Models\StockLog;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class OutpatientBillController extends Controller
 {
@@ -111,7 +112,7 @@ class OutpatientBillController extends Controller
     public function removeItem($id) 
     {
         $item = \App\Models\OutpatientBillItem::findOrFail($id);
-        $visitId = $item->visit_id; // 🔥 Define it before deleting the item
+        $visitId = $item->visit_id; 
         $item->delete();
         
         $this->syncVisitTotals($visitId);
@@ -132,5 +133,18 @@ class OutpatientBillController extends Controller
             'balance'    => $newBalance,
             'status'     => $newBalance <= 0 ? 'PAID' : ($visit->amount_paid > 0 ? 'PARTIALLY PAID' : 'UNPAID')
         ]);
+    }
+    public function generatePDF($id)
+    {
+        $visit = PatientVisit::with(['patient', 'bill_items', 'staff'])->findOrFail($id);
+
+        $data = [
+            'title' => 'Outpatient Billing Receipt',
+            'date' => now()->format('M d, Y'),
+            'visit' => $visit,
+        ];
+
+        $pdf = Pdf::loadView('outpatient_invoice', $data);
+        return $pdf->stream("Receipt_V-{$visit->id}.pdf");
     }
 }

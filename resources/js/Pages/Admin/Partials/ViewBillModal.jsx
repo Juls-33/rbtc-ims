@@ -340,6 +340,16 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                 {/* Footer Actions */}
                 <div className="p-4 md:p-6 bg-slate-50 border-t flex flex-col md:flex-row justify-center gap-3 shrink-0">
                     <Button variant="gray" onClick={onClose} className="w-full md:w-auto md:px-14 py-3 uppercase font-black text-[11px] tracking-widest order-2 md:order-1">Close</Button>
+                    <a 
+                        href={route('admin.billing.inpatient.pdf', admission.id)} 
+                        target="_blank"
+                        className="w-full md:w-auto inline-flex items-center justify-center px-8 md:px-14 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-black uppercase text-[11px] tracking-widest shadow-lg transition-all active:scale-95 order-1 md:order-2"
+                    >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Download Bill
+                    </a>
                     <Button 
                         variant="success" 
                         className="w-full md:w-auto md:px-14 py-3 uppercase font-black text-[11px] tracking-widest shadow-lg shadow-emerald-500/20 order-1 md:order-2"
