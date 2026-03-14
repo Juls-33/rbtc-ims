@@ -63,7 +63,7 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
         Admin: [
             { name: 'Dashboard', routeName: 'dashboard', href: route('dashboard'), icon: dashboardIcon },
             { name: 'Medicine Inventory', routeName: 'inventory.index', href: route('inventory.index'), icon: medicineIcon },
-            { name: 'Patient Management', routeName: 'admin.patients', href: route('admin.patients'), icon: patientIcon },
+            { name: 'Patient & Billing', routeName: 'admin.patients', href: route('admin.patients'), icon: patientIcon },
             { name: 'Staff Management', routeName: 'admin.staff', href: route('admin.staff'), icon: staffIcon },
             { name: 'Room Management', routeName: 'admin.rooms', href: route('admin.rooms'), icon: roomIcon },
             { name: 'Archive Bin', routeName: 'admin.archive', href: route('admin.archive'),icon: archiveIcon },
