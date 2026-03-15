@@ -249,16 +249,27 @@ class DoctorController extends Controller
             'date_prescribed' => 'required|date',
         ]);
 
-        // Clean the ID: If 'other' or empty, it must be null in DB
         $finalMedicineId = ($request->medicine_id === 'other' || !$request->medicine_id) 
                            ? null 
                            : $request->medicine_id;
+
+        $finalMedicineName = $validated['medicine_name'];
+
+
+        if ($finalMedicineId) {
+            $catalogItem = MedicineCatalog::find($finalMedicineId);
+            if ($catalogItem) {
+                $finalMedicineName = $catalogItem->brand_name 
+                    ? "{$catalogItem->generic_name} ({$catalogItem->brand_name})" 
+                    : $catalogItem->generic_name;
+            }
+        }
 
         Prescriptions::create([
             'patient_id'      => $id, // This is the Patient's ID from the URL
             'staff_id'        => auth()->id(), 
             'medicine_id'     => $finalMedicineId,
-            'medicine_name'   => $validated['medicine_name'],
+            'medicine_name'   => $finalMedicineName,
             'dosage'          => $validated['dosage'],
             'frequency'       => $validated['frequency'],
             'schedule_time'   => $validated['time'], 
@@ -279,12 +290,22 @@ class DoctorController extends Controller
             'date_prescribed' => 'required|date',
         ]);
 
-        // Here $id IS the Prescription ID
         $prescription = Prescriptions::findOrFail($id);
 
         $finalMedicineId = ($request->medicine_id === 'other' || !$request->medicine_id) 
                            ? null 
                            : $request->medicine_id;
+
+        $finalMedicineName = $validated['medicine_name'];
+        if ($finalMedicineId) {
+            $catalogItem = MedicineCatalog::find($finalMedicineId);
+            if ($catalogItem) {
+                $finalMedicineName = $catalogItem->brand_name 
+                    ? "{$catalogItem->generic_name} ({$catalogItem->brand_name})" 
+                    : $catalogItem->generic_name;
+            }
+        }
+
 
         $prescription->update([
             'medicine_id'     => $finalMedicineId,

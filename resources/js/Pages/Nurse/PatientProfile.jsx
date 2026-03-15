@@ -1,19 +1,39 @@
-import React, { useState } from 'react'; // <--- The fix
+import React, { useState, useMemo, useEffect, useCallback } from 'react'; 
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, useForm } from '@inertiajs/react'; // Ensure useForm is here
+import { Head, Link, useForm, router } from '@inertiajs/react'; 
 import Modal from '@/Components/Modal';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
+import Toast from '@/Components/Toast';
 
-export default function NursePatientProfile({ auth , patient, batches = [] }) {
+
+export default function NursePatientProfile({ auth , patient, prescriptionHistory, vitalsHistory, availableBatches, medicalNotes = [] }) {
     const [activeTab, setActiveTab] = useState('prescription'); 
     const [showVitals, setShowVitals] = useState(false);
     const [showAdministerModal, setShowAdministerModal] = useState(false);
     const [selectedPrescription, setSelectedPrescription] = useState(null);
+    const [showNoteModal, setShowNoteModal] = useState(false);
+    const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' });    
 
+    const filteredBatches = useMemo(() => {
+        // 1. Check if batches exists AND if selectedPrescription exists
+        console.log("Prescription Med ID:", typeof selectedPrescription?.medicine_id, selectedPrescription?.medicine_id);
+        console.log("Available Batches:", availableBatches);
+
+        // 2. YOUR EXISTING FILTER LOGIC
+        const matches = availableBatches.filter(b => 
+            Number(b.medicine_id) === Number(selectedPrescription?.medicine_id)
+        );
+
+        // 3. LOG THE RESULT
+        console.log("Matches found:", matches);
+
+        return matches;
+    }, [selectedPrescription, availableBatches]);
+    
     const { 
         data: vitalsData, 
         setData: setVitalsData, 
@@ -34,19 +54,18 @@ export default function NursePatientProfile({ auth , patient, batches = [] }) {
         e.preventDefault();
         postVitals(route('nurse.vitals.update', patient.id), {
             onSuccess: () => {
+                setToastInfo({ show: true, message: 'Vitals Recorded Successfully!', type: 'success' });
                 setShowVitals(false);
                 resetVitals();
             },
+            onError: () => {
+                setToastInfo({ show: true, message: 'Check clinical requirements.', type: 'error' });
+            }
         });
     };
 
     const admissionHistory = [
         { id: 'A-00234', admitted: '2025-03-01', discharged: '2025-03-05', reason: 'Dengue Fever' },
-    ];
-
-    const prescriptions = [
-        { id: 1, date: '2025-11-15', medicine_name: 'Lisinopril', dosage: '10mg', frequency: 'Once Daily', status: 'Active' },
-        { id: 2, date: '2025-11-16', medicine_name: 'Ibuprofen', dosage: '800mg', frequency: 'As needed', status: 'Active' }
     ];
 
     const { 
@@ -58,13 +77,13 @@ export default function NursePatientProfile({ auth , patient, batches = [] }) {
         reset: resetAdminister 
     } = useForm({
         prescription_id: '',
-        batch_number: '',
-        // Fields below are usually for display or sent as verification
+        sku_batch_id: '',
         nurse_id: auth.user.id,
         nurse_name: auth.user.name,
     });
 
     const openAdministerModal = (prescription) => {
+        console.log("Prescription selected:", prescription);
         setSelectedPrescription(prescription);
         setAdministerData({
             ...administerData,
@@ -84,6 +103,56 @@ export default function NursePatientProfile({ auth , patient, batches = [] }) {
         });
     };
 
+    const handleAdministerOutside = (pres) => {
+        if (confirm("Administer outside medication? This will be logged but not tracked in inventory.")) {
+            router.post(route('administer.outside', pres.id), {}, {
+                onSuccess: () => {
+                    setToastInfo({ 
+                        show: true, 
+                        message: 'Outside medication logged successfully!', 
+                        type: 'success' 
+                    });
+                }
+            });
+        }
+    };
+
+    const nursingNoteForm = useForm({
+        patient_id: patient.id, // Ensure this matches your prop structure
+        nurse_id: auth.user.id,
+        nurse_name: auth.user.name,
+        visit_date: new Date().toISOString().slice(0, 16),
+        note: '',
+    });
+
+    const submitNursingNote = (e) => {
+        e.preventDefault();
+        nursingNoteForm.post(route('nurse.patients.notes.store', patient.id), {
+            onSuccess: () => {
+                setShowNoteModal(false);
+                nursingNoteForm.reset('note');
+            },
+        });
+    };
+
+    const handleDeleteNote = (id) => {
+        if (confirm("Are you sure you want to delete this note?")) {
+            router.delete(route('nurse.vitals.destroy', id), {
+                onSuccess: () => {
+                    // Optional: show a toast notification here
+                },
+                onError: (errors) => {
+                    console.error(errors);
+                    alert("Failed to delete note.");
+                }
+            });
+        }
+    };
+
+    const handleCloseToast = useCallback(() => {
+        setToastInfo(prev => ({ ...prev, show: false }));
+    }, []); 
+
     return (
         <AuthenticatedLayout
             auth={auth}
@@ -93,13 +162,28 @@ export default function NursePatientProfile({ auth , patient, batches = [] }) {
                     <span className="text-white font-semibold text-lg">
                         Patient Profile: {patient.name} ({patient.id})
                     </span>
-                    <Link href={route('nurse.dashboard')} className="text-xs uppercase hover:underline">
+                    <Link href={route('nurse.patients')} className="text-xs uppercase hover:underline">
                         &lt; Back to List
                     </Link>
                 </div>
             }
         >
-            <Head title={`Patient: ${patient.name}`} />
+            <Head title={patient ? `Patient: ${patient.name}` : 'Loading...'} />
+            {toastInfo.show && (
+                <Toast 
+                    message={toastInfo.message} 
+                    type={toastInfo.type} 
+                    onClose={() => setToastInfo({ ...toastInfo, show: false })} 
+                />
+            )}
+
+            {!patient ? (
+                <div className="p-8 text-center text-gray-500">Loading patient data...</div>
+            ) : (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+                    {/* ... Rest of your existing profile code ... */}
+                </div>
+            )}
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
                 
@@ -181,6 +265,55 @@ export default function NursePatientProfile({ auth , patient, batches = [] }) {
                                 </div>
                             </div>
 
+                            {/* Medical Notes */}
+                            <div>
+                                <h3 className="text-[#30499B] font-bold text-[15px] uppercase mb-3 tracking-wider">Medical Notes</h3>
+                                <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm space-y-4">
+                                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {medicalNotes.length > 0 ? (
+                                            medicalNotes.map((entry, index) => (
+                                                <div key={entry.id} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden transition hover:border-[#30499B]">
+                                                    {/* Header: Staff Name & Date */}
+                                                    <div className={`${index === 0 ? 'bg-blue-50' : 'bg-gray-50'} px-4 py-2 border-b border-gray-100 flex justify-between items-center`}>
+                                                        <span className="font-bold text-[#30499B] text-sm">
+                                                            {entry.doctor}
+                                                            {index === 0 && <span className="ml-2 bg-[#30499B] text-white text-[9px] px-2 py-0.5 rounded-full font-bold">LATEST</span>}
+                                                        </span>
+                                                        
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-gray-500 text-xs font-medium">
+                                                                {new Date(entry.date).toLocaleString()}
+                                                            </span>
+                                                            
+                                                            {/* Only show delete button if the nurse owns this record */}
+                                                            {entry.staff_id === auth.user.id && (
+                                                                <button 
+                                                                    onClick={() => handleDeleteNote(entry.id)}
+                                                                    className="text-gray-400 hover:text-red-500 transition-colors"
+                                                                >
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                    </svg>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* The Note from Vitals Modal */}
+                                                    <div className="p-4">
+                                                        <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
+                                                            {entry.note}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="text-gray-400 text-sm italic text-center py-10">No nursing notes recorded.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="overflow-hidden border border-gray-200 rounded-lg">
                                 <table className="w-full text-left text-sm bg-white">
                                     <thead className="bg-gray-100 text-gray-600 uppercase font-bold text-xs">
@@ -210,6 +343,14 @@ export default function NursePatientProfile({ auth , patient, batches = [] }) {
                         <div className="space-y-10">
                             <div>
                                 <h3 className="text-[#30499B] font-bold text-[15px] uppercase mb-4 tracking-wider">Active Prescriptions</h3>
+                                <div className="flex items-center gap-4 mb-4 text-sm bg-gray-100 p-2 rounded">
+                                    <div className="flex items-center gap-1">
+                                        <span className="w-3 h-3 bg-yellow-500 rounded-full"></span>
+                                        <span className="text-gray-600 font-medium">Outside Medication</span>
+                                    </div>
+                                    <span className="text-gray-400">|</span>
+                                    <span className="text-xs text-gray-500">Not billed to facility; no inventory tracking.</span>
+                                </div>
                                 <div className="overflow-hidden border border-gray-200 rounded-lg shadow-sm">
                                     <table className="w-full text-left text-sm bg-white">
                                         <thead className="bg-gray-100 text-gray-600 uppercase font-bold text-xs">
@@ -221,25 +362,38 @@ export default function NursePatientProfile({ auth , patient, batches = [] }) {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
-                                            {prescriptions.map((pres) => (
-                                                <tr key={pres.id} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="px-4 py-4 text-gray-500 font-medium">{pres.date}</td>
-                                                    <td className="px-4 py-4 font-bold text-[#30499B]">{pres.medicine_name}</td>
-                                                    <td className="px-4 py-4 text-gray-700">
-                                                        <span className="font-semibold">{pres.dosage}</span>
-                                                        <span className="mx-2 text-gray-300">|</span>
-                                                        <span className="text-xs italic">{pres.frequency}</span>
-                                                    </td>
-                                                    <td className="px-4 py-4 text-right">
-                                                        <PrimaryButton 
-                                                            onClick={() => openAdministerModal(pres)}
-                                                            className="bg-green-700 text-white px-3 py-1 rounded hover:bg-green-500"
-                                                        >
-                                                            Administer
-                                                        </PrimaryButton>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {prescriptionHistory?.map((pres) => {
+                                                const isOutside = !pres.medicine_id; 
+
+                                                return (
+                                                    <tr key={pres.id} className="hover:bg-gray-50 transition-colors">
+                                                        <td className="px-4 py-4 text-gray-500 font-medium">{pres.date}</td>
+                                                        <td className="px-4 py-4 font-bold text-[#30499B] flex items-center gap-2">
+                                                            {pres.medicine_name}
+                                                            {isOutside && (
+                                                                <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-yellow-500 rounded-full">
+                                                                    OFF-SITE
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-4 text-gray-700">
+                                                            <span className="font-semibold">{pres.dosage}</span>
+                                                            <span className="mx-2 text-gray-300">|</span>
+                                                            <span className="text-xs italic">{pres.frequency}</span>
+                                                        </td>
+                                                        <td className="px-4 py-4 text-right">
+                                                            <PrimaryButton 
+                                                                onClick={() => isOutside ? handleAdministerOutside(pres) : openAdministerModal(pres)}
+                                                                className={`px-3 py-1 rounded text-white ${
+                                                                    isOutside ? 'bg-yellow-600 hover:bg-yellow-500' : 'bg-green-700 hover:bg-green-500'
+                                                                }`}
+                                                            >
+                                                                Administer
+                                                            </PrimaryButton>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -322,19 +476,19 @@ export default function NursePatientProfile({ auth , patient, batches = [] }) {
                     {/* Batch Selection */}
                     <div>
                         <InputLabel value="Select Available Batch" />
-                            <select 
-                                required
-                                value={administerData.batch_number} 
-                                onChange={e => setAdministerData('batch_number', e.target.value)} 
-                                className="..."
-                            >
-                                <option value="">-- Select Batch Number --</option>
-                                {batches.map(batch => (
-                                    <option key={batch.id} value={batch.batch_number}>
-                                        {batch.batch_number} (Exp: {batch.expiry_date})
-                                    </option>
-                                ))}
-                            </select>
+                        <select 
+                            required
+                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#30499B] focus:ring-[#30499B] text-sm"
+                            value={administerData.sku_batch_id} 
+                            onChange={e => setAdministerData('sku_batch_id', e.target.value)} 
+                        >
+                            <option value="">-- Select Batch Number --</option>
+                            {filteredBatches.map(batch => (
+                                <option key={batch.sku_batch_id} value={batch.sku_batch_id}>
+                                    Batch: {batch.sku_batch_id} | Stock: {batch.current_quantity} | Exp: {batch.expiry_date}
+                                </option>
+                            ))}
+                        </select>
                         <InputError message={administerErrors.batch_number} className="mt-1" />
                     </div>
 
@@ -445,6 +599,15 @@ export default function NursePatientProfile({ auth , patient, batches = [] }) {
                     </div>
                 </form>
             </Modal>
+
+            {toastInfo.show && (
+                <Toast 
+                    key="global-toast-instance" 
+                    message={toastInfo.message} 
+                    type={toastInfo.type} 
+                    onClose={handleCloseToast} 
+                />
+            )}
         </AuthenticatedLayout>
     );
 }

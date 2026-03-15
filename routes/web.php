@@ -141,8 +141,9 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::get('/patients', [NurseController::class, 'patients'])->name('nurse.patients');
         Route::get('/patients/{id}', [NurseController::class, 'showPatient'])->name('nurse.patients.profile');
         Route::post('/patients/{id}/vitals', [NurseController::class, 'updateVitals'])->name('nurse.vitals.update');
-        Route::post('/prescriptions/{prescription}/administer', [NurseController::class, 'administerMedication'])
-            ->name('nurse.prescriptions.administer');
+        Route::post('/prescriptions/{prescription}/administer', [NurseController::class, 'administerMedication'])->name('nurse.prescriptions.administer');
+        Route::post('/nurse/prescriptions/{prescription}/administer-outside', [NurseController::class, 'administerOutside'])->name('administer.outside');
+        Route::delete('/vitals/{id}', [NurseController::class, 'destroyVitals'])->name('nurse.vitals.destroy');
     });
 });
 

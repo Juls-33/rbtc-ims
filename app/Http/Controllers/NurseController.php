@@ -10,6 +10,7 @@ use App\Models\MedicationLog;
 use App\Models\MedicineBatch;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class NurseController extends Controller
 {
@@ -107,23 +108,41 @@ class NurseController extends Controller
                 'room'             => $latestAdmission?->room?->room_location ?? 'N/A',
                 'doctor'           => $latestAdmission?->staff ? "Dr. {$latestAdmission->staff->last_name}" : 'N/A',
                 // Current Vitals
-                'weight' => $latestVisit?->weight ?? '—',
-                'bp'     => $latestVisit?->blood_pressure ?? '—', 
-                'hr'     => $latestVisit?->heart_rate ?? '—', 
-                'temp'   => $latestVisit?->temperature ?? '—',
+                'weight'           => $latestVisit?->weight ?? '—',
+                'bp'               => $latestVisit?->blood_pressure ?? '—', 
+                'hr'               => $latestVisit?->heart_rate ?? '—', 
+                'temp'             => $latestVisit?->temperature ?? '—',
             ],  
 
-            'batches' => MedicineBatch::where('expiry_date', '>', now())->get(),
+            'availableBatches' => MedicineBatch::where('expiry_date', '>', now())
+            ->where('current_quantity', '>', 0)
+            ->get()
+            ->map(function ($batch) {
+                return [
+                    'sku_batch_id'     => $batch->sku_batch_id,
+                    'medicine_id'      => (int) $batch->medicine_id, // Ensure it's a number
+                    'current_quantity' => (int) $batch->current_quantity,
+                    'expiry_date'      => $batch->expiry_date
+                ];
+            }),
 
             'prescriptionHistory' => $patient->prescriptions->sortByDesc('created_at')->values()->map(function($pres) {
+                if ($pres->medicine) {
+                    $displayName = $pres->medicine->brand_name 
+                        ? "{$pres->medicine->generic_name} ({$pres->medicine->brand_name})" 
+                        : $pres->medicine->generic_name;
+                    } else {
+                        $displayName = $pres->medicine_name ?? 'Unknown';
+                }
                 return [
                     'id'            => $pres->id,
-                    'medicine_name' => $pres->medicine ? ($pres->medicine->brand_name ?? $pres->medicine->generic_name) : $pres->medicine_name, 
-                    'dosage'        => $pres->dosage,
-                    'frequency'     => $pres->frequency,
-                    'time'          => $pres->schedule_time,
-                    'date'          => $pres->date_prescribed,
-                    'last_administered' => $pres->logs()->latest()->first()?->administered_at,
+                    'medicine_id'   => $pres->medicine_id,
+                    'medicine_name' => $displayName,
+                    'dosage' => $pres->dosage ?? 'N/A',
+                    'frequency' => $pres->frequency ?? 'N/A',
+                    'time' => $pres->schedule_time ?? 'N/A',
+                    'date' => $pres->date_prescribed ?? 'N/A',
+                    'last_administered' => $pres->logs()->latest()->first()?->administered_at ?? 'Never',
                 ];
             }),
 
@@ -141,15 +160,31 @@ class NurseController extends Controller
 
             'auth' => [
                 'user' => array_merge(auth()->user()->toArray(), [
-                    'name'  => "Nurse " . auth()->user()->last_name,
-                    'role'  => 'nurse'
+                    'db_id' => auth()->user()->id,
+                    'name'  => "Nurse. " . auth()->user()->last_name,
+                    'id'    => auth()->user()->staff_id,
                 ])
             ],
+
+            'medicalNotes' => $patient->visits->map(function($visit) {
+                $staffRole = $visit->staff?->role ?? 'unknown';
+                $staffName = $visit->staff?->last_name ?? 'System';
+                return [
+                    'id' => $visit->id,
+                    'staff_id' => $visit->staff_id,
+                    'doctor' => ($staffRole === 'nurse' ? 'Nurse ' : 'Dr. ') . $staffName,
+                    'date' => $visit->created_at,
+                    'note' => $visit->reason, 
+                    'is_nurse_note' => $staffRole === 'nurse' 
+                ];
+            })->sortByDesc('date')->values()
         ]);
     }
 
     public function updateVitals(Request $request, $id)
     {
+        $numericId = is_numeric($id) ? (int)$id : (int)str_replace('P-', '', $id);
+
         $validated = $request->validate([
             'blood_pressure' => ['required', 'string', 'regex:/^\d{2,3}\/\d{2,3}$/'],
             'heart_rate'     => 'required|numeric|between:30,220',
@@ -160,7 +195,7 @@ class NurseController extends Controller
         ]);
 
         PatientVisit::create([
-            'patient_id'     => $id, 
+            'patient_id'     => $numericId,
             'staff_id'       => auth()->id(),
             'visit_date'     => $validated['visit_date'],
             'blood_pressure' => $validated['blood_pressure'],
@@ -170,30 +205,80 @@ class NurseController extends Controller
             'reason'         => $validated['reason'] ?? 'Routine Vitals Check', 
         ]);
 
-        return back()->with('message', 'Vitals recorded successfully!');
+        return back()->with('success', 'Vitals recorded successfully!');
     }
 
     public function administerMedication(Request $request, $prescriptionId)
     {
-        $request->validate([
-            'batch_number' => 'required|string',
-        ]);
+        $prescription = Prescriptions::findOrFail($prescriptionId);
+        
+        // 1. Perform validation first (outside transaction to save resources)
+        $batch = MedicineBatch::where('sku_batch_id', $request->sku_batch_id)
+        // Add this check to ensure they match
+        ->where('medicine_id', $prescription->medicine_id) 
+        ->lockForUpdate()
+        ->first();
 
-        $batch = MedicineBatch::where('batch_number', $request->batch_number)->first();
+        if (!$batch) {
+            return back()->withErrors(['sku_batch_id' => 'Invalid batch for this medication.']);
+        }
+        if ($batch->current_quantity <= 0) return back()->withErrors(['sku_batch_id' => 'Out of stock.']);
+        if (now()->parse($batch->expiry_date)->isPast()) return back()->withErrors(['sku_batch_id' => 'Expired.']);
 
-        if (!$batch || $batch->quantity <= 0) {
-            return back()->withErrors(['batch_number' => 'This batch is out of stock.']);
+        try {
+            DB::transaction(function () use ($prescription, $batch) {
+                // 2. Perform updates
+                $batch->decrement('current_quantity', 1);
+
+                MedicationLog::create([
+                    'prescription_id' => $prescription->id,
+                    'nurse_id'        => auth()->id(),
+                    'batch_number'    => $batch->sku_batch_id, 
+                    'administered_at' => now(),
+                ]);
+            });
+
+            // 3. Return response AFTER transaction succeeds
+            return back()->with('success', 'Medication administered and stock updated!');
+            
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Database error: ' . $e->getMessage()]);
+        }
+    }
+
+    public function administerOutside($id)
+    {
+        // 1. Find the prescription
+        $prescription = Prescriptions::findOrFail($id);
+
+        // 2. Validate that it's actually an "outside" med
+        if ($prescription->medicine_id !== null) {
+            return back()->withErrors(['success' => 'This is not an outside medication.']);
         }
 
-        $batch->decrement('quantity', 1); 
-
+        // 3. Create the log entry
         MedicationLog::create([
-            'prescription_id' => $prescriptionId,
-            'nurse_id' => auth()->id(),
-            'batch_number' => $request->batch_number,
+            'prescription_id' => $prescription->id,
+            'nurse_id'        => auth()->id(),
+            'batch_number'    => 'OUTSIDE-PROCURED',
             'administered_at' => now(),
         ]);
 
-        return back()->with('message', 'Medication administered and stock updated!');
+        // 4. Return success to the Inertia frontend
+        return back()->with('success', 'Outside medication logged successfully!');
+    }
+
+    public function destroyVitals($id)
+    {
+        $visit = PatientVisit::findOrFail($id);
+
+        // Security Check: Ensure the nurse owns this record
+        if ($visit->staff_id !== auth()->id()) {
+            return back()->withErrors(['error' => 'You do not have permission to delete this record.']);
+        }
+
+        $visit->delete();
+
+        return back()->with('success', 'Note deleted successfully.');
     }
 }

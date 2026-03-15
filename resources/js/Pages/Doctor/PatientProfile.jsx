@@ -59,24 +59,15 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
 
     // 2. Prescription Form
     const { 
-        data: prescriptionData, 
-        setData: setPrescriptionData, 
-        post: postPrescription, 
-        processing: processingPrescription, 
-        reset: resetPrescription,
-        errors: prescriptionErrors,
-        setError: setPrescriptionError, 
-        clearErrors: clearPrescriptionErrors
-    } = useForm({
-        patient_id: patient.db_id,
-        medicine_id: '',
-        medicine_name: '',
-        custom_medicine: '', 
-        dosage: '',
-        frequency: '',
-        time: '',
-        date_prescribed: new Date().toISOString().split('T')[0],
-    });
+    data: prescriptionData, 
+    setData: setPrescriptionData, 
+    post: postPrescription, 
+    processing: processingPrescription, 
+    reset: resetPrescription,
+    errors: prescriptionErrors,
+    setError: setPrescriptionError, 
+    clearErrors: clearPrescriptionErrors
+    } = prescription;
 
     // 3. Note Form
     const { 
@@ -167,8 +158,8 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
             ...prescriptionData,
             id: pres.id, 
             medicine_id: wasOther ? 'other' : pres.medicine_id,
-            custom_medicine: wasOther ? (pres.medicine || pres.medicine_name) : '',
-            medicine_name: pres.medicine_name,
+            medicine_name: pres.medicine_name || '',
+            custom_medicine: wasOther ? (pres.medicine_name || pres.medicine || '') : '',
             dosage: pres.dosage,
             frequency: pres.frequency,
             time: pres.time || '', 
@@ -224,25 +215,31 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
 
     const validatePrescription = () => {
         let isValid = true;
-        prescription.clearErrors();
+        clearPrescriptionErrors();
         let newErrors = {};
 
-        if (!prescription.data.medicine_id && !isOther) {
-            newErrors.medicine_id = 'Selection required.';
-            isValid = false;
+        // Check if it's a custom (manual) entry
+        if (isOther) {
+            if (!prescriptionData.custom_medicine || prescriptionData.custom_medicine.trim() === '') {
+                newErrors.custom_medicine = 'Name required.';
+                isValid = false;
+            }
+        } else {
+            // Validation: Allow if ID OR Name is present
+            if (!prescriptionData.medicine_id && !prescriptionData.medicine_name) {
+                newErrors.medicine_id = 'Selection required.';
+                isValid = false;
+            }
         }
-        if (isOther && (!prescription.data.custom_medicine || prescription.data.custom_medicine.trim() === '')) {
-            newErrors.custom_medicine = 'Name required.';
-            isValid = false;
-        }
+
         ['dosage', 'frequency', 'date_prescribed', 'time'].forEach(field => {
-            if (!prescription.data[field] || prescription.data[field].toString().trim() === '') {
+            if (!prescriptionData[field] || prescriptionData[field].toString().trim() === '') {
                 newErrors[field] = 'Required field.';
                 isValid = false;
             }
         });
 
-        if (!isValid) prescription.setError(newErrors);
+        if (!isValid) setPrescriptionError(newErrors);
         return isValid;
     };
 
