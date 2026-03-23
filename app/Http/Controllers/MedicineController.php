@@ -8,11 +8,13 @@ use App\Models\StockLog;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class MedicineController extends Controller
 {
     public function index(Request $request)
     {
+        $today = Carbon::today();
         $query = MedicineCatalog::query();
         if ($request->search) {
             $searchTerm = "%{$request->search}%";
@@ -23,8 +25,9 @@ class MedicineController extends Controller
                   ->orWhere('sku_id', 'LIKE', $searchTerm);
             });
         }
-        $inventoryPaginator = $query->with(['batches' => function($query) {
+        $inventoryPaginator = $query->with(['batches' => function($query) use ($today) {
                 $query->where('current_quantity', '>', 0)
+                      ->whereDate('expiry_date', '>=', $today)
                       ->orderBy('expiry_date', 'asc'); 
             }])
             ->latest()
@@ -32,8 +35,19 @@ class MedicineController extends Controller
             ->withQueryString();
 
         $inventoryPaginator->getCollection()->transform(function($medicine) {
-            $totalStock = $medicine->batches->sum('current_quantity');
-            $defaultBatch = $medicine->batches->first(); 
+            // 1. Get the current date (start of day) for strict comparison
+            $today = Carbon::today();
+
+            // 2. Filter batches to find ONLY those that are NOT expired
+            $activeBatches = $medicine->batches->filter(function($batch) use ($today) {
+                return Carbon::parse($batch->expiry_date)->startOfDay() >= $today;
+            });
+
+            // 3. Calculate Usable Total Stock
+            $totalUsableStock = (int)$activeBatches->sum('current_quantity');
+
+            // 4. Identify the first valid batch for default selection (FEFO)
+            $defaultBatch = $activeBatches->first(); 
 
             return [
                 'id' => $medicine->id,
@@ -43,13 +57,18 @@ class MedicineController extends Controller
                 'brand_name' => $medicine->brand_name, 
                 'dosage' => $medicine->dosage,
                 'price' => (float)$medicine->price_per_unit,
-                'totalStock' => $totalStock,
-                'is_available' => $totalStock > 0,
+                
+                // --- CORRECTED TOTALS (Excludes Expired) ---
+                'totalStock' => $totalUsableStock, // Usable units only
+                'is_available' => $totalUsableStock > 0, // False if all stock is expired
+                
                 'default_batch' => $defaultBatch ? [
                     'id' => $defaultBatch->sku_batch_id,
                     'expiry' => $defaultBatch->expiry_date,
                     'stock' => $defaultBatch->current_quantity,
                 ] : null,
+
+                // 5. Still return all batches so they can be deleted in the modal
                 'batches' => $medicine->batches->map(fn($b) => [
                     'id' => $b->sku_batch_id,
                     'expiry' => $b->expiry_date,
@@ -125,7 +144,7 @@ class MedicineController extends Controller
         //     });
 
         return Inertia::render('Admin/MedicineInventory', [
-            'inventory' => $inventoryPaginator, // 🔥 Now an object with .data and .links
+            'inventory' => $inventoryPaginator, 
             'logs' => $logs,
             'filters' => $request->only(['search'])
         ]);
@@ -269,9 +288,17 @@ class MedicineController extends Controller
             
             elseif ($action === 'adjust') {
                 $batch = MedicineBatch::where('sku_batch_id', $batchData['id'])->firstOrFail();
-                $diff = $batchData['stock'] - $batch->current_quantity;
+                
+                // Calculate difference if stock is provided, otherwise keep current stock
+                $newStock = isset($batchData['stock']) ? (int)$batchData['stock'] : $batch->current_quantity;
+                $diff = $newStock - $batch->current_quantity;
 
-                $batch->update(['current_quantity' => $batchData['stock']]);
+                $updatePayload = [
+                    'current_quantity' => $newStock,
+                    'expiry_date' => $batchData['expiry'] ?? $batch->expiry_date 
+                ];
+
+                $batch->update($updatePayload);
 
                 StockLog::create([
                     'medicine_id' => $medicine->id,

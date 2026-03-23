@@ -33,6 +33,8 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
         }
         if (!formData.expiryDate) {
             newErrors.expiryDate = "Expiry date required.";
+        } else if (formData.expiryDate < today) {
+            newErrors.expiryDate = "Date cannot be in the past.";
         }
         
         setErrors(newErrors); 
@@ -50,14 +52,6 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
             preserveScroll: true,
             onSuccess: () => {
                 setIsProcessing(false);
-                // if (actionType === 'add') {
-                //     setFormData({ batchId: generateId(), quantity: '', expiryDate: '' });
-                //     showToast('New batch added!', 'success');
-                // } else if (actionType === 'adjust') {
-                //     showToast('Stock level adjusted.', 'success');
-                // } else {
-                //     showToast('Batch removed.', 'success');
-                // }
                 setErrors({}); 
             },
             onError: () => {
@@ -88,24 +82,47 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
     };
 
     const handleSaveAdjustment = () => {
-        const qty = parseInt(adjustmentData.quantity);
+        const qtyStr = adjustmentData.quantity;
         const currentStock = parseInt(batchToAdjust.stock);
-        if (isNaN(qty) || qty <= 0) {
-            showToast('Please enter a valid positive quantity.', 'error');
+        const newExpiry = adjustmentData.expiryDate || batchToAdjust.expiry;
+
+        // 1. Validation: If both are empty/unchanged, do nothing
+        if (!qtyStr && newExpiry === batchToAdjust.expiry) {
+            showToast('No changes detected. Please adjust stock or expiry date.', 'warning');
+            return;
+        }
+        if (newExpiry < today) {
+            showToast('Expiry date cannot be set to the past.', 'error');
             return;
         }
 
-        if (adjustmentData.type === 'remove' && qty > currentStock) {
-            showToast(`Cannot remove ${qty}. Only ${currentStock} units available in this batch.`, 'error');
-            return;
+        // 2. Calculate New Stock (Optional)
+        let calculatedStock = currentStock;
+        if (qtyStr) {
+            const qty = parseInt(qtyStr);
+            if (isNaN(qty) || qty < 0) {
+                showToast('Please enter a valid quantity.', 'error');
+                return;
+            }
+            if (adjustmentData.type === 'remove' && qty > currentStock) {
+                showToast(`Cannot remove ${qty}. Only ${currentStock} units available.`, 'error');
+                return;
+            }
+            calculatedStock = adjustmentData.type === 'add' ? currentStock + qty : currentStock - qty;
         }
 
-        const newStock = adjustmentData.type === 'add' ? currentStock + qty : Math.max(0, currentStock - qty);
-        const updatedBatch = { ...batchToAdjust, stock: newStock.toString(), expiry: adjustmentData.expiryDate };
+        // 3. Prepare payload with updated expiry
+        const updatedBatch = { 
+            ...batchToAdjust, 
+            stock: calculatedStock.toString(), 
+            expiry: newExpiry 
+        };
         
         syncWithServer('adjust', updatedBatch, adjustmentData.reason);
+        
+        // 4. Reset states
         setBatchToAdjust(null);
-        setAdjustmentData({ type: 'add', quantity: '', reason: 'Dispensed to Patient' });
+        setAdjustmentData({ type: 'add', quantity: '', reason: 'Inventory Correction', expiryDate: '' });
     };
 
     const handleAdjustmentQuantityChange = (e) => {
@@ -132,9 +149,9 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
         error ? 'border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500' : 'border-slate-300 focus:ring-[#3D52A0] focus:border-[#3D52A0]'
     }`;
 
-    const Label = ({ text, required = true, fieldError }) => (
+    const Label = ({ text, fieldError }) => (
         <label className={`block text-[10px] font-black uppercase tracking-tighter mb-1 ${fieldError ? 'text-red-500' : 'text-slate-500'}`}>
-            {text} {required && <span className="text-red-600">*</span>}
+            {text}
         </label>
     );
 
@@ -185,6 +202,7 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
                                     <Label text="Expiry Date" fieldError={errors.expiryDate} />
                                     <input 
                                         type="date" 
+                                        min={today} 
                                         value={formData.expiryDate} 
                                         onChange={(e) => setFormData({...formData, expiryDate: e.target.value})} 
                                         className={inputClass(errors.expiryDate)} 
@@ -339,9 +357,9 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
                                         onChange={(e) => setAdjustmentData({...adjustmentData, reason: e.target.value})} 
                                         className="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white"
                                     >
+                                        <option>Inventory Correction</option>
                                         <option>Dispensed to Patient</option>
                                         <option>Damaged</option>
-                                        <option>Inventory Correction</option>
                                         <option>Expired Stock Removal</option>
                                         <option>Return to Supplier</option>
                                     </select>

@@ -20,21 +20,40 @@
 
     @foreach($statements as $stmt)
     <div class="section-title">Statement Period: {{ $stmt['period'] }}</div>
-    <table>
+        <table class="items-table">
         <thead>
-            <tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
+            <tr>
+                <th>Description</th>
+                <th class="text-center">Quantity / Days</th>
+                <th class="text-right">Unit Price</th> 
+                <th class="text-right">Amount</th>
+            </tr>
         </thead>
         <tbody>
-            <tr><td>Room Charges</td><td>-</td><td>-</td><td>Php {{ number_format($stmt['room_total'], 2) }}</td></tr>
+            @foreach($stmt['room_details'] as $room)
+                <tr>
+                    <td>{{ $room['description'] }}</td>
+                    <td class="text-center">{{ $room['days'] }} Day(s)</td>
+                    <td class="text-right">Php {{ number_format($room['unit_price'], 2) }}</td>
+                    <td class="text-right">Php {{ number_format($room['subtotal'], 2) }}</td>
+                </tr>
+            @endforeach
+
             @foreach($stmt['items'] as $item)
-            <tr>
-                <td>{{ $item->description }}</td>
-                <td>{{ $item->quantity }}</td>
-                <td>Php {{ number_format($item->unit_price, 2) }}</td>
-                <td>Php {{ number_format($item->total_price, 2) }}</td>
-            </tr>
+                <tr>
+                    <td>{{ $item->description }}</td>
+                    <td class="text-center">{{ $item->quantity }}</td>
+                    <td class="text-right">Php {{ number_format($item->unit_price, 2) }}</td>
+                    <td class="text-right">Php {{ number_format($item->total_price, 2) }}</td>
+                </tr>
             @endforeach
         </tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="3" class="text-right"><strong>Cycle Total:</strong></td>
+                <td class="text-right"><strong>Php {{ number_format($stmt['grand_total'], 2) }}</strong></td>
+            </tr>
+        </tfoot>
     </table>
     @endforeach
 

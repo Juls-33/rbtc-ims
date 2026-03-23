@@ -136,7 +136,7 @@ export default function Welcome({ status, canResetPassword }) {
                             <div className="mb-10">
                                 <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Reset Help</h2>
                                 <p className="text-slate-500 text-sm mt-1 text-pretty italic">
-                                    Enter your institutional email below. We will send y
+                                    Enter your institutional email below. We will send you an email with instructions to reset your password.<br /> If you don't receive the email, please check your spam folder or contact the administrator.
                                 </p>
                             </div>
 

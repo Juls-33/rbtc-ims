@@ -16,7 +16,6 @@ export default function ResetStaffPasswordModal({ isOpen, onClose, member }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // 🔥 Ensure member.id is present. If called from notification, it's staff_db_id
         const targetId = member.id || member.staff_db_id;
         
         put(route('admin.staff.reset-password', targetId), {
@@ -52,14 +51,13 @@ export default function ResetStaffPasswordModal({ isOpen, onClose, member }) {
                     >&times;</button>
                 </div>
 
-                {/* 🔥 FIXED: Form tag wrapping the content */}
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
                     <div className="p-6 md:p-8 space-y-6 overflow-y-auto no-scrollbar flex-1">
                         
                         {/* Security Alert Block */}
                         <div className="bg-rose-50 p-4 rounded-xl border border-rose-100">
                             <p className="text-[10px] text-rose-700 font-black uppercase tracking-tighter leading-tight flex gap-2">
-                                <span className="text-rose-500 font-black">🔒 SECURITY PROTOCOL:</span>
+                                <span className="text-rose-500 font-black">SECURITY PROTOCOL:</span>
                                 The user will be forced to create a new private password upon their next login attempt.
                             </p>
                         </div>

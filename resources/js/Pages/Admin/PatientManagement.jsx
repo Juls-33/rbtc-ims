@@ -15,7 +15,6 @@ export default function PatientManagement({ auth, patients, filters, selectableP
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [activeTab, setActiveTab] = useState(filters.tab || 'all');
     
-    // 🔥 FIXED: Changed default sort from 'name' to 'patient_id'
     const [sortConfig, setSortConfig] = useState({ key: 'patient_id', direction: 'desc' });
     
     const [viewMode, setViewMode] = useState('list');
@@ -48,24 +47,66 @@ export default function PatientManagement({ auth, patients, filters, selectableP
    
     const processedData = useMemo(() => {
         let data = allPatients.map(p => {
-            const hasUnpaidVisit = p.visit_history?.some(v => parseFloat(v.balance) > 0);
-            const hasUnpaidStatement = p.active_admission?.statements?.some(s => s.status === 'UNPAID');
+            // 1. CALCULATE CONTEXTUAL BALANCES
+            // Check for any Outpatient visit with a balance
+            const opUnpaid = p.visit_history?.some(v => parseFloat(v.balance || 0) > 0);
+            
+            // Check for Inpatient balance (active admission OR history with balance)
+            const ipUnpaid = (parseFloat(p.active_admission?.balance || 0) > 0) || 
+                            (p.admission_history?.some(a => parseFloat(a.balance || 0) > 0));
+
+            // 2. DETERMINE DISPLAY STATUS BASED ON ACTIVE TAB
+            let displayStatus = 'PAID';
+            if (activeTab === 'outpatient') {
+                displayStatus = opUnpaid ? 'UNPAID' : 'PAID';
+            } else if (activeTab === 'inpatient') {
+                displayStatus = ipUnpaid ? 'UNPAID' : 'PAID';
+            } else {
+                // 'All' tab shows UNPAID if ANY balance exists anywhere
+                displayStatus = (opUnpaid || ipUnpaid) ? 'UNPAID' : 'PAID';
+            }
+
+            // 3. TRACK LAST ACTIVITY DATE FOR TOP-OF-LIST SORTING
+            const latestVisit = p.visit_history?.length > 0 
+                ? Math.max(...p.visit_history.map(v => new Date(v.visit_date || v.date).getTime())) 
+                : 0;
+            const latestAdmission = p.active_admission 
+                ? new Date(p.active_admission.admission_date).getTime() 
+                : 0;
+
             return {
                 ...p,
-                bill_status: (hasUnpaidVisit || hasUnpaidStatement) ? 'UNPAID' : 'PAID'
+                bill_status: displayStatus,
+                last_activity: Math.max(latestVisit, latestAdmission)
             };
         });
 
+        // 4. APPLY HIERARCHICAL SORTING
         data.sort((a, b) => {
+            // LEVEL 1: Tab-Specific Bill Status (UNPAID always goes to the top)
+            if (a.bill_status !== b.bill_status) {
+                return a.bill_status === 'UNPAID' ? -1 : 1;
+            }
+
+            // LEVEL 2: Activity Recency (Newest interactions jump to the top of their section)
+            if (a.last_activity !== b.last_activity) {
+                return b.last_activity - a.last_activity;
+            }
+
+            // LEVEL 3: User Selection (Sorting by Column)
             let valA = a[sortConfig.key] || '';
             let valB = b[sortConfig.key] || '';
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+
             if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
             if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+            
             return 0;
         });
 
         return data;
-    }, [allPatients, sortConfig]);
+    }, [allPatients, sortConfig, activeTab]);
 
     const handleSort = (key) => {
         let direction = 'asc';
@@ -100,6 +141,29 @@ export default function PatientManagement({ auth, patients, filters, selectableP
         );
     };
 
+    const StatusLegend = () => (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6 flex flex-wrap gap-6 items-center shadow-sm">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Registry Key:</span>
+            <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
+                <span className="text-[10px] font-bold text-slate-600 uppercase">Admitted (Active Stay)</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"></span>
+                <span className="text-[10px] font-bold text-slate-600 uppercase">Discharged (Stay Ended)</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]"></span>
+                <span className="text-[10px] font-bold text-slate-600 uppercase">Outpatient (Clinic Visit)</span>
+            </div>
+            <div className="h-4 w-[1px] bg-slate-200 mx-2"></div>
+            <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]"></span>
+                <span className="text-[10px] font-bold text-slate-600 uppercase">Unpaid Balance</span>
+            </div>
+        </div>
+    );
+
     if (viewMode === 'profile' && activePatient) {
         return (
             <AuthenticatedLayout header={`Patient Profile: ${activePatient.name}`}>
@@ -132,6 +196,7 @@ export default function PatientManagement({ auth, patients, filters, selectableP
                 </div>
 
                 <div className="p-6 flex-1 flex flex-col">
+                    <StatusLegend />
                     <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <div className="relative w-full md:w-80">
                             <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by ID or Exact Name..." className="w-full pl-4 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-1 focus:ring-[#3D52A0] outline-none text-xs transition-all" />
@@ -188,7 +253,15 @@ export default function PatientManagement({ auth, patients, filters, selectableP
                                                 <td className="p-4 border-r font-black text-slate-800 tracking-tight">{patient.name}</td>
                                                 <td className="p-4 border-r text-xs">{patient.contact_no}</td>
                                                 <td className="p-4 border-r text-center">
-                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${patient.status === 'ADMITTED' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : patient.status === 'DISCHARGED' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-blue-50 text-blue-700 border-blue-100'}`}>{activeTab === 'outpatient' ? 'OUTPATIENT' : patient.status}</span>
+                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                                                        activeTab === 'outpatient' 
+                                                            ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-[0_0_5px_rgba(59,130,246,0.1)]' 
+                                                            : patient.status === 'ADMITTED' 
+                                                                ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                                                                : 'bg-amber-100 text-amber-700 border-amber-200'
+                                                    }`}>
+                                                        {activeTab === 'outpatient' ? 'OUTPATIENT' : patient.status}
+                                                    </span>
                                                 </td>
                                                 <td className="p-4 border-r text-center">
                                                     <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${patient.bill_status === 'UNPAID' ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>{patient.bill_status}</span>

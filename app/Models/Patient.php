@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Spatie\LaravelCipherSweet\Concerns\UsesCipherSweet;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
 use ParagonIE\CipherSweet\Constants;
 use ParagonIE\CipherSweet\EncryptedRow;
@@ -13,7 +14,23 @@ use App\Traits\Archivable;
 
 class Patient extends Model implements CipherSweetEncrypted
 {   
-    use HasFactory, UsesCipherSweet, Archivable;
+    use HasFactory, UsesCipherSweet, Archivable, SoftDeletes;
+    protected static function booted()
+    {
+        // Logic for Restoring from Archive
+        static::restoring(function ($patient) {
+            // Restore related records that were soft-deleted along with the patient
+            $patient->visits()->onlyTrashed()->restore();
+            $patient->admissions()->onlyTrashed()->restore();
+        });
+
+        // Logic for Archiving (Soft Deleting)
+        static::deleted(function ($patient) {
+            // If the patient is soft-deleted, hide their history as well
+            $patient->visits()->delete();
+            $patient->admissions()->delete();
+        });
+    }
 
     protected $fillable = [
         'first_name', 

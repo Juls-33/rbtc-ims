@@ -19,7 +19,7 @@ class AdmissionController extends Controller
             'staff_id'       => 'required|exists:staff,id',
             'room_id'        => 'required|exists:rooms,id',
             'diagnosis'      => 'required|string|max:100',
-            'admission_date' => 'required|date',
+            'admission_date' => 'required|date|before_or_equal:now',
         ]);
 
         return DB::transaction(function () use ($validated) {  
@@ -52,21 +52,43 @@ class AdmissionController extends Controller
     public function update(Request $request, Admission $admission)
     {
         $validated = $request->validate([
-            'admission_date' => 'required|date',
+            'admission_date' => 'required|date|before_or_equal:now',
             'staff_id'       => 'required|exists:staff,id',
             'room_id'        => 'required|exists:rooms,id',
             'diagnosis'      => 'required|string|max:100',
         ]);
 
         return DB::transaction(function () use ($validated, $admission) {
+            // 1. Capture the old date to check for changes
+            $oldDate = $admission->admission_date;
+
+            // 2. Handle Room Status updates if the room changed
             if ($admission->room_id != $validated['room_id']) {
                 \App\Models\Room::where('id', $admission->room_id)->update(['status' => 'Available']);
                 \App\Models\Room::where('id', $validated['room_id'])->update(['status' => 'Occupied']);
             }
 
+            // 3. Update the primary Admission record
             $admission->update($validated);
 
-            return redirect()->back()->with('success', 'Admission record updated successfully.');
+            // 4. SYNC ROOM START DATE
+            // If the admission date was corrected, we must update the first room stay record.
+            // Without this, the billing calculation will have a "gap" and show the wrong price.
+            if ($oldDate !== $validated['admission_date']) {
+                $firstStay = $admission->roomStays()->orderBy('start_date', 'asc')->first();
+                if ($firstStay) {
+                    $firstStay->update([
+                        'start_date' => $validated['admission_date']
+                    ]);
+                }
+            }
+
+            // 5. REFRESH TOTALS
+            // This ensures the 'live_total' and 'live_balance' fields are updated immediately
+            $admission->refresh(); 
+            $admission->syncLiveTotals();
+
+            return redirect()->back()->with('success', 'Admission record and billing have been updated.');
         });
     }
 

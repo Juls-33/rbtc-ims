@@ -76,6 +76,12 @@ class RoomController extends Controller
 
     public function update(Request $request, Room $room)
     {
+        // --- 1. QA GUARD: PREVENT MANUAL STATUS OVERRIDE ---
+        // If the room is currently Occupied, we prevent changing the status to anything else.
+        if ($room->status === 'Occupied' && $request->status !== 'Occupied') {
+            return redirect()->back()->with('error', 'Status Lock: This room is occupied. You must discharge the patient through the Patient Management module to release this room.');
+        }
+
         $validated = $request->validate([
             'room_location' => 'required|string|max:255|unique:rooms,room_location,' . $room->id,
             'room_rate'     => 'required|numeric|min:0',
@@ -84,7 +90,6 @@ class RoomController extends Controller
 
         $room->update($validated);
 
-        // Log the change
         \App\Models\StaffLog::create([
             'staff_id'    => auth()->id(),
             'action'      => 'UPDATED ROOM',
@@ -94,19 +99,19 @@ class RoomController extends Controller
 
         return redirect()->back()->with('success', 'Room details updated successfully.');
     }
+
     public function destroy(Request $request, Room $room)
     {
-        // Capture details for logging before the record is gone
         $roomName = $room->room_location;
 
-        // Optional: Check if the room is currently occupied before allowing deletion
+        // --- 2. QA GUARD: PREVENT DELETION OF OCCUPIED ROOM ---
+        // Using 'with(error)' ensures your Toast component catches the message.
         if ($room->status === 'Occupied') {
-            return redirect()->back()->withErrors(['error' => 'Cannot delete an occupied room. Discharge the patient first.']);
+            return redirect()->back()->with('error', "Critical: Cannot delete '{$roomName}' because a patient is currently admitted to this bed.");
         }
 
         $room->delete();
 
-        // Log the deletion
         \App\Models\StaffLog::create([
             'staff_id'    => auth()->id(),
             'action'      => 'DELETED ROOM',

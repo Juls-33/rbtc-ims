@@ -42,19 +42,50 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
 
     const filteredPatients = useMemo(() => {
         const query = searchTerm.toLowerCase();
-        return patients.filter(p => p.name.toLowerCase().includes(query) || p.patient_id?.toLowerCase().includes(query));
+
+        // 1. Filter by search term first
+        let filtered = patients.filter(p => 
+            p.name.toLowerCase().includes(query) || 
+            p.patient_id?.toLowerCase().includes(query)
+        );
+
+        // 2. Apply Priority Sorting
+        return filtered.sort((a, b) => {
+            const aAdmitted = a.status === 'ADMITTED';
+            const bAdmitted = b.status === 'ADMITTED';
+
+            // PRIORITY 1: Status (Non-admitted patients first)
+            if (aAdmitted !== bAdmitted) {
+                return aAdmitted ? 1 : -1;
+            }
+
+            // PRIORITY 2: Alphabetical Name (A-Z)
+            return a.name.localeCompare(b.name);
+        });
     }, [searchTerm, patients]);
 
     const validate = () => {
         let isValid = true;
         clearErrors();
         const required = ['patient_id', 'admission_date', 'staff_id', 'room_id', 'diagnosis'];
+        
         required.forEach(field => {
             if (!data[field]) {
                 setError(field, 'Field required.');
                 isValid = false;
             }
         });
+
+        if (data.admission_date) {
+            const selectedDate = new Date(data.admission_date);
+            const now = new Date();
+            
+            if (selectedDate > now) {
+                setError('admission_date', 'Admission date cannot be in the future.');
+                isValid = false;
+            }
+        }
+
         return isValid;
     };
 

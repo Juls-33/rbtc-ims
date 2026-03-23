@@ -7,7 +7,6 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
     const { patients, flash } = usePage().props;
     const [toast, setToast] = useState(null);
 
-    // --- 1. DATA SYNC: Safe Patient & Visit lookup ---
     const visit = useMemo(() => {
         if (!patients || !initialVisit) return initialVisit;
         const patientList = patients.data || (Array.isArray(patients) ? patients : []);
@@ -19,31 +18,24 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
     const billItems = visit?.bill_items || [];
     const CHECKUP_FEE = parseFloat(visit?.checkup_fee || 0);
 
-    // --- 2. DATA NORMALIZATION: Standardize Medicines and Stock ---
     const localInventory = useMemo(() => {
         const rawInventory = medicines.data || (Array.isArray(medicines) ? medicines : []);
         
-        // Map database keys to UI keys safely
         let inv = rawInventory.map(m => ({
             ...m,
-            // Standardize Name
             name: m.name || m.generic_name || 'Unnamed Item',
             brand_name: m.brand_name || '',
-            // Standardize Price
             price: parseFloat(m.price || m.price_per_unit || 0),
-            // Standardize Batches and Stock
             batches: (m.batches || []).map(b => ({
                 ...b,
                 id: b.id || b.sku_batch_id,
                 stock: parseInt(b.stock || b.current_quantity || 0)
             })),
-            // Recalculate total stock from standardized batches
         })).map(m => ({
             ...m,
             totalStock: m.batches.reduce((sum, b) => sum + b.stock, 0)
         }));
 
-        // Subtract quantities already added to the bill
         billItems.forEach(item => {
             const med = inv.find(m => m.id === parseInt(item.medicine_id));
             if (med) {
@@ -63,10 +55,7 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
     const [selectedMed, setSelectedMed] = useState(null); 
     const [selectedBatch, setSelectedBatch] = useState(null);
     const [medQty, setMedQty] = useState(1);
-    const [editingId, setEditingId] = useState(null);
-    const [editQty, setEditQty] = useState(1);
     const [isSubmittingMed, setIsSubmittingMed] = useState(false);
-    const [isUpdatingMed, setIsUpdatingMed] = useState(false);
     const [isFinalizing, setIsFinalizing] = useState(false);
     const [itemToDelete, setItemToDelete] = useState(null);
     const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
@@ -77,14 +66,11 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
 
     const filteredMedicineResults = useMemo(() => {
         if (!medSearchTerm) return localInventory;
-        
         const query = medSearchTerm.toLowerCase();
-        
         return localInventory.filter(m => {
             const nameMatch = (m.name || "").toLowerCase().includes(query);
             const brandMatch = (m.brand_name || "").toLowerCase().includes(query);
             const skuMatch = (m.sku_id || "").toLowerCase().includes(query);
-            
             return nameMatch || brandMatch || skuMatch;
         });
     }, [localInventory, medSearchTerm]);
@@ -164,13 +150,12 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-2 md:p-4 backdrop-blur-sm">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col h-[100dvh] md:h-[95vh]">
                 
-                {/* Header */}
-                <div className="bg-[#3D52A0] text-white p-4 md:p-5 flex justify-between items-center shrink-0">
+                <div className="bg-[#3D52A0] text-white p-4 md:p-5 flex justify-between items-center shrink-0 shadow-md">
                     <div>
-                        <h3 className="font-black text-lg uppercase tracking-tight">Outpatient Invoice</h3>
-                        <p className="text-[10px] text-blue-100 uppercase font-mono font-bold">Ref: #{visit?.visit_id || '---'}</p>
+                        <h3 className="font-black text-lg md:text-xl uppercase tracking-tight">Outpatient Invoice</h3>
+                        <p className="text-[10px] text-blue-100 uppercase font-mono font-bold tracking-widest mt-1">Ref: #{visit?.visit_id || '---'}</p>
                     </div>
-                    <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-3xl">&times;</button>
+                    <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-3xl leading-none">&times;</button>
                 </div>
 
                 <div className="p-4 md:p-8 space-y-6 overflow-y-auto flex-1 no-scrollbar pb-64">
@@ -182,7 +167,7 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
                                     <th className="p-4 border-r text-center w-28">Qty</th>
                                     <th className="p-4 border-r text-right w-32">Price</th>
                                     <th className="p-4 text-right w-32">Total</th>
-                                    <th className="p-4 text-center w-32 sticky right-0 bg-slate-50">Actions</th>
+                                    <th className="p-4 text-center w-32 sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)]">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="text-slate-700">
@@ -196,7 +181,7 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
                                         }
                                     </td>
                                     <td className="p-4 text-right font-black">₱{CHECKUP_FEE.toLocaleString()}</td>
-                                    <td className="p-4 text-center sticky right-0 bg-white">
+                                    <td className="p-4 text-center sticky right-0 bg-white shadow-[-4px_0_10px_rgba(0,0,0,0.05)]">
                                         <button onClick={() => isEditingFee ? handleSaveFee() : setIsEditingFee(true)} className="text-blue-600 font-black uppercase text-[10px] hover:underline">
                                             {isEditingFee ? 'Save' : 'Adjust'}
                                         </button>
@@ -204,10 +189,10 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
                                 </tr>
 
                                 {billItems.map((item) => (
-                                    <tr key={item.id} className="border-b">
+                                    <tr key={item.id} className="border-b hover:bg-slate-50/50 transition-colors">
                                         <td className="p-4 border-r font-bold text-slate-800">{item.medicine?.generic_name}</td>
                                         <td className="p-4 border-r text-center font-black">{item.quantity}</td>
-                                        <td className="p-4 border-r text-right">₱{parseFloat(item.unit_price).toLocaleString()}</td>
+                                        <td className="p-4 border-r text-right font-mono">₱{parseFloat(item.unit_price).toLocaleString()}</td>
                                         <td className="p-4 text-right font-black text-emerald-700">₱{parseFloat(item.total_price).toLocaleString()}</td>
                                         <td className="p-4 text-center sticky right-0 bg-white shadow-[-4px_0_10px_rgba(0,0,0,0.05)]">
                                             <button onClick={() => setItemToDelete(item)} className="text-rose-600 font-black uppercase text-[10px] hover:underline">Del</button>
@@ -220,97 +205,132 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
                                         <input 
                                             type="text"
                                             placeholder="Search medicine name or brand..."
-                                            className="w-full border-slate-200 rounded-lg text-xs font-bold py-2.5"
+                                            className="w-full border-slate-200 rounded-lg text-xs font-bold py-2.5 px-4 focus:ring-emerald-500 shadow-sm"
                                             value={medSearchTerm}
                                             onFocus={() => setIsMedDropdownOpen(true)}
                                             onChange={(e) => {setMedSearchTerm(e.target.value); setSelectedMed(null); setIsMedDropdownOpen(true);}}
                                         />
                                         {isMedDropdownOpen && (
-                                            <div className="absolute z-[999] left-0 right-0 top-full mt-1 bg-white border rounded-xl shadow-2xl max-h-56 overflow-y-auto border-slate-200">
+                                            <div className="absolute z-[999] left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-56 overflow-y-auto">
                                                 {filteredMedicineResults.map(m => (
-                                                    <button key={m.id} type="button" disabled={m.totalStock <= 0} className="w-full text-left px-4 py-3 border-b flex justify-between items-center hover:bg-emerald-50 disabled:opacity-50" onClick={() => handlePickMedicine(m)}>
-                                                        <div><p className="font-bold text-slate-800">{m.name}</p><p className="text-[9px] uppercase font-black text-slate-400">{m.brand_name} • Stock: {m.totalStock}</p></div>
-                                                        <span className="font-bold text-emerald-600">₱{m.price.toLocaleString()}</span>
+                                                    <button key={m.id} type="button" disabled={m.totalStock <= 0} className={`w-full text-left px-4 py-3 border-b flex justify-between items-center transition-colors ${m.totalStock > 0 ? 'hover:bg-emerald-50' : 'opacity-50 cursor-not-allowed bg-slate-50'}`} onClick={() => handlePickMedicine(m)}>
+                                                        <div><p className="font-bold text-slate-800 text-sm">{m.name}</p><p className="text-[9px] uppercase font-black text-slate-400">{m.brand_name} • Stock: {m.totalStock}</p></div>
+                                                        <span className="font-bold text-emerald-600 font-mono">₱{m.price.toLocaleString()}</span>
                                                     </button>
                                                 ))}
+                                                {filteredMedicineResults.length === 0 && (
+                                                    <div className="p-4 text-center text-slate-400 text-xs italic">No results found.</div>
+                                                )}
                                             </div>
                                         )}
                                     </td>
                                     <td className="p-3 border-r text-center">
-                                        <input type="number" className="w-12 text-center border rounded" value={medQty} onChange={e => setMedQty(e.target.value)} />
+                                        <div className="flex items-center justify-center gap-1">
+                                            <button onClick={() => setMedQty(q => Math.max(1, parseInt(q) - 1))} className="w-7 h-7 bg-white border rounded-lg font-bold hover:bg-slate-100 shadow-sm">-</button>
+                                            <input type="number" className="w-10 text-center p-0 border-none bg-transparent font-black text-xs" value={medQty} readOnly />
+                                            <button onClick={() => setMedQty(q => parseInt(q) + 1)} className="w-7 h-7 bg-white border rounded-lg font-bold hover:bg-slate-100 shadow-sm">+</button>
+                                        </div>
                                     </td>
                                     <td colSpan="3" className="p-3">
-                                        <Button variant="success" className="w-full text-[10px] font-black uppercase py-2.5" onClick={handleAddMedicine} disabled={!selectedMed || isSubmittingMed}>
-                                            ADD TO BILL
+                                        <Button variant="success" className="w-full text-[10px] font-black tracking-widest py-2.5 rounded-lg shadow-sm" onClick={handleAddMedicine} disabled={!selectedMed || isSubmittingMed}>
+                                            {isSubmittingMed ? 'ADDING...' : '+ ADD TO BILL'}
                                         </Button>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
-
-                    {/* Totals Section */}
-                    <div className="bg-[#2E4696] rounded-2xl p-6 text-white shadow-xl space-y-6">
-                        <div className="flex justify-between items-center border-b border-white/20 pb-4">
+                    {/* FINANCIAL SUMMARY BOX - ADDED FULL & CLEAR BUTTONS */}
+                    <div className="bg-[#2E4696] rounded-2xl p-5 md:p-7 text-white shadow-xl space-y-6 border border-white/10 shrink-0">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-white/20 pb-4 gap-2">
                             <span className="text-xs font-black uppercase tracking-widest text-blue-200">Total Invoice Amount:</span>
-                            <span className="text-3xl font-black">₱ {totals.grandTotal.toLocaleString()}</span>
+                            <span className="text-3xl md:text-4xl font-black text-white decoration-emerald-400 decoration-4 underline-offset-8">
+                                ₱ {totals.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
                         </div>
-                        <div className="flex flex-col lg:flex-row gap-6">
-                            <div className="flex-1">
-                                <label className="text-[10px] font-black uppercase text-blue-200 block mb-2 tracking-widest">Pay Amount (₱)</label>
-                                <input type="number" className="w-full bg-blue-900/50 border-2 border-blue-400/30 rounded-xl px-4 py-3 text-3xl font-black text-emerald-400 outline-none" value={paymentInput} onChange={e => setPaymentInput(Math.min(parseFloat(e.target.value) || 0, totals.maxPayable))} />
+                        <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-6">
+                            <div className="flex-1 space-y-2">
+                                <label className="text-[10px] font-black uppercase text-blue-200 block tracking-widest">Amount to Pay (₱)</label>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <input 
+                                        type="number" step="0.01"
+                                        className="w-full bg-blue-900/50 border-2 border-blue-400/30 rounded-xl px-4 py-3 text-2xl font-black text-emerald-400 outline-none focus:border-emerald-400 shadow-inner"
+                                        value={paymentInput} 
+                                        onChange={e => setPaymentInput(Math.min(parseFloat(e.target.value) || 0, totals.maxPayable))}
+                                    />
+                                    <div className="flex gap-2 shrink-0">
+                                        <Button variant="danger" className="flex-1 px-4 text-[10px] font-black uppercase tracking-widest" onClick={() => setPaymentInput(0)}>CLEAR</Button>
+                                        <Button variant="success" className="flex-1 px-4 text-[10px] font-black uppercase tracking-widest" onClick={() => setPaymentInput(totals.maxPayable)}>FULL</Button>
+                                    </div>
+                                </div>
+                                <p className="text-[9px] text-blue-300 uppercase font-black italic tracking-tighter">Previously Paid: ₱ {totals.previousPaid.toLocaleString()}</p>
                             </div>
-                            <div className="bg-white/10 p-5 rounded-2xl flex-1 text-right border border-white/5">
+                            <div className="bg-white/10 p-5 rounded-2xl flex-1 text-center md:text-right border border-white/5 shadow-inner">
                                 <span className="text-[10px] font-black uppercase text-blue-200 block mb-1">Projected Balance</span>
-                                <p className={`text-3xl font-black ${totals.currentBalance > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>₱ {totals.currentBalance.toLocaleString()}</p>
+                                <p className={`text-2xl md:text-3xl font-black ${totals.currentBalance > 0 ? 'text-rose-400' : 'text-emerald-400'} transition-colors`}>
+                                    ₱ {totals.currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </p>
                             </div>
                         </div>
                     </div>
                 </div>
-                
 
-                <div className="p-4 md:p-6 bg-slate-50 border-t flex justify-center gap-3">
-                    <Button variant="gray" onClick={onClose} className="px-14 py-3.5 uppercase font-black text-[11px]">Close</Button>
+                {/* Footer Actions */}
+                <div className="p-4 md:p-6 bg-slate-50 border-t flex flex-col md:flex-row justify-center gap-3 shrink-0">
+                    <Button variant="gray" onClick={onClose} className="w-full md:w-auto md:px-14 py-3 uppercase font-black text-[11px] tracking-widest order-2 md:order-1">Close</Button>
                     <a 
                         href={route('admin.billing.outpatient.pdf', visit.id)} 
                         target="_blank"
-                        className="inline-flex items-center px-8 md:px-14 py-3.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-black uppercase text-[11px] shadow-lg transition-all active:scale-95"
+                        className="w-full md:w-auto inline-flex items-center justify-center px-8 md:px-14 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-black uppercase text-[11px] tracking-widest shadow-lg transition-all active:scale-95 order-1 md:order-2"
                     >
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                         Download Bill
                     </a>
-                    <Button variant="success" disabled={paymentInput <= 0 || isFinalizing} onClick={() => setShowPaymentConfirm(true)} className="px-14 py-3.5 uppercase font-black text-[11px] shadow-lg shadow-emerald-500/20">Confirm Payment</Button>
+                    <Button 
+                        variant="success" 
+                        className="w-full md:w-auto md:px-14 py-3 uppercase font-black text-[11px] tracking-widest shadow-lg shadow-emerald-500/20 order-1 md:order-2"
+                        disabled={paymentInput <= 0 || isFinalizing}
+                        onClick={() => setShowPaymentConfirm(true)}
+                    >
+                        Confirm Payment
+                    </Button>
                 </div>
             </div>
 
-            {/* Overlays (Payment Confirm / Delete Item) */}
+            {/* Overlays */}
             {showPaymentConfirm && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/90 backdrop-blur-md p-4">
-                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm p-8 text-center">
-                        <h4 className="text-2xl font-black uppercase tracking-tight mb-6">Finalize Payment?</h4>
-                        <div className="bg-emerald-50 p-5 rounded-2xl border border-emerald-100 mb-6 flex justify-between items-center">
-                            <span className="text-xs font-bold text-emerald-700 uppercase">Amount</span>
-                            <span className="text-2xl font-black text-emerald-700">₱{parseFloat(paymentInput).toLocaleString()}</span>
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/90 backdrop-blur-md p-4 animate-in fade-in">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden">
+                        <div className="bg-emerald-600 p-6 text-center text-white">
+                            <h4 className="text-xl font-black uppercase tracking-tight">Finalize Payment?</h4>
                         </div>
-                        <div className="flex gap-3">
-                            <button onClick={() => setShowPaymentConfirm(false)} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px]">Back</button>
-                            <button onClick={handleConfirmPayment} className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg">Confirm</button>
+                        <div className="p-6 space-y-6 text-center">
+                            <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex justify-between items-center">
+                                <span className="text-[10px] font-bold text-emerald-700 uppercase">Amount</span>
+                                <span className="text-2xl font-black text-emerald-700">₱{parseFloat(paymentInput).toLocaleString()}</span>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => setShowPaymentConfirm(false)} className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl font-black uppercase text-[10px]">Back</button>
+                                <button disabled={isFinalizing} onClick={handleConfirmPayment} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] shadow-lg">Confirm</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
 
             {itemToDelete && (
-                <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xs p-8 flex flex-col items-center text-center">
-                        <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mb-4 text-rose-600 text-2xl font-black">!</div>
-                        <h4 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-2">Remove Item?</h4>
-                        <p className="text-slate-500 text-xs mb-6 px-4">Delete {itemToDelete.medicine?.generic_name} from invoice?</p>
-                        <div className="flex w-full gap-2">
-                            <button onClick={() => setItemToDelete(null)} className="flex-1 py-3 bg-slate-200 text-slate-600 rounded-xl font-black uppercase text-[10px]">No</button>
-                            <button onClick={() => { router.delete(route('admin.billing.removeItem', itemToDelete.id), { preserveScroll: true, onSuccess: () => setItemToDelete(null) }); }} className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-black uppercase text-[10px]">Yes</button>
+                <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 animate-in fade-in">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xs overflow-hidden">
+                        <div className="bg-rose-50 p-8 flex flex-col items-center text-center">
+                            <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mb-4 text-rose-600 text-2xl font-black">!</div>
+                            <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Remove Item?</h4>
+                            <p className="text-slate-500 text-xs mb-6 px-4">Delete {itemToDelete.medicine?.generic_name} from invoice?</p>
+                            <div className="flex w-full gap-2">
+                                <button onClick={() => setItemToDelete(null)} className="flex-1 py-3 bg-slate-200 text-slate-600 rounded-xl font-black uppercase text-[10px]">No</button>
+                                <button onClick={() => { router.delete(route('admin.billing.removeItem', itemToDelete.id), { preserveScroll: true, onSuccess: () => setItemToDelete(null) }); }} className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-black uppercase text-[10px]">Yes</button>
+                            </div>
                         </div>
                     </div>
                 </div>

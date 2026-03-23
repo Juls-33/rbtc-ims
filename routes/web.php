@@ -87,6 +87,7 @@ Route::middleware(['auth', 'verified', 'force.password.change'])->group(function
         Route::put('/admissions/{admission}', [AdmissionController::class, 'update'])->name('admin.admissions.update');
         Route::post('/admissions/discharge', [AdmissionController::class, 'discharge'])->name('admin.admissions.discharge');
         Route::post('/visits', [PatientVisitController::class, 'store'])->name('admin.visits.store');
+        Route::put('/visits/{visit}', [PatientVisitController::class, 'update'])->name('admin.visits.update');
         Route::delete('/admissions/{id}', [AdmissionController::class, 'destroy'])->name('admin.admissions.destroy');
 
         // Rooms

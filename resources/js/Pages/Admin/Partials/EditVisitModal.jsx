@@ -2,10 +2,12 @@ import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 
 export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onError }) {
+    // 1. ADDED: 'checkup_fee' to form data to satisfy controller validation
     const { data, setData, put, processing, reset, errors, setError, clearErrors } = useForm({
         visit_date: '',
         weight: '',
         reason: '',
+        checkup_fee: '', 
     });
 
     const today = new Date().toISOString().split('T')[0];
@@ -13,9 +15,11 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
     useEffect(() => {
         if (visit && isOpen) {
             setData({
-                visit_date: visit.date || '',
+                // 2. FIXED: Reference visit.visit_date instead of visit.date
+                visit_date: visit.visit_date || '', 
                 weight: visit.weight?.toString().replace('KG', '') || '',
                 reason: visit.reason || '',
+                checkup_fee: visit.checkup_fee || 0,
             });
         }
     }, [visit, isOpen]);
@@ -53,12 +57,14 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
                     if (onSuccess) onSuccess('Visit record updated successfully!');
                     handleModalClose();
                 },
-                onError: () => {
+                onError: (err) => {
+                    console.error("Server Error:", err);
                     if (onError) onError('Update failed. Please check the red fields.');
                 }
             });
         }
     };
+
     const inputClass = (error) => `w-full border rounded-lg px-4 py-3 md:py-2 text-sm transition-all outline-none ${
         error 
             ? 'bg-red-50 !border-red-500 ring-2 ring-red-200 focus:!border-red-600' 
@@ -82,9 +88,9 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
 
     return (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200 font-sans">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh] border border-slate-200">
+            {/* 3. WRAP EVERYTHING IN THE FORM: Ensures the submit button triggers handleSubmit */}
+            <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh] border border-slate-200">
                 
-                {/* Header */}
                 <div className="bg-[#3D52A0] text-white p-4 md:p-5 flex justify-between items-center shadow-lg shrink-0">
                     <div>
                         <h3 className="font-black text-sm md:text-lg uppercase tracking-tight leading-none">Edit Visit Details</h3>
@@ -93,16 +99,14 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
                         </p>
                     </div>
                     <button 
+                        type="button"
                         onClick={handleModalClose} 
                         className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors text-2xl leading-none"
                     >&times;</button>
                 </div>
 
-                {/* Form Body */}
-                <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6 overflow-y-auto no-scrollbar flex-1 text-slate-800">
-                    
+                <div className="p-6 md:p-8 space-y-6 overflow-y-auto no-scrollbar flex-1 text-slate-800">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        {/* Visit Date */}
                         <div className="space-y-1">
                             <Label text="Date of Visit" required fieldError={errors.visit_date} />
                             <input 
@@ -115,7 +119,6 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
                             {errors.visit_date && <p className="text-red-600 text-[10px] mt-1 font-black italic uppercase">{errors.visit_date}</p>}
                         </div>
 
-                        {/* Weight */}
                         <div className="space-y-1">
                             <Label text="Weight (KG)" fieldError={errors.weight} />
                             <input 
@@ -130,7 +133,6 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
                         </div>
                     </div>
 
-                    {/* Reason for Visit */}
                     <div className="space-y-1">
                         <Label text="Reason / Clinical Findings" current={data.reason.length} max={250} required fieldError={errors.reason} />
                         <textarea 
@@ -142,7 +144,8 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
                         />
                         {errors.reason && <p className="text-red-600 text-[10px] mt-1 font-black italic uppercase">{errors.reason}</p>}
                     </div>
-                </form>
+                </div>
+
                 <div className="p-4 md:p-6 bg-slate-50 border-t flex flex-col md:flex-row justify-center gap-3 shrink-0">
                     <button 
                         type="button" 
@@ -159,7 +162,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
                         {processing ? 'Processing...' : 'Update Record'}
                     </button>
                 </div>
-            </div>
+            </form>
         </div>
     );
 }

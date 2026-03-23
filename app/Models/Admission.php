@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Carbon\Carbon;
 
 class Admission extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'patient_id', 'staff_id', 'room_id', 'diagnosis', 'status', 'admission_date', 'discharge_date', 'amount_paid'
@@ -81,22 +82,27 @@ class Admission extends Model
     /**
      * Version used by the ViewBillModal and Accessor
      */
+    // app/Models/Admission.php
+
     public function getStatements()
     {
         $start = Carbon::parse($this->admission_date);
         $endPoint = $this->discharge_date ? Carbon::parse($this->discharge_date) : now();
         
-        $totalDays = max(1, $start->diffInDays($endPoint));
-        $statementCount = ceil($totalDays / 30);
-        
         $statements = [];
+        $i = 0;
 
-        for ($i = 0; $i < $statementCount; $i++) {
-            $periodStart = $start->copy()->addDays($i * 30);
-            $periodEnd = $start->copy()->addDays(($i + 1) * 30)->subSecond();
+        while (true) {
+            $periodStart = $start->copy()->addMonths($i);
+            if ($i > 0 && $periodStart->gte($endPoint)) break;
+
+            $nextCycleStart = $start->copy()->addMonths($i + 1);
+            $periodEnd = $nextCycleStart->copy()->subSecond();
             $clampedEnd = $periodEnd->gt($endPoint) ? $endPoint : $periodEnd;
 
             $roomTotal = 0;
+            $roomDetails = []; // Added to hold breakdown for the PDF
+
             foreach ($this->roomStays as $stay) {
                 $stayStart = Carbon::parse($stay->start_date);
                 $stayEnd = $stay->end_date ? Carbon::parse($stay->end_date) : now();
@@ -107,7 +113,16 @@ class Admission extends Model
                 if ($overlapStart->lt($overlapEnd)) {
                     $days = (int) ceil($overlapStart->floatDiffInDays($overlapEnd));
                     $days = max(1, $days); 
-                    $roomTotal += ($days * $stay->daily_rate);
+                    $subtotal = ($days * $stay->daily_rate);
+                    $roomTotal += $subtotal;
+
+                    // Store individual stay details for the PDF line items
+                    $roomDetails[] = [
+                        'description' => "Room: " . ($stay->room->room_number ?? 'N/A') . " (" . ($stay->room->type ?? 'Standard') . ")",
+                        'days' => $days,
+                        'unit_price' => (float)$stay->daily_rate,
+                        'subtotal' => (float)$subtotal
+                    ];
                 }
             }
 
@@ -115,7 +130,6 @@ class Admission extends Model
                 return $item->created_at >= $periodStart && $item->created_at <= $periodEnd;
             })->values();
 
-            // 🔥 Variable defined here to stop the Undefined Variable error
             $itemsTotal = (float)$items->sum('total_price');
             $grandTotal = round($roomTotal + $itemsTotal, 2);
 
@@ -124,11 +138,14 @@ class Admission extends Model
                 'bill_id' => "STMT-" . $this->id . "-" . ($i + 1),
                 'period' => $periodStart->format('M d, Y') . ' - ' . $clampedEnd->format('M d, Y'),
                 'room_total' => (float)$roomTotal,
+                'room_details' => $roomDetails, // Pass details to the view
                 'items_total' => $itemsTotal,
                 'grand_total' => (float)$grandTotal,
                 'items' => $items,
                 'status' => $this->amount_paid >= $grandTotal ? 'PAID' : 'UNPAID',
             ];
+
+            $i++;
         }
 
         return $statements;

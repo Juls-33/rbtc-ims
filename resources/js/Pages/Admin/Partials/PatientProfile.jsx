@@ -117,6 +117,13 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
             <div className="bg-[#3D52A0] text-white p-3 flex justify-between items-center font-bold">
                 <span>Patient Information ({typeLabel})</span>
+                <span className={`px-2 py-0.5 rounded text-[8px] border ${
+                        typeLabel === 'Outpatient' 
+                            ? 'bg-blue-500 text-white border-blue-400' 
+                            : 'bg-emerald-500 text-white border-emerald-400'
+                    }`}>
+                        {typeLabel.toUpperCase()} RECORD
+                    </span>
                 <div className="flex gap-2">
                     <Button variant="danger" className="text-[10px] px-4" onClick={() => setIsDeleteModalOpen(true)}>DELETE PATIENT RECORD</Button>
                     <Button variant='success' onClick={() => setIsEditModalOpen(true)} className="text-[10px] px-4">EDIT DETAILS</Button>
@@ -221,7 +228,15 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
                         <div className="text-center space-y-4">
                             <div className="grid grid-cols-2 gap-4 text-sm mb-6 text-left">
                                 <div>
-                                    <p><span className="font-bold">Status:</span> <span className="text-emerald-600 font-black uppercase">{patient.status}</span></p>
+                                    <p><span className="font-bold text-slate-500 uppercase text-[10px]">Status:</span> 
+                                        <span className={`ml-2 px-3 py-1 rounded-full text-[9px] font-black uppercase border ${
+                                            patient.status === 'ADMITTED' 
+                                                ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                                                : 'bg-amber-100 text-amber-700 border-amber-200'
+                                        }`}>
+                                            {patient.status}
+                                        </span>
+                                    </p>
                                     <p><span className="font-bold">Admission Date:</span> {patient.admission_date}</p>
                                 </div>
                                 <div className="text-right">
@@ -282,6 +297,7 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
                                 <ClientPagination currentPage={admPage} totalPages={Math.ceil(filteredAdmissions.length / itemsPerPage)} onPageChange={setAdmPage} totalResults={filteredAdmissions.length} itemsPerPage={itemsPerPage} />
                             </div>
                         </div>
+
                     </div>
                 </div>
             </div>

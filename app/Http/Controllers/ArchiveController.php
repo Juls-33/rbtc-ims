@@ -64,31 +64,35 @@ class ArchiveController extends Controller
         return DB::transaction(function () use ($id) {
             $archive = Archive::findOrFail($id);
             $modelClass = $archive->archivable_type;
-            
-            // Re-instantiate the model from data
-            $instance = new $modelClass();
-            $instance->fill($archive->data);
-            
-            if (isset($archive->archivable_id)) {
-                $instance->id = $archive->archivable_id;
-            }
-            
-            $instance->save();
+            $originalId = $archive->archivable_id;
 
-            // Log the restoration for accountability
+            // 1. FIND THE HIDDEN RECORD
+            $instance = $modelClass::withTrashed()->find($originalId);
+
+            if (!$instance) {
+                $instance = new $modelClass();
+                $instance->fill($archive->data);
+                $instance->id = $originalId;
+            }
+
+            // 2. TRIGGER THE RESTORE
+            // This triggers the 'booted' event in Patient.php which restores visits/admissions!
+            $instance->restore(); 
+
+            // 3. LOGGING (Keep your existing accountability logic)
             if (str_contains($modelClass, 'Patient')) {
                 PatientLog::create([
                     'staff_id'    => auth()->id(),
-                    'patient_id'  => $instance->id, // Link to the newly restored ID
+                    'patient_id'  => $instance->id,
                     'action'      => 'RESTORED',
                     'description' => "Patient record for {$instance->full_name} ({$instance->patient_id}) was restored from the Archive Bin.",
                     'ip_address'  => request()->ip(),
                 ]);
             }
-
+            // 4. CLEANUP
             $archive->delete();
 
-            return redirect()->back()->with('success', "Record successfully restored to the system.");
+            return redirect()->back()->with('success', "Record successfully restored and history re-synced.");
         });
     }
 
