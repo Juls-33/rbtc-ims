@@ -8,6 +8,7 @@ export default function DischargeModal({ isOpen, onClose, patient }) {
     
     const admission = patient?.active_admission;
     const totalBalance = parseFloat(admission?.balance || 0);
+    const isFullyPaid = parseFloat(admission.balance) <= 0;
 
     const { data, setData, post, processing } = useForm({ 
         admission_id: admission?.id || '',
@@ -142,9 +143,11 @@ export default function DischargeModal({ isOpen, onClose, patient }) {
                             </button>
                             <button 
                                 onClick={() => setShowWarning(true)}
-                                className="bg-[#C84B4B] hover:bg-[#A63E3E] text-white py-4 rounded-xl font-black text-[10px] md:text-[11px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                                className={`${
+                                    isFullyPaid ? 'bg-[#059669] hover:bg-[#047857]' : 'bg-[#C84B4B] hover:bg-[#A63E3E]'
+                                } text-white py-4 rounded-xl font-black text-[10px] md:text-[11px] uppercase tracking-widest shadow-lg active:scale-95 transition-all w-full`}
                             >
-                                Discharge (Unpaid)
+                                {isFullyPaid ? 'Confirm Discharge' : 'Discharge (Unpaid)'}
                             </button>
                         </div>
                     </div>

@@ -12,19 +12,19 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // 1. Keep only standard Inertia/Asset middleware here
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
-            \App\Http\Middleware\ForcePasswordChange::class, // Run this site-wide
         ]);
 
-        // 2. Route Aliases (These map the strings in web.php to the actual classes)
+        // 2. COMBINE ALL ALIASES INTO ONE BLOCK
         $middleware->alias([
             'nurse' => \App\Http\Middleware\NurseMiddleware::class,
             'doctor' => \App\Http\Middleware\DoctorMiddleware::class,
             'force.password.change' => \App\Http\Middleware\ForcePasswordChange::class,
+            'checkStatus' => \App\Http\Middleware\CheckAccountStatus::class,
         ]);
-
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

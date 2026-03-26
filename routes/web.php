@@ -46,9 +46,13 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/force-password-change', [StaffController::class, 'forceUpdatePassword'])
         ->name('password.force-update');
 });
+// Route::middleware(['auth', 'checkStatus'])->group(function () {
+//     // All your Patient Management, Billing, and Room routes go here
+//     Route::get('/admin/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
+// });
 
 // --- AUTHENTICATED SYSTEM ROUTES ---
-Route::middleware(['auth', 'verified', 'force.password.change'])->group(function () {
+Route::middleware(['auth', 'verified','checkStatus', 'force.password.change'])->group(function () {
     
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

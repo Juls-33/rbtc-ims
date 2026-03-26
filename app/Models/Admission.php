@@ -86,23 +86,38 @@ class Admission extends Model
 
     public function getStatements()
     {
-        $start = Carbon::parse($this->admission_date);
+        $baseDate = Carbon::parse($this->admission_date);
+        $anchorDay = $baseDate->day; // e.g., 30
         $endPoint = $this->discharge_date ? Carbon::parse($this->discharge_date) : now();
         
         $statements = [];
         $i = 0;
 
         while (true) {
-            $periodStart = $start->copy()->addMonths($i);
+            // 1. Calculate THIS period's start
+            $targetStart = $baseDate->copy()->addMonthsNoOverflow($i);
+            $periodStart = ($anchorDay > $targetStart->daysInMonth) 
+                ? $targetStart->endOfMonth()->startOfDay() 
+                : $targetStart->day($anchorDay)->startOfDay();
+
+            // Break if the calculated start is past our discharge/current date
             if ($i > 0 && $periodStart->gte($endPoint)) break;
 
-            $nextCycleStart = $start->copy()->addMonths($i + 1);
+            // 2. Calculate NEXT period's start to define current period's end
+            // This is the "Anchor" logic: Feb 28 becomes the start so Jan ends on the 27th
+            $targetNext = $baseDate->copy()->addMonthsNoOverflow($i + 1);
+            $nextCycleStart = ($anchorDay > $targetNext->daysInMonth) 
+                ? $targetNext->endOfMonth()->startOfDay() 
+                : $targetNext->day($anchorDay)->startOfDay();
+
+            // Period ends 1 second before the next cycle starts
             $periodEnd = $nextCycleStart->copy()->subSecond();
             $clampedEnd = $periodEnd->gt($endPoint) ? $endPoint : $periodEnd;
 
             $roomTotal = 0;
-            $roomDetails = []; // Added to hold breakdown for the PDF
+            $roomDetails = [];
 
+            // --- Room Stay Calculation ---
             foreach ($this->roomStays as $stay) {
                 $stayStart = Carbon::parse($stay->start_date);
                 $stayEnd = $stay->end_date ? Carbon::parse($stay->end_date) : now();
@@ -116,9 +131,8 @@ class Admission extends Model
                     $subtotal = ($days * $stay->daily_rate);
                     $roomTotal += $subtotal;
 
-                    // Store individual stay details for the PDF line items
                     $roomDetails[] = [
-                        'description' => "Room: " . ($stay->room->room_number ?? 'N/A') . " (" . ($stay->room->type ?? 'Standard') . ")",
+                        'description' => "Room: " . ($stay->room->room_location ?? 'N/A'),
                         'days' => $days,
                         'unit_price' => (float)$stay->daily_rate,
                         'subtotal' => (float)$subtotal
@@ -126,6 +140,7 @@ class Admission extends Model
                 }
             }
 
+            // --- Billing Items Filtering ---
             $items = $this->billItems->filter(function($item) use ($periodStart, $periodEnd) {
                 return $item->created_at >= $periodStart && $item->created_at <= $periodEnd;
             })->values();
@@ -138,7 +153,7 @@ class Admission extends Model
                 'bill_id' => "STMT-" . $this->id . "-" . ($i + 1),
                 'period' => $periodStart->format('M d, Y') . ' - ' . $clampedEnd->format('M d, Y'),
                 'room_total' => (float)$roomTotal,
-                'room_details' => $roomDetails, // Pass details to the view
+                'room_details' => $roomDetails,
                 'items_total' => $itemsTotal,
                 'grand_total' => (float)$grandTotal,
                 'items' => $items,
@@ -146,6 +161,9 @@ class Admission extends Model
             ];
 
             $i++;
+            
+            // Safety break to prevent infinite loops in development
+            if ($i > 100) break; 
         }
 
         return $statements;

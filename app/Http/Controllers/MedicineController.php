@@ -93,56 +93,6 @@ class MedicineController extends Controller
                 'admin' => $log->staff ? $log->staff->first_name . ' ' . $log->staff->last_name : 'System',
             ];
         });
-
-        // $inventory = MedicineCatalog::with(['batches' => function($query) {
-        //         // Keep the FEFO sorting for the billing logic
-        //         $query->where('current_quantity', '>', 0)
-        //             ->orderBy('expiry_date', 'asc'); 
-        //     }])->get()->map(function($medicine) {
-                
-        //         $totalStock = $medicine->batches->sum('current_quantity');
-        //         $defaultBatch = $medicine->batches->first(); 
-
-        //         return [
-        //             'id' => $medicine->id,
-        //             'sku' => $medicine->sku_id,        
-        //             'category' => $medicine->category, 
-        //             'name' => $medicine->generic_name,
-        //             'brand_name' => $medicine->brand_name, 
-        //             'dosage' => $medicine->dosage,
-        //             'price' => $medicine->price_per_unit,
-        //             'totalStock' => $totalStock,
-        //             'is_available' => $totalStock > 0,
-        //             'default_batch' => $defaultBatch ? [
-        //                 'id' => $defaultBatch->sku_batch_id,
-        //                 'expiry' => $defaultBatch->expiry_date,
-        //                 'stock' => $defaultBatch->current_quantity,
-        //             ] : null,
-        //             'batches' => $medicine->batches->map(fn($b) => [
-        //                 'id' => $b->sku_batch_id,
-        //                 'expiry' => $b->expiry_date,
-        //                 'stock' => $b->current_quantity,
-        //             ]),
-        //         ];
-        //     })
-        //     ->sortByDesc('is_available')
-        //     ->values();
-
-        // $logs = StockLog::with(['batch.medicine', 'staff'])
-        //     ->latest()
-        //     ->get()
-        //     ->map(function($log) {
-        //         return [
-        //             'dateTime' => $log->created_at->format('Y-m-d H:i'),
-        //             'id' => $log->batch->sku_batch_id ?? 'N/A',
-        //             'medicine_name' => $log->batch->medicine->generic_name ?? 'Catalog Update',
-        //             'action' => $log->change_amount != 0 ? ($log->change_amount > 0 ? 'STOCK IN' : 'DISPENSE') : 'CATALOG MOD',
-        //             'amount' => $log->change_amount == 0 ? '—' : ($log->change_amount > 0 ? '+' : '') . $log->change_amount,
-        //             'reason' => $log->reason,
-        //             'admin' => $log->staff ? $log->staff->first_name . ' ' . $log->staff->last_name : 'System',
-        //         ];
-        //     });
-
         return Inertia::render('Admin/MedicineInventory', [
             'inventory' => $inventoryPaginator, 
             'logs' => $logs,
@@ -248,14 +198,14 @@ class MedicineController extends Controller
         return DB::transaction(function () use ($medicine) {
             StockLog::create([
                 'medicine_id'   => null,
-                'staff_id'      => auth()->id(), // FIX: Use auth id (integer)
+                'staff_id'      => auth()->id(), 
                 'batch_id'      => null,
                 'change_amount' => 0,
                 'reason'        => "CATALOG: Deleted medicine '{$medicine->generic_name}' and all its batches.",
             ]);
 
             $medicine->delete();
-            return redirect()->back()->with('success', 'Medicine deleted successfully.');
+            return redirect()->back()->with('success', 'Medicine has been moved to the archive. Billing history is preserved.');
         });
     }
 

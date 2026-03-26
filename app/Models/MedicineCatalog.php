@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Traits\Archivable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MedicineCatalog extends Model
 {
-    use HasFactory, Archivable;
+    use HasFactory, Archivable, SoftDeletes;
 
     // Explicitly define the table name if it differs from the plural 'medicine_catalogs'
     protected $table = 'medicine_catalog';
@@ -37,5 +38,23 @@ class MedicineCatalog extends Model
     public function prescriptions()
     {
         return $this->hasMany(Prescription::class, 'medicine_id');
+    }
+
+    protected static function booted()
+    {
+        static::deleted(function ($medicine) {
+            \App\Models\Archive::create([
+                'archivable_id'   => $medicine->id,
+                'archivable_type' => get_class($medicine),
+                'data'            => $medicine->toArray(), 
+                'reason'          => 'Inventory Deletion',
+                'archived_by'     => auth()->id(),
+                'archived_at'     => now(),
+                'scheduled_deletion_at' => now()->addDays(30), 
+            ]);
+        });
+
+        static::restoring(function ($medicine) {
+        });
     }
 }

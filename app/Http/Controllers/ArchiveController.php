@@ -21,6 +21,7 @@ class ArchiveController extends Controller
                 // Search in the JSON 'data' column and 'reason'
                 $q->where('data->first_name', 'LIKE', "%{$searchTerm}%")
                   ->orWhere('data->last_name', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('data->name', 'LIKE', "%{$searchTerm}%")
                   ->orWhere('data->generic_name', 'LIKE', "%{$searchTerm}%")
                   ->orWhere('reason', 'LIKE', "%{$searchTerm}%")
                   ->orWhere('archivable_type', 'LIKE', "%{$searchTerm}%");
@@ -38,7 +39,7 @@ class ArchiveController extends Controller
                 if (str_contains($item->archivable_type, 'Patient')) {
                     $displayName = ($data['first_name'] ?? '') . ' ' . ($data['last_name'] ?? '');
                 } elseif (str_contains($item->archivable_type, 'Medicine')) {
-                    $displayName = $data['generic_name'] ?? $data['name'] ?? 'Medicine Record';
+                    $displayName = $data['name'] ?? $data['generic_name'] ?? 'Medicine Record';
                 }
 
                 return [
@@ -66,33 +67,46 @@ class ArchiveController extends Controller
             $modelClass = $archive->archivable_type;
             $originalId = $archive->archivable_id;
 
-            // 1. FIND THE HIDDEN RECORD
+            // 1. FIND OR RECREATE THE RECORD
+            // We use withTrashed() to find the soft-deleted row in the medicine_catalog
             $instance = $modelClass::withTrashed()->find($originalId);
 
             if (!$instance) {
                 $instance = new $modelClass();
                 $instance->fill($archive->data);
                 $instance->id = $originalId;
+                // We save it first if it was somehow hard-deleted/missing
+                $instance->save(); 
             }
 
-            // 2. TRIGGER THE RESTORE
-            // This triggers the 'booted' event in Patient.php which restores visits/admissions!
+            // 2. TRIGGER THE RESTORE (Clears the deleted_at timestamp)
             $instance->restore(); 
 
-            // 3. LOGGING (Keep your existing accountability logic)
+            // 3. LOGGING FOR PATIENTS (Your existing logic)
             if (str_contains($modelClass, 'Patient')) {
                 PatientLog::create([
                     'staff_id'    => auth()->id(),
                     'patient_id'  => $instance->id,
                     'action'      => 'RESTORED',
-                    'description' => "Patient record for {$instance->full_name} ({$instance->patient_id}) was restored from the Archive Bin.",
+                    'description' => "Patient record for {$instance->first_name} {$instance->last_name} ({$instance->patient_id}) was restored from the Archive Bin.",
                     'ip_address'  => request()->ip(),
                 ]);
             }
-            // 4. CLEANUP
+            
+            // 4. LOGGING FOR MEDICINES (New explicit logic)
+            if (str_contains($modelClass, 'Medicine')) {
+                \App\Models\StaffLog::create([
+                    'staff_id'    => auth()->id(),
+                    'action'      => 'RESTORED MEDICINE',
+                    'description' => "Medicine '{$instance->name}' was restored to the active inventory catalog.",
+                    'ip_address'  => request()->ip(),
+                ]);
+            }
+
+            // 5. CLEANUP
             $archive->delete();
 
-            return redirect()->back()->with('success', "Record successfully restored and history re-synced.");
+            return redirect()->back()->with('success', "Record successfully restored to the system.");
         });
     }
 

@@ -250,7 +250,6 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                                         </tr>
                                     ))}
                                     
-                                    {/* SEARCH ROW - 🔥 FIXED: Same overflow-visible logic as outpatient */}
                                     <tr className="bg-emerald-50/30 relative overflow-visible" ref={medDropdownRef}>
                                         <td className="p-3 border-r relative overflow-visible">
                                             <input 
