@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use App\Models\PatientVisit;
 use App\Models\Patient;
 use App\Models\Prescriptions;
@@ -14,25 +15,62 @@ use Illuminate\Support\Facades\DB;
 
 class NurseController extends Controller
 {
-    public function dashboard()
+    public function dashboard(Request $request)
     {
         $nurseId = auth()->id();
         
-        $myRecords = PatientVisit::with('patient')
-            ->where('staff_id', $nurseId)
-            ->whereDate('visit_date', now()->today())
+        // Fix 1: Added 'medicine' to with() to prevent slow loading
+        $prescriptions = Prescriptions::with(['patient', 'medicine'])
+            ->whereNotNull('schedule_time')
             ->get();
 
+        $administrations = $prescriptions->map(function ($p) {
+            $dueTime = Carbon::createFromFormat('H:i', $p->schedule_time);
+
+            $displayName = $p->medicine 
+                ? ($p->medicine->brand_name 
+                    ? "{$p->medicine->generic_name} ({$p->medicine->brand_name})" 
+                    : $p->medicine->generic_name)
+                : ($p->medicine_name ?? 'Unknown Medicine');
+
+            return [
+                'time' => $dueTime->format('g:i A'),
+                'isOverdue' => $dueTime->isPast() && $dueTime->isToday(),
+                'id' => $p->patient->patient_id ?? 'N/A',
+                'prescription_id' => $p->id,
+                'medicine_id' => $p->medicine_id,
+                'db_id' => $p->patient->id,
+                'name' => $p->patient->full_name ?? 'Unknown',
+                'room' => $p->patient->room_number ?? 'TBD',
+                'medication' => $displayName,
+                'dosage' => $p->dosage . ' (' . $p->frequency . ')',
+            ];
+        });
+
         $stats = [
-            'vitals_taken_today' => $myRecords->count(),
-            'active_admissions' => Patient::whereHas('admissions', function($q) {
-                $q->where('status', 'admitted');
-            })->count(),
+            'overdue_count' => $administrations->where('isOverdue', true)->count(),
+            // Fix 2: Real-time count of nurse's work today
+            'administered_today' => MedicationLog::where('nurse_id', $nurseId)
+                                    ->whereDate('administered_at', now()->today())
+                                    ->count(),
+            'next_up' => $administrations->where('isOverdue', false)->sortBy('time')->first(),
         ];
 
+        $batches = MedicineBatch::where('current_quantity', '>', 0)
+                ->whereDate('expiry_date', '>', now())
+                ->get();
+
         return Inertia::render('Nurse/Dashboard', [
-            'recentActivity' => $myRecords->take(5),
-            'stats' => $stats
+            'auth' => [
+                'user' => array_merge($request->user()->toArray(), [
+                    'db_id' => $request->user()->id,
+                    'name'  => "Nurse " . $request->user()->last_name, // Matches your Profile logic
+                    'id'    => $request->user()->staff_id,
+                ]),
+            ],
+            'administrations' => $administrations,
+            'stats' => $stats,
+            'batches' => $batches
         ]);
     }
 
@@ -210,11 +248,10 @@ class NurseController extends Controller
 
     public function administerMedication(Request $request, $prescriptionId)
     {
-        $prescription = Prescriptions::findOrFail($prescriptionId);
+        $prescription = Prescriptions::findOrFail($request->prescription_id);
         
         // 1. Perform validation first (outside transaction to save resources)
         $batch = MedicineBatch::where('sku_batch_id', $request->sku_batch_id)
-        // Add this check to ensure they match
         ->where('medicine_id', $prescription->medicine_id) 
         ->lockForUpdate()
         ->first();
