@@ -46,6 +46,7 @@ https://nodejs.org/en/download
 ```bash
 composer install
 npm install
+composer require barryvdh/laravel-dompdf
 php artisan ciphersweet:generate-key # IMPORTANT: Copy this output to .env!
 ```
 
