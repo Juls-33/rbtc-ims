@@ -6,20 +6,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::table('medicine_catalog', function (Blueprint $table) {
-            $table->softDeletes(); // This adds the 'deleted_at' column
-        });
+        if (!Schema::hasColumn('medicine_catalog', 'deleted_at')) {
+            Schema::table('medicine_catalog', function (Blueprint $table) {
+                $table->softDeletes();
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('medicine_catalog', function (Blueprint $table) {
-            $table->dropSoftDeletes();
-        });
-    }   
+        if (Schema::hasColumn('medicine_catalog', 'deleted_at')) {
+            Schema::table('medicine_catalog', function (Blueprint $table) {
+                $table->dropSoftDeletes();
+            });
+        }
+    }
 };
