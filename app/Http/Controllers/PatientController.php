@@ -97,24 +97,25 @@ class PatientController extends Controller
                 'admission_history' => $allAdmissions->map(fn($adm) => [
                     'id'             => $adm->id,
                     'admission_date' => $adm->admission_date,
-                    'discharge_date' => $adm->discharge_date,
+                    'discharge_date' => $adm->discharge_date ?? 'Active',
                     'diagnosis'      => $adm->diagnosis,
-                    'total_bill'     => (float)$adm->total_bill,   
-                    'balance'        => (float)$adm->balance, 
+                    'total_bill'     => (float)$adm->total_bill,
+                    'balance'        => (float)$adm->balance,
                     'amount_paid'    => (float)$adm->amount_paid,
-                    'statements'     => $adm->getStatements(),
-                    'room_stays'     => $adm->roomStays,
-                    'bill_items'     => $adm->billItems,
-                    'staff'          => $adm->staff,
+                    
+                    'statements'     => $adm->statements, 
+                    
                     'room'           => $adm->room,
+                    'staff'          => $adm->staff,
+                    'monthly_rate'   => (float)$adm->monthly_rate,
                 ])->values(),
-
                 'active_admission' => $active ? [
                     'id'                 => $active->id,
                     'patient_name'       => $patient->full_name,
                     'patient_id_display' => $patient->patient_id,
                     'admission_date'     => date('Y-m-d\TH:i', strtotime($active->admission_date)),
                     'staff_id'           => (int)$active->staff_id,
+                    'monthly_rate'       => (float)$active->monthly_rate,
                     'room_id'            => (int)$active->room_id,
                     'diagnosis'          => $active->diagnosis,
                     'status'             => $active->status,

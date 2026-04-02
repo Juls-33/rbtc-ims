@@ -9,6 +9,9 @@ use App\Models\Prescriptions;
 use App\Models\MedicineCatalog;
 use App\Models\MedicationLog;
 use App\Models\MedicineBatch;
+use App\Models\Admission;      
+use App\Models\BillDetail;       
+use App\Models\InpatientBillItem;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +22,6 @@ class NurseController extends Controller
     {
         $nurseId = auth()->id();
         
-        // Fix 1: Added 'medicine' to with() to prevent slow loading
         $prescriptions = Prescriptions::with(['patient', 'medicine'])
             ->whereNotNull('schedule_time')
             ->get();
@@ -246,63 +248,152 @@ class NurseController extends Controller
         return back()->with('success', 'Vitals recorded successfully!');
     }
 
-    public function administerMedication(Request $request, $prescriptionId)
+    public function administerMedication(Request $request)
     {
-        $prescription = Prescriptions::findOrFail($request->prescription_id);
+        $validated = $request->validate([
+            'prescription_id' => 'required|exists:prescriptions,id',
+            'sku_batch_id'    => 'required|string',
+        ]);
+
+        // 1. Eager load medicine and patient.active_admission
+        $prescription = \App\Models\Prescriptions::with(['medicine', 'patient.active_admission'])
+            ->findOrFail($validated['prescription_id']);
         
-        // 1. Perform validation first (outside transaction to save resources)
-        $batch = MedicineBatch::where('sku_batch_id', $request->sku_batch_id)
-        ->where('medicine_id', $prescription->medicine_id) 
-        ->lockForUpdate()
-        ->first();
+        $admission = $prescription->patient->active_admission;
 
-        if (!$batch) {
-            return back()->withErrors(['sku_batch_id' => 'Invalid batch for this medication.']);
+        if (!$admission) {
+            return back()->withErrors(['error' => 'Patient is not currently admitted.']);
         }
+
+        // 2. Validate Inventory Batch
+        $batch = \App\Models\MedicineBatch::where('sku_batch_id', $validated['sku_batch_id'])
+            ->where('medicine_id', $prescription->medicine_id) 
+            ->lockForUpdate()
+            ->first();
+
+        if (!$batch) return back()->withErrors(['sku_batch_id' => 'Invalid batch selected.']);
         if ($batch->current_quantity <= 0) return back()->withErrors(['sku_batch_id' => 'Out of stock.']);
-        if (now()->parse($batch->expiry_date)->isPast()) return back()->withErrors(['sku_batch_id' => 'Expired.']);
 
-        try {
-            DB::transaction(function () use ($prescription, $batch) {
-                // 2. Perform updates
-                $batch->decrement('current_quantity', 1);
-
-                MedicationLog::create([
-                    'prescription_id' => $prescription->id,
-                    'nurse_id'        => auth()->id(),
-                    'batch_number'    => $batch->sku_batch_id, 
-                    'administered_at' => now(),
-                ]);
-            });
-
-            // 3. Return response AFTER transaction succeeds
-            return back()->with('success', 'Medication administered and stock updated!');
-            
-        } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Database error: ' . $e->getMessage()]);
+        // 3. Prep Price and Medicine Data
+        $medicine = $prescription->medicine;
+        if (!$medicine) {
+            return back()->withErrors(['error' => 'Prescription is not linked to catalog.']);
         }
+        
+        // Ensure you use the correct column name (price_per_unit or price)
+        $unitPrice = (float)($medicine->price_per_unit ?? $medicine->price ?? 0); 
+
+        return DB::transaction(function () use ($prescription, $batch, $admission, $unitPrice, $medicine) {
+            // 1. Deduct Inventory
+            $batch->decrement('current_quantity', 1);
+
+            // 2. Ensure current month exists (October Logic)
+            $admission->generateMonthlyBills();
+
+            // 3. Find the statement covering TODAY
+            $today = now()->toDateString();
+            $activeBill = $admission->bills()
+                ->where('period_start', '<=', $today)
+                ->where('period_end', '>=', $today)
+                ->first();
+
+            if (!$activeBill) {
+                $activeBill = $admission->bills()->latest('month_number')->first();
+            }
+
+            // 4. Create the Billing Line Item
+            \App\Models\InpatientBillItem::create([
+                'admission_id' => $admission->id,
+                'bill_id'      => $activeBill->id,
+                'medicine_id'  => $prescription->medicine_id,
+                'batch_id'     => $batch->id,
+                'description'  => "{$medicine->generic_name} ({$medicine->brand_name}) - Administered",
+                'quantity'     => 1,
+                'unit_price'   => $unitPrice,
+                'total_price'  => $unitPrice,
+            ]);
+
+            // --- THE MISSING FIX FOR THE BALANCE ---
+            // We MUST update the total_amount column in the bill_details table
+            // so that the balance calculation (total_amount - amount_paid) stays accurate.
+            $activeBill->increment('total_amount', $unitPrice);
+
+            // 5. Create Administration Log
+            \App\Models\MedicationLog::create([
+                'prescription_id' => $prescription->id,
+                'nurse_id'        => auth()->id(),
+                'batch_number'    => $batch->sku_batch_id, 
+                'administered_at' => now(),
+            ]);
+
+            // 6. Sync Global Admission Totals (Total Bill & Global Balance)
+            $admission->refresh();
+            $admission->syncLiveTotals();
+
+            return redirect()->back()->with('success', "Medication charged to Month #{$activeBill->month_number} statement.");
+        });
     }
 
     public function administerOutside($id)
     {
-        // 1. Find the prescription
-        $prescription = Prescriptions::findOrFail($id);
+        // 1. Find the prescription with patient and active admission
+        $prescription = \App\Models\Prescriptions::with(['patient.active_admission'])
+            ->findOrFail($id);
 
-        // 2. Validate that it's actually an "outside" med
+        // 2. Security Check: Validate that it's actually an "outside" med
         if ($prescription->medicine_id !== null) {
-            return back()->withErrors(['success' => 'This is not an outside medication.']);
+            return back()->withErrors(['error' => 'This is not an outside medication. Use the standard administration flow instead.']);
         }
 
-        // 3. Create the log entry
-        MedicationLog::create([
-            'prescription_id' => $prescription->id,
-            'nurse_id'        => auth()->id(),
-            'batch_number'    => 'OUTSIDE-PROCURED',
-            'administered_at' => now(),
-        ]);
+        $admission = $prescription->patient->active_admission;
+        if (!$admission) {
+            return back()->withErrors(['error' => 'Patient is not currently admitted. Cannot attach to a billing statement.']);
+        }
 
-        // 4. Return success to the Inertia frontend
-        return back()->with('success', 'Outside medication logged successfully!');
+        return DB::transaction(function () use ($prescription, $admission) {
+            // A. Ensure current month exists (October Logic)
+            // This checks if we need to spawn new months up to today.
+            $admission->generateMonthlyBills();
+
+            // B. Find the statement covering TODAY
+            $today = now()->toDateString();
+            $activeBill = $admission->bills()
+                ->where('period_start', '<=', $today)
+                ->where('period_end', '>=', $today)
+                ->first();
+
+            // Fallback to the latest month if today is somehow outside the generated range
+            if (!$activeBill) {
+                $activeBill = $admission->bills()->latest('month_number')->first();
+            }
+
+            // C. Create the Billing Line Item (Documentation only, Price = 0)
+            \App\Models\InpatientBillItem::create([
+                'admission_id' => $admission->id,
+                'bill_id'      => $activeBill->id,
+                'medicine_id'  => null, // No catalog record
+                'batch_id'     => null, // No inventory batch
+                'description'  => "{$prescription->medicine_name} - Outside Procured (Administered)",
+                'quantity'     => 1,
+                'unit_price'   => 0,
+                'total_price'  => 0,
+            ]);
+
+            // D. Create the administration log entry
+            \App\Models\MedicationLog::create([
+                'prescription_id' => $prescription->id,
+                'nurse_id'        => auth()->id(),
+                'batch_number'    => 'OUTSIDE-PROCURED',
+                'administered_at' => now(),
+            ]);
+
+            // E. Force Sync
+            // Recalculates the total bill and balance (even though we added 0, this keeps data healthy)
+            $admission->refresh();
+            $admission->syncLiveTotals();
+
+            return back()->with('success', "Outside medication logged and attached to Month #{$activeBill->month_number} statement.");
+        });
     }
 
     public function destroyVitals($id)

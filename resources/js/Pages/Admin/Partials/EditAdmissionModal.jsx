@@ -2,24 +2,27 @@ import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
 
-export default function EditAdmissionModal({ isOpen, onClose, admission, doctors = [], rooms = [], onSuccess }) {
+export default function EditAdmissionModal({ isOpen, onClose, admission, doctors = [], rooms = [], onSuccess, onError }) {
     const { data, setData, put, processing, errors, reset, setError, clearErrors } = useForm({
         admission_date: '',
         staff_id: '',
         diagnosis: '',
         room_id: '',
+        monthly_rate: '', 
     });
 
     const now = new Date();
     const currentDateTime = now.toISOString().slice(0, 16);
 
     useEffect(() => {
+        console.log("Full Admission Object:", admission.monthly_rate)
         if (admission && isOpen) {
             setData({
                 admission_date: admission.admission_date || '',
                 staff_id: admission.staff_id ? String(admission.staff_id) : '',
                 diagnosis: admission.diagnosis || '',
                 room_id: admission.room_id?.toString() || '',
+                monthly_rate: admission.monthly_rate || '', 
             });
         }
     }, [admission, isOpen]);
@@ -51,6 +54,12 @@ export default function EditAdmissionModal({ isOpen, onClose, admission, doctors
             isValid = false;
         }
 
+        // 3. VALIDATE monthly_rate
+        if (!data.monthly_rate || isNaN(data.monthly_rate) || data.monthly_rate < 0) {
+            setError('monthly_rate', 'A valid monthly rate is required.');
+            isValid = false;
+        }
+
         return isValid;
     };
 
@@ -77,11 +86,25 @@ export default function EditAdmissionModal({ isOpen, onClose, admission, doctors
         }
     };
 
+    // Helper to auto-update rate if room is changed (Optional but helpful)
+    const handleRoomChange = (e) => {
+        const selectedRoomId = e.target.value;
+        const selectedRoom = rooms.find(r => r.id.toString() === selectedRoomId);
+        
+        setData({
+            ...data,
+            room_id: selectedRoomId,
+            // If they change the room, we suggest the new room's default rate
+            monthly_rate: selectedRoom ? selectedRoom.room_rate : data.monthly_rate
+        });
+    };
+
     const inputClass = (error) => `w-full border rounded-lg px-4 py-3 md:py-2 text-sm transition-all outline-none ${
         error 
             ? 'bg-red-50 !border-red-500 ring-2 ring-red-500/20 focus:!border-red-600' 
             : 'bg-white border-slate-300 focus:border-[#3D52A0] focus:ring-2 focus:ring-[#3D52A0]/10'
     }`;
+
     const Label = ({ text, current, max, required = true, fieldError }) => (
         <div className="flex justify-between items-center mb-1.5 px-1">
             <label className={`text-[10px] md:text-[11px] font-black uppercase tracking-widest ${fieldError ? 'text-red-600' : 'text-slate-500'}`}>
@@ -105,7 +128,7 @@ export default function EditAdmissionModal({ isOpen, onClose, admission, doctors
                     <div className="space-y-0.5">
                         <h3 className="font-black text-sm md:text-lg uppercase tracking-tight">Edit Admission Record</h3>
                         <p className="text-[10px] text-blue-100 uppercase font-bold tracking-widest">
-                            Patient: {admission?.patient_name || 'N/A'}
+                            Patient: {admission?.patient?.name || 'N/A'}
                         </p>
                     </div>
                     <button onClick={handleModalClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors text-2xl leading-none">&times;</button>
@@ -114,18 +137,38 @@ export default function EditAdmissionModal({ isOpen, onClose, admission, doctors
                 <form onSubmit={submit} className="p-5 md:p-8 overflow-y-auto space-y-6 flex-1 no-scrollbar">
                     
                     <div className="space-y-5">
+                        {/* ADMISSION DATE */}
                         <div>
-                            <Label text="Admission Date/Time" fieldError={errors.admission_date} />
+                            <Label 
+                                text="Admission Date/Time" 
+                                fieldError={errors.admission_date} 
+                                required={!admission?.is_billing_locked} 
+                            />
                             <input 
                                 type="datetime-local" 
                                 max={currentDateTime}
                                 value={data.admission_date} 
                                 onChange={e => setData('admission_date', e.target.value)} 
-                                className={inputClass(errors.admission_date)} 
+                                disabled={admission?.is_billing_locked}
+                                className={`${inputClass(errors.admission_date)} ${
+                                    admission?.is_billing_locked ? 'bg-slate-100 cursor-not-allowed opacity-70' : ''
+                                }`} 
                             />
-                            {errors.admission_date && <p className="text-red-600 text-[10px] mt-1.5 font-black italic uppercase">{errors.admission_date}</p>}
+                            
+                            {admission?.is_billing_locked && (
+                                <p className="text-blue-600 text-[9px] mt-2 font-bold uppercase tracking-tight bg-blue-50 p-2 rounded border border-blue-100">
+                                    Date is locked because billing records exist.
+                                </p>
+                            )}
+                            
+                            {errors.admission_date && (
+                                <p className="text-red-600 text-[10px] mt-1.5 font-black italic uppercase">
+                                    {errors.admission_date}
+                                </p>
+                            )}
                         </div>
 
+                        {/* PHYSICIAN */}
                         <div>
                             <Label text="Attending Physician" fieldError={errors.staff_id} />
                             <select 
@@ -143,23 +186,12 @@ export default function EditAdmissionModal({ isOpen, onClose, admission, doctors
                             {errors.staff_id && <p className="text-red-600 text-[10px] mt-1.5 font-black italic uppercase">{errors.staff_id}</p>}
                         </div>
 
-                        <div>
-                            <Label text="Initial Diagnosis" current={data.diagnosis.length} max={250} fieldError={errors.diagnosis} />
-                            <textarea 
-                                maxLength={250}
-                                value={data.diagnosis} 
-                                onChange={e => setData('diagnosis', e.target.value)} 
-                                className={`${inputClass(errors.diagnosis)} h-28 resize-none`} 
-                                placeholder="Reason for stay..."
-                            />
-                            {errors.diagnosis && <p className="text-red-600 text-[10px] mt-1.5 font-black italic uppercase">{errors.diagnosis}</p>}
-                        </div>
-
+                        {/* ROOM ASSIGNMENT */}
                         <div>
                             <Label text="Assign Room" fieldError={errors.room_id} />
                             <select 
                                 value={data.room_id} 
-                                onChange={e => setData('room_id', e.target.value)} 
+                                onChange={handleRoomChange} 
                                 className={inputClass(errors.room_id)}
                             >
                                 <option value="">Select Location</option>
@@ -170,6 +202,38 @@ export default function EditAdmissionModal({ isOpen, onClose, admission, doctors
                                 ))}
                             </select>
                             {errors.room_id && <p className="text-red-600 text-[10px] mt-1.5 font-black italic uppercase">{errors.room_id}</p>}
+                        </div>
+
+                        {/* 4. NEW MONTHLY RATE FIELD */}
+                        <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                            <Label text="Monthly Room Rate (PHP)" fieldError={errors.monthly_rate} />
+                            <div className="relative mt-2">
+                                <span className="absolute left-3 top-2 text-slate-400 font-bold">₱</span>
+                                <input 
+                                    type="number" 
+                                    step="0.01"
+                                    value={data.monthly_rate} 
+                                    onChange={e => setData('monthly_rate', e.target.value)} 
+                                    className={`${inputClass(errors.monthly_rate)} pl-8 font-bold text-[#3D52A0]`} 
+                                />
+                            </div>
+                            <p className="text-[9px] text-slate-400 mt-2 italic font-medium leading-tight">
+                                Changing this will update the total bill and balance upon saving.
+                            </p>
+                            {errors.monthly_rate && <p className="text-red-600 text-[10px] mt-1.5 font-black italic uppercase">{errors.monthly_rate}</p>}
+                        </div>
+
+                        {/* DIAGNOSIS */}
+                        <div>
+                            <Label text="Initial Diagnosis" current={data.diagnosis.length} max={250} fieldError={errors.diagnosis} />
+                            <textarea 
+                                maxLength={250}
+                                value={data.diagnosis} 
+                                onChange={e => setData('diagnosis', e.target.value)} 
+                                className={`${inputClass(errors.diagnosis)} h-28 resize-none`} 
+                                placeholder="Reason for stay..."
+                            />
+                            {errors.diagnosis && <p className="text-red-600 text-[10px] mt-1.5 font-black italic uppercase">{errors.diagnosis}</p>}
                         </div>
                     </div>
                 </form>

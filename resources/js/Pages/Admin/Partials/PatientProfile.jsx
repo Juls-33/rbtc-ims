@@ -8,6 +8,8 @@ import EditPatientModal from './EditPatientModal';
 import EditVisitModal from './EditVisitModal';
 import ViewOutpatientBillModal from './ViewOutpatientBillModal';
 import DeletePatientModal from './DeletePatientModal';
+import DeleteAdmissionModal from './DeleteAdmissionModal'; 
+import DeleteVisitModal from './DeleteVisitModal';
 
 export default function PatientProfile({ patient, initialTab, onBack, doctors, rooms, inventory }) {
     const [activeSubTab, setActiveSubTab] = useState(initialTab === 'outpatient' ? 'visit' : 'admission'); 
@@ -30,6 +32,10 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
     const [isEditVisitOpen, setIsEditVisitOpen] = useState(false);
     const [isVisitBillOpen, setIsVisitBillOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isDeleteAdmissionOpen, setIsDeleteAdmissionOpen] = useState(false);
+    const [targetedAdmissionId, setTargetedAdmissionId] = useState(null);
+    const [isDeleteVisitOpen, setIsDeleteVisitOpen] = useState(false);
+    const [targetedVisitId, setTargetedVisitId] = useState(null);
 
     const filteredVisits = useMemo(() => {
         let data = [...(patient?.visit_history || [])];
@@ -68,6 +74,11 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
     }, [patient.visit_history, visitSearch, visitSort]);
 
     const currentVisits = filteredVisits.slice((visitPage - 1) * itemsPerPage, visitPage * itemsPerPage);
+    
+    const handleDeleteAdmission = (id) => {
+        setTargetedAdmissionId(id);
+        setIsDeleteAdmissionOpen(true);
+    };
 
     const filteredAdmissions = useMemo(() => {
         let data = [...(patient?.admission_history || [])];
@@ -112,6 +123,11 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
     const handleViewBill = (admissionId) => { setActiveAdmissionId(admissionId); setIsBillModalOpen(true); };
     const handleEditVisit = (visit) => { setSelectedVisit(visit); setIsEditVisitOpen(true); };
     const handleViewVisitBill = (visit) => { setSelectedVisit(visit); setIsVisitBillOpen(true); };
+    const handleDeleteVisit = (id) => {
+        setTargetedVisitId(id);
+        setIsDeleteVisitOpen(true);
+    };
+    
 
     const renderInfoCard = (typeLabel) => (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
@@ -197,8 +213,23 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
                                                 ₱ {parseFloat(v.balance || 0).toLocaleString()}
                                             </td>
                                             <td className="p-3 text-center flex justify-center gap-2">
-                                                <Button variant="success" onClick={() => handleEditVisit(v)} className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm">EDIT</Button>
-                                                <Button variant="primary" onClick={() => handleViewVisitBill(v)} className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm">VIEW BILL</Button>
+                                                <Button 
+                                                    variant="success" 
+                                                    onClick={() => handleEditVisit(v)} 
+                                                    className="text-[9px] py-1.5 w-20 font-black uppercase tracking-widest shadow-sm"
+                                                >EDIT</Button>
+                                                
+                                                <Button 
+                                                    variant="primary" 
+                                                    onClick={() => handleViewVisitBill(v)} 
+                                                    className="text-[9px] py-1.5 w-20 font-black uppercase tracking-widest shadow-sm"
+                                                >VIEW BILL</Button>
+
+                                                <Button 
+                                                    variant="danger" 
+                                                    onClick={() => handleDeleteVisit(v.id)} 
+                                                    className="text-[9px] py-1.5 w-20 font-black uppercase tracking-widest shadow-sm"
+                                                >DELETE</Button>
                                             </td>
                                         </tr>
                                     )) : (
@@ -222,7 +253,10 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
                 <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
                     <div className="flex justify-between items-center mb-4">
                         <h4 className="font-bold text-slate-700 uppercase text-xs tracking-widest">Current Admission Status</h4>
-                        <Button variant="success" className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm" onClick={() => setIsEditAdmissionOpen(true)}>EDIT STATUS</Button>
+                        <div className="flex gap-2">
+                            <Button variant="danger" className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm" onClick={() => handleDeleteAdmission(patient.active_admission.id)}>DELETE ADMISSION</Button>
+                            <Button variant="success" className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm" onClick={() => setIsEditAdmissionOpen(true)}>EDIT STATUS</Button>
+                        </div>
                     </div>
                     {patient.active_admission ? (
                         <div className="text-center space-y-4">
@@ -270,6 +304,7 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
                                     <tr>
                                         <th className="p-3 border-r w-32 cursor-pointer" onClick={() => handleSortAdm('id')}>Admission ID <SortIcon config={admSort} column="id"/></th>
                                         <th className="p-3 border-r cursor-pointer" onClick={() => handleSortAdm('admission_date')}>Date Admitted <SortIcon config={admSort} column="admission_date"/></th>
+                                        <th className="p-3 border-r">Date Discharged</th>
                                         <th className="p-3 border-r text-right">Total Bill</th>
                                         <th className="p-3 border-r text-right">Balance</th>
                                         <th className="p-3 text-center">Actions</th>
@@ -280,12 +315,24 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
                                         <tr key={adm.id} className="border-b hover:bg-slate-50 transition-colors">
                                             <td className="p-3 border-r font-black text-slate-800">ADM-{String(adm.id).padStart(5, '0')}</td>
                                             <td className="p-3 border-r">{new Date(adm.admission_date).toLocaleDateString()}</td>
+                                            <td className="p-3 border-r">
+                                                {(!adm.discharge_date || isNaN(Date.parse(adm.discharge_date))) 
+                                                    ? (
+                                                        <span className="text-slate-400 italic font-medium uppercase text-[10px]">
+                                                            Active
+                                                        </span>
+                                                    ) : (
+                                                        new Date(adm.discharge_date).toLocaleDateString()
+                                                    )
+                                                }
+                                            </td>
                                             <td className="p-3 border-r text-right font-bold">₱ {parseFloat(adm.total_bill || 0).toLocaleString()}</td>
                                             <td className={`p-3 border-r text-right font-black ${adm.balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                                                 ₱ {parseFloat(adm.balance || 0).toLocaleString()}
                                             </td>
-                                            <td className="p-3 text-center">
-                                                <Button variant="success" className="text-[9px] py-1.5 w-28 font-black uppercase tracking-widest shadow-sm" onClick={() => handleViewBill(adm.id)}>VIEW BILL</Button>
+                                            <td className="p-3 text-center flex justify-center gap-2">
+                                                <Button variant="success" className="text-[9px] py-1.5 w-24 font-black uppercase tracking-widest shadow-sm" onClick={() => handleViewBill(adm.id)}>VIEW BILL</Button>
+                                                <Button variant="danger" className="text-[9px] py-1.5 w-24 font-black uppercase tracking-widest shadow-sm" onClick={() => handleDeleteAdmission(adm.id)}>DELETE</Button>
                                             </td>
                                         </tr>
                                     )) : (
@@ -314,6 +361,19 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
             {isEditAdmissionOpen && patient.active_admission && <EditAdmissionModal isOpen={isEditAdmissionOpen} onClose={() => setIsEditAdmissionOpen(false)} admission={patient.active_admission} doctors={doctors} rooms={rooms} />}
             {isBillModalOpen && activeAdmissionId && <ViewBillModal key={`bill-${activeAdmissionId}`} isOpen={isBillModalOpen} onClose={() => { setIsBillModalOpen(false); setActiveAdmissionId(null); }} admissionId={activeAdmissionId} patient={patient} medicines={inventory} admissionData={selectedAdmissionData} />}
             {isDischargeModalOpen && patient.active_admission && <DischargeModal isOpen={isDischargeModalOpen} onClose={() => setIsDischargeModalOpen(false)} patient={patient} bill={patient.active_admission} />}
+            <DeleteAdmissionModal 
+                isOpen={isDeleteAdmissionOpen} 
+                onClose={() => setIsDeleteAdmissionOpen(false)} 
+                admissionId={targetedAdmissionId} 
+            />
+            <DeleteVisitModal 
+                isOpen={isDeleteVisitOpen} 
+                onClose={() => setIsDeleteVisitOpen(false)} 
+                visitId={targetedVisitId} 
+                onSuccess={(msg) => {
+                    setToast({ message: msg, type: 'success' });
+                }}
+            />
         </div>
     );
 }

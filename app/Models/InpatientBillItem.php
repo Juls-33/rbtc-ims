@@ -13,6 +13,7 @@ class InpatientBillItem extends Model
 
     protected $fillable = [
         'admission_id',
+        'bill_id',     
         'medicine_id',
         'batch_id',
         'description',

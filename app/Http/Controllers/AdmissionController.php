@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Admission;
+use App\Models\Patient;
 use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,7 @@ class AdmissionController extends Controller
     /**
      * Store a new admission record and update room status.
      */
+    
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -20,35 +22,38 @@ class AdmissionController extends Controller
             'room_id'        => 'required|exists:rooms,id',
             'diagnosis'      => 'required|string|max:100',
             'admission_date' => 'required|date|before_or_equal:now',
+            'monthly_rate'   => 'required|numeric|min:0', 
         ]);
 
-        return DB::transaction(function () use ($validated) {  
-            $room = Room::findOrFail($validated['room_id']);
-
-            $admission = Admission::create([
+        return DB::transaction(function () use ($validated) {
+            $room = \App\Models\Room::findOrFail($validated['room_id']);
+            
+            // 1. Create the Admission record
+            $admission = \App\Models\Admission::create([
                 'patient_id'     => $validated['patient_id'],
                 'staff_id'       => $validated['staff_id'],
                 'room_id'        => $validated['room_id'],
                 'diagnosis'      => $validated['diagnosis'],
                 'admission_date' => $validated['admission_date'],
+                'monthly_rate'   => $validated['monthly_rate'],
                 'status'         => 'Admitted',
                 'amount_paid'    => 0,
             ]);
 
-            $admission->roomStays()->create([
-                'room_id'    => $room->id,
-                'daily_rate' => $room->room_rate,
-                'start_date' => $validated['admission_date'],
-                'end_date'   => null,
-            ]);
+            // 2. TRIGGER GENERATION 
+            $admission->generateMonthlyBills();
 
+            // 3. Update room status
             $room->update(['status' => 'Occupied']);
-            $admission->refresh(); 
+
+            // 4. Force a financial sync
+            $admission->refresh();
             $admission->syncLiveTotals();
 
-            return redirect()->back()->with('success', 'Patient admitted. Initial room charges have been applied.');
+            return redirect()->back()->with('success', 'Patient admitted. Billing cycle generated.');
         });
     }
+
     public function update(Request $request, Admission $admission)
     {
         $validated = $request->validate([
@@ -56,64 +61,109 @@ class AdmissionController extends Controller
             'staff_id'       => 'required|exists:staff,id',
             'room_id'        => 'required|exists:rooms,id',
             'diagnosis'      => 'required|string|max:100',
+            'monthly_rate'   => 'required|numeric|min:0', 
         ]);
 
+        $dateChanged = \Carbon\Carbon::parse($admission->admission_date)->ne(\Carbon\Carbon::parse($validated['admission_date']));
+    
+        if ($admission->is_billing_locked && $dateChanged) {
+            return back()->withErrors([
+                'admission_date' => 'The admission date cannot be changed because items have already been billed or payments have been made.'
+            ]);
+        }
+
         return DB::transaction(function () use ($validated, $admission) {
-            // 1. Capture the old date to check for changes
-            $oldDate = $admission->admission_date;
+            $newDate = \Carbon\Carbon::parse($validated['admission_date']);
+            $diffInMonths = $newDate->diffInMonths(now()) + 1;
+            $newTotalNeeded = max(6, $diffInMonths);
 
-            // 2. Handle Room Status updates if the room changed
-            if ($admission->room_id != $validated['room_id']) {
-                \App\Models\Room::where('id', $admission->room_id)->update(['status' => 'Available']);
-                \App\Models\Room::where('id', $validated['room_id'])->update(['status' => 'Occupied']);
-            }
+            for ($i = 0; $i < $newTotalNeeded; $i++) {
+                $start = $newDate->copy()->addMonths($i);
+                $end = $newDate->copy()->addMonths($i + 1)->subDay();
 
-            // 3. Update the primary Admission record
-            $admission->update($validated);
+                $bill = $admission->bills()->where('month_number', $i + 1)->first();
 
-            // 4. SYNC ROOM START DATE
-            // If the admission date was corrected, we must update the first room stay record.
-            // Without this, the billing calculation will have a "gap" and show the wrong price.
-            if ($oldDate !== $validated['admission_date']) {
-                $firstStay = $admission->roomStays()->orderBy('start_date', 'asc')->first();
-                if ($firstStay) {
-                    $firstStay->update([
-                        'start_date' => $validated['admission_date']
+                if ($bill) {
+                    $feeUpdate = ($bill->payment_status !== 'PAID') ? $validated['monthly_rate'] : $bill->facility_fee;
+                    $feeDiff = $feeUpdate - $bill->facility_fee;
+
+                    $bill->update([
+                        'period_start' => $start->toDateString(),
+                        'period_end'   => $end->toDateString(),
+                        'facility_fee' => $feeUpdate,
+                        'total_amount' => $bill->total_amount + $feeDiff
+                    ]);
+                } else {
+                    $admission->bills()->create([
+                        'month_number' => $i + 1,
+                        'period_start' => $start->toDateString(),
+                        'period_end'   => $end->toDateString(),
+                        'facility_fee' => $validated['monthly_rate'],
+                        'total_amount' => $validated['monthly_rate'],
+                        'payment_status' => 'UNPAID',
+                        'date_issued'  => $start->toDateString(),
                     ]);
                 }
             }
 
-            // 5. REFRESH TOTALS
-            // This ensures the 'live_total' and 'live_balance' fields are updated immediately
+            $surplusBills = $admission->bills()->where('month_number', '>', $newTotalNeeded)->get();
+            foreach ($surplusBills as $sb) {
+                $hasItems = \App\Models\InpatientBillItem::where('bill_id', $sb->id)->exists();
+                if ($sb->amount_paid <= 0 && !$hasItems) {
+                    $sb->delete();
+                }
+            }
+
+            $admission->update($validated);
             $admission->refresh(); 
             $admission->syncLiveTotals();
 
-            return redirect()->back()->with('success', 'Admission record and billing have been updated.');
+            return redirect()->back()->with('success', 'Admission updated successfully.');
         });
     }
+    
 
     public function destroy(Request $request, $id)
     {
         $request->validate([
-            'reason' => 'required|string|min:5',
+            'password' => ['required', 'current_password'],
+            'reason'   => 'required|string|min:5',
         ]);
 
         return DB::transaction(function () use ($id, $request) {
-            $admission = Admission::with(['billItems', 'room'])->findOrFail($id);
+            $admission = Admission::with(['patient', 'room', 'billItems', 'bills'])->findOrFail($id);
+            $staff = auth()->user();
+
+            // 1. Return medicine stock
             foreach ($admission->billItems as $item) {
                 $batch = \App\Models\MedicineBatch::find($item->batch_id);
                 if ($batch) {
                     $batch->increment('current_quantity', $item->quantity);
                 }
             }
+
+            // 2. Free up the room
             if ($admission->status === 'Admitted') {
                 $admission->room->update(['status' => 'Available']);
             }
-            \Log::info("Admission ID #{$id} deleted. Reason: " . $request->reason);
 
-            $admission->delete();
+            // 3. MOVE TO ARCHIVES (Using your polymorphic schema)
+            $admission->archive($request->reason, $staff->id);
 
-            return redirect()->back()->with('success', 'Admission record permanently removed and stock returned.');
+            // 4. CREATE AUDIT LOG
+            \App\Models\PatientLog::create([
+                'staff_id'    => $staff->id,
+                'patient_id'  => $admission->patient_id,
+                'action'      => 'ADMISSION_DELETED',
+                'description' => "Admission record (ID: ADM-".str_pad($id, 5, '0', STR_PAD_LEFT).") archived/deleted. Reason: {$request->reason}",
+                'ip_address'  => $request->ip(),
+            ]);
+
+            // 5. Cleanup Bills and the Admission record
+            $admission->bills()->delete();
+            $admission->delete(); // This triggers SoftDelete
+
+            return redirect()->back()->with('success', 'Admission record archived and room released.');
         });
     }
 
@@ -126,25 +176,64 @@ class AdmissionController extends Controller
         ]);
 
         return DB::transaction(function () use ($validated) {
-            $admission = Admission::findOrFail($validated['admission_id']);
+            // 1. Fetch the admission with all monthly bills ordered by oldest first
+            $admission = Admission::with(['bills' => function($q) {
+                $q->orderBy('month_number', 'asc');
+            }])->findOrFail($validated['admission_id']);
 
+            // 2. Update basic discharge info
             $admission->update([
                 'status' => 'Discharged',
                 'discharge_date' => now(),
             ]);
+            
             $admission->roomStays()->whereNull('end_date')->update(['end_date' => now()]);
-
             \App\Models\Room::where('id', $admission->room_id)->update(['status' => 'Available']);
 
-            if ($validated['payment_type'] === 'full' && $validated['amount_to_pay'] > 0) {
-                $newPaidTotal = round((float)$admission->amount_paid + (float)$validated['amount_to_pay'], 2);
-                $admission->update(['amount_paid' => $newPaidTotal]);
+            // 3. WATERFALL PAYMENT LOGIC
+            $paymentAmount = (float)($validated['amount_to_pay'] ?? 0);
+
+            if ($validated['payment_type'] === 'full' && $paymentAmount > 0) {
+                $remainingPayment = $paymentAmount;
+
+                foreach ($admission->bills as $bill) {
+                    if ($remainingPayment <= 0) break;
+
+                    // Calculate how much is still owed for THIS specific month
+                    $billTotal = (float)$bill->total_amount;
+                    $alreadyPaid = (float)$bill->amount_paid;
+                    $billOwed = max(0, $billTotal - $alreadyPaid);
+
+                    if ($billOwed <= 0) continue; // Skip if this month is already fully paid
+
+                    if ($remainingPayment >= $billOwed) {
+                        // Scenario: We have enough to pay off this entire month
+                        $bill->update([
+                            'amount_paid' => $billTotal,
+                            'payment_status' => 'PAID'
+                        ]);
+                        $remainingPayment -= $billOwed;
+                    } else {
+                        // Scenario: We only have enough for a partial payment of this month
+                        $newAmountPaid = $alreadyPaid + $remainingPayment;
+                        $bill->update([
+                            'amount_paid' => $newAmountPaid,
+                            'payment_status' => 'PARTIAL'
+                        ]);
+                        $remainingPayment = 0; // All money used up
+                    }
+                }
+
+                // 4. Update the global amount_paid column on the Admission record
+                $newGlobalPaid = round((float)$admission->amount_paid + $paymentAmount, 2);
+                $admission->update(['amount_paid' => $newGlobalPaid]);
             }
 
+            // 5. Final Sync to ensure Admission total_bill and balance are healthy
             $admission->refresh();
             $admission->syncLiveTotals();
 
-            return redirect()->back()->with('success', 'Patient has been officially discharged.');
+            return redirect()->back()->with('success', 'Patient discharged and payment distributed across billing cycles.');
         });
     }
     public function calculateCurrentTotal()

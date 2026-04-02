@@ -54,4 +54,23 @@ class PatientVisit extends Model
         // Ensure the foreign key matches your database (staff_id)
         return $this->belongsTo(Staff::class, 'staff_id');
     }
+    public function archive($reason, $staffId)
+    {
+        $data = $this->toArray();
+        // Load relationships to include in the archive snapshot
+        $data['patient_name'] = $this->patient?->name;
+        $data['items'] = $this->bill_items()->get()->toArray();
+
+        return \DB::table('archives')->insert([
+            'archivable_type' => get_class($this),
+            'archivable_id'   => $this->id,
+            'data'            => json_encode($data),
+            'reason'          => $reason,
+            'archived_by'     => $staffId,
+            'archived_at'     => now(),
+            'scheduled_deletion_at' => now()->addYears(5), 
+            'created_at'      => now(),
+            'updated_at'      => now(),
+        ]);
+    }
 }

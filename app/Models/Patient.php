@@ -91,4 +91,8 @@ class Patient extends Model implements CipherSweetEncrypted
     {
         return $this->hasMany(PatientVisit::class);
     }
+    public function active_admission()
+    {
+        return $this->hasOne(Admission::class)->where('status', 'Admitted')->latestOfMany();
+    }
 }

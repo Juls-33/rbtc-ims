@@ -8,11 +8,14 @@ class BillDetail extends Model
 {
     protected $fillable = [
         'admission_id',
+        'month_number',
+        'period_start',
+        'period_end',
         'facility_fee',
-        'medicine_fee_total',
         'total_amount',
-        'payment_status', // e.g., Pending, Paid
-        'payment_date'
+        'amount_paid',
+        'payment_status',
+        'date_issued',
     ];
 
     /**

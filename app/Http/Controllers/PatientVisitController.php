@@ -52,39 +52,48 @@ class PatientVisitController extends Controller
 
         return redirect()->back()->with('success', 'Visit details updated.');
     }
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        return DB::transaction(function () use ($id) {
-            // 1. Find the visit with all its items
-            $visit = PatientVisit::with('bill_items')->findOrFail($id);
-            $staffId = auth()->id();
+        $request->validate([
+            'password' => ['required', 'current_password'],
+            'reason'   => 'required|string|min:5',
+        ]);
 
-            // 2. RESTOCK INVENTORY
+        return DB::transaction(function () use ($id, $request) {
+            $visit = PatientVisit::with(['patient', 'bill_items'])->findOrFail($id);
+            $staff = auth()->user();
+
             foreach ($visit->bill_items as $item) {
-                $batch = \App\Models\MedicineBatch::find($item->batch_id);
-                
-                if ($batch) {
-                    // Add the quantity back to the shelf
-                    $batch->increment('current_quantity', $item->quantity);
-
-                    // Log the restocking for audit trails
-                    \App\Models\StockLog::create([
-                        'medicine_id'   => $item->medicine_id,
-                        'batch_id'      => $item->batch_id,
-                        'staff_id'      => $staffId,
-                        'change_amount' => $item->quantity,
-                        'reason'        => "RESTOCKED: Deleted Bill #{$visit->visit_id}",
-                    ]);
+                if ($item->batch_id) { 
+                    $batch = \App\Models\MedicineBatch::find($item->batch_id);
+                    if ($batch) {
+                        $batch->increment('current_quantity', $item->quantity);
+                        
+                        \App\Models\StockLog::create([
+                            'medicine_id'   => $item->medicine_id,
+                            'batch_id'      => $item->batch_id,
+                            'staff_id'      => $staff->id,
+                            'change_amount' => $item->quantity,
+                            'reason'        => "RESTOCKED: Deleted Outpatient Visit #{$id}",
+                        ]);
+                    }
                 }
             }
 
-            // 3. Delete the line items first (Foreign Key requirement)
-            $visit->bill_items()->delete();
+            $visit->archive($request->reason, $staff->id);
 
-            // 4. Delete the visit itself
+            \App\Models\PatientLog::create([
+                'staff_id'    => $staff->id,
+                'patient_id'  => $visit->patient_id,
+                'action'      => 'VISIT_DELETED',
+                'description' => "Outpatient visit record deleted. Reason: {$request->reason}",
+                'ip_address'  => $request->ip(),
+            ]);
+
+            $visit->bill_items()->delete();
             $visit->delete();
 
-            return redirect()->back()->with('success', 'Visit record deleted and medicines returned to stock.');
+            return redirect()->back()->with('success', 'Visit record archived and removed.');
         });
     }
     public function updateFee(Request $request, $id)
@@ -107,4 +116,6 @@ class PatientVisitController extends Controller
             return redirect()->back()->with('success', 'Consultation fee updated.');
         });
     }
+
+    
 }

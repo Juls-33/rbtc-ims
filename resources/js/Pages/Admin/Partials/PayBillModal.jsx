@@ -1,105 +1,159 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
 
 export default function PayBillModal({ isOpen, onClose, bill, patient }) {
-    const { data, setData, post, processing } = useForm({
+    // --- Form State ---
+    const { data, setData, post, processing, errors, reset } = useForm({
+        bill_id: '',
         amount_to_pay: '',
-        bill_id: bill?.bill_id || '',
     });
+
+    // --- Sync Data when Bill opens ---
+    useEffect(() => {
+        if (bill) {
+            setData({
+                bill_id: bill.id || bill.bill_id,
+                amount_to_pay: bill.balance || bill.total_amount || 0
+            });
+        }
+    }, [bill, isOpen]);
 
     const handleMarkAsPaid = (e) => {
         e.preventDefault();
         post(route('admin.billing.pay'), {
-            onSuccess: () => onClose(),
+            onSuccess: () => {
+                reset();
+                onClose();
+            },
         });
     };
+
+    // Calculate remaining balance for the UI
+    const totalAmount = parseFloat(bill?.total_amount || 0);
+    const balanceRemaining = Math.max(0, totalAmount - (parseFloat(data.amount_to_pay) || 0));
 
     if (!isOpen || !bill) return null;
 
     return (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4 text-slate-800">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                {/* Header */}
-                <div className="bg-[#3D52A0] text-white p-4 flex justify-between items-center">
-                    <h3 className="font-bold text-lg">Hospital Bill Invoice #{bill.bill_id}</h3>
-                    <button onClick={onClose} className="text-2xl hover:text-rose-200">&times;</button>
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-slate-800">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-slate-200">
+                
+                {/* Custom Header - Matching your Admin Style */}
+                <div className="bg-[#3D52A0] text-white p-5 flex justify-between items-center shadow-sm">
+                    <div>
+                        <h3 className="font-black text-lg uppercase tracking-tight">Payment Processing</h3>
+                        <p className="text-[10px] text-blue-100 font-mono font-bold uppercase tracking-widest">Invoice #{bill.bill_id || bill.id}</p>
+                    </div>
+                    <button 
+                        onClick={onClose} 
+                        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-2xl transition-colors"
+                    >
+                        &times;
+                    </button>
                 </div>
 
-                <div className="p-8 space-y-6">
-                    <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center border">
-                                <span className="text-[8px] text-center font-bold text-slate-400">RBTC LOGO</span>
+                <div className="p-6 md:p-8 space-y-8">
+                    {/* Invoice Info Section */}
+                    <div className="flex justify-between items-start border-b border-dashed border-slate-200 pb-6">
+                        <div className="flex items-center gap-5">
+                            <div className="w-14 h-14 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 shadow-inner">
+                                <span className="text-[10px] text-center font-black text-slate-400 leading-tight uppercase">RBTC<br/>Logo</span>
                             </div>
-                            <div className="text-sm">
-                                <p className="font-bold text-lg">Patient: {patient.name}</p>
-                                <p className="text-slate-500">Date Issued: {bill.billing_date}</p>
-                                <p className="text-slate-500">Status: <span className="font-bold text-rose-600">{bill.status}</span></p>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Bill For</p>
+                                <p className="font-black text-xl text-slate-800 leading-none">{patient.name}</p>
+                                <p className="text-xs text-slate-500 mt-1 font-medium">Patient ID: <span className="font-bold">{patient.patient_id || patient.id}</span></p>
                             </div>
                         </div>
-                        <p className="text-xs font-bold text-slate-500 uppercase">Patient ID: {patient.patient_id}</p>
-                    </div>
-                    <table className="w-full text-left text-xs border border-slate-200">
-                        <thead className="bg-slate-50 border-b">
-                            <tr>
-                                <th className="p-3 border-r">Description</th>
-                                <th className="p-3 border-r">Quantity</th>
-                                <th className="p-3 border-r">Unit Price</th>
-                                <th className="p-3">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr className="border-b">
-                                <td className="p-3 border-r font-bold">{bill.room_details || 'Room 204 (Ward)'}</td>
-                                <td className="p-3 border-r text-center">{bill.nights_stayed || 4}</td>
-                                <td className="p-3 border-r">{bill.room_rate || 1500}</td>
-                                <td className="p-3 font-bold">{bill.room_charge || 6000}</td>
-                            </tr>
-                            <tr className="border-b">
-                                <td className="p-3 border-r">Paracetamol 500mg</td>
-                                <td className="p-3 border-r text-center">10</td>
-                                <td className="p-3 border-r">5</td>
-                                <td className="p-3 font-bold">50</td>
-                            </tr>
-                            <tr className="border-b">
-                                <td className="p-3 border-r">Antibiotics IV</td>
-                                <td className="p-3 border-r text-center">2</td>
-                                <td className="p-3 border-r">500</td>
-                                <td className="p-3 font-bold">1000</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    {/* Financial Summary */}
-                    <div className="space-y-2 text-right pr-4">
-                        <h4 className="text-lg font-bold">GRAND TOTAL: Php {bill.total_amount}</h4>
-                        <p className="text-md font-bold text-slate-600">Balance: Php {bill.total_amount}</p>
-                        <div className="flex justify-end items-center gap-3 mt-4">
-                            <label className="font-bold text-sm">Amount to Pay:</label>
-                            <input 
-                                type="number" 
-                                value={data.amount_to_pay}
-                                onChange={e => setData('amount_to_pay', e.target.value)}
-                                className="w-40 border-b border-slate-800 outline-none text-right font-bold"
-                            />
+                        <div className="text-right">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Date Issued</p>
+                            <p className="font-bold text-sm text-slate-700">{bill.billing_date || new Date().toLocaleDateString()}</p>
+                            <span className="inline-block mt-2 px-3 py-1 bg-rose-100 text-rose-600 rounded-full text-[10px] font-black uppercase">
+                                {bill.status || 'Unpaid'}
+                            </span>
                         </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex justify-center gap-4 pt-6 border-t">
-                        <button onClick={onClose} className="px-10 py-2 bg-slate-500 text-white rounded font-bold text-sm uppercase shadow hover:bg-slate-600 transition-colors">
+                    {/* Simple Breakdown Table */}
+                    <div className="overflow-hidden border border-slate-200 rounded-xl">
+                        <table className="w-full text-left text-xs border-collapse">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="p-4 font-black uppercase text-slate-500 tracking-wider">Description</th>
+                                    <th className="p-4 font-black uppercase text-slate-500 text-center">Qty</th>
+                                    <th className="p-4 font-black uppercase text-slate-500 text-right">Price</th>
+                                    <th className="p-4 font-black uppercase text-slate-500 text-right">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                <tr className="hover:bg-slate-50/50">
+                                    <td className="p-4 font-bold text-slate-700">{bill.room_details || 'Room Charges'}</td>
+                                    <td className="p-4 text-center font-bold text-slate-600">{bill.nights_stayed || 1}</td>
+                                    <td className="p-4 text-right font-mono text-slate-500">₱{(bill.room_rate || 0).toLocaleString()}</td>
+                                    <td className="p-4 text-right font-black text-slate-800">₱{(bill.room_charge || 0).toLocaleString()}</td>
+                                </tr>
+                                {/* Additional rows can be mapped here */}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Calculation Area */}
+                    <div className="flex flex-col md:flex-row justify-between items-end gap-6 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                        <div className="w-full md:w-auto space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Amount to Pay (PHP)</label>
+                                <div className="relative group">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400 group-focus-within:text-emerald-500">₱</span>
+                                    <input 
+                                        type="number" 
+                                        step="0.01"
+                                        value={data.amount_to_pay}
+                                        onChange={e => setData('amount_to_pay', e.target.value)}
+                                        className="w-full md:w-56 bg-white border-2 border-slate-200 rounded-xl pl-8 pr-4 py-3 outline-none focus:border-emerald-500 font-black text-xl text-emerald-600 shadow-sm transition-all"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                {errors.amount_to_pay && <p className="text-rose-500 text-[10px] mt-1 font-bold">{errors.amount_to_pay}</p>}
+                            </div>
+                        </div>
+
+                        <div className="w-full md:w-auto text-right space-y-1">
+                            <div className="flex justify-between md:justify-end items-center gap-8 border-b border-slate-200 pb-2">
+                                <span className="text-[10px] font-black text-slate-400 uppercase">Grand Total:</span>
+                                <span className="text-xl font-black text-slate-800">₱{totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                            </div>
+                            <div className="flex justify-between md:justify-end items-center gap-8 pt-2">
+                                <span className="text-[10px] font-black text-slate-400 uppercase">Balance Remaining:</span>
+                                <span className={`text-xl font-black ${balanceRemaining > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                    ₱{balanceRemaining.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-100">
+                        <button 
+                            onClick={onClose} 
+                            className="order-3 sm:order-1 px-4 py-3 bg-white border border-slate-200 text-slate-500 rounded-xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+                        >
                             Cancel
                         </button>
+                        <a 
+                            href={route('admin.billing.inpatient.pdf', bill.id || bill.bill_id)}
+                            target="_blank"
+                            className="order-2 sm:order-2 px-4 py-3 bg-slate-800 text-white rounded-xl font-black text-[11px] uppercase tracking-widest text-center hover:bg-slate-900 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                            Print PDF
+                        </a>
                         <button 
                             onClick={handleMarkAsPaid}
-                            disabled={processing}
-                            className="px-8 py-2 bg-emerald-600 text-white rounded font-bold text-sm uppercase shadow hover:bg-emerald-700 transition-colors"
+                            disabled={processing || !data.amount_to_pay}
+                            className="order-1 sm:order-3 px-4 py-3 bg-emerald-600 text-white rounded-xl font-black text-[11px] uppercase tracking-widest hover:bg-emerald-700 active:scale-95 disabled:opacity-50 disabled:active:scale-100 transition-all shadow-lg shadow-emerald-500/20"
                         >
-                            Mark as Paid
-                        </button>
-                        <button className="px-8 py-2 bg-[#3D52A0] text-white rounded font-bold text-sm uppercase shadow hover:bg-[#2E4696] transition-colors">
-                            Print PDF
+                            {processing ? 'Processing...' : 'Mark as Paid'}
                         </button>
                     </div>
                 </div>

@@ -9,6 +9,7 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
         admission_date: '',
         staff_id: '', 
         room_id: '', 
+        monthly_rate: '', 
         diagnosis: '',
     });
 
@@ -67,7 +68,7 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
     const validate = () => {
         let isValid = true;
         clearErrors();
-        const required = ['patient_id', 'admission_date', 'staff_id', 'room_id', 'diagnosis'];
+        const required = ['patient_id', 'admission_date', 'staff_id', 'room_id', 'diagnosis', 'monthly_rate'];
         
         required.forEach(field => {
             if (!data[field]) {
@@ -240,7 +241,13 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
                                         return (
                                             <button
                                                 key={room.id} type="button" disabled={!isAvailable}
-                                                onClick={() => setData('room_id', room.id)}
+                                                onClick={() => {
+                                                    setData({
+                                                        ...data,
+                                                        room_id: room.id,
+                                                        monthly_rate: room.room_rate
+                                                    });
+                                                }}
                                                 className={`min-w-[170px] md:min-w-[200px] snap-start p-4 rounded-xl border-2 text-left transition-all relative ${isSelected ? 'border-[#3D52A0] bg-blue-50 ring-4 ring-blue-50/50' : isAvailable ? 'border-slate-100 bg-white hover:border-slate-300 shadow-sm' : 'border-slate-50 bg-slate-50 opacity-50 cursor-not-allowed'}`}
                                             >
                                                 <div className="flex justify-between items-start mb-2">
@@ -249,7 +256,7 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
                                                 </div>
                                                 <p className="font-bold text-slate-800 text-sm line-clamp-1 uppercase tracking-tighter">{room.room_location}</p>
                                                 <p className="text-base font-black text-[#3D52A0] mt-1">₱{parseFloat(room.room_rate).toLocaleString()}</p>
-                                                <p className="text-[8px] text-slate-400 uppercase font-black tracking-widest">Daily Rate</p>
+                                                <p className="text-[8px] text-slate-400 uppercase font-black tracking-widest">Monthly Rate</p>
                                             </button>
                                         );
                                     })}
@@ -258,6 +265,31 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
                             </div>
                             {errors.room_id && <p className="text-red-500 text-[9px] font-bold italic mt-1 uppercase">{errors.room_id}</p>}
                         </div>
+
+                        {/* ROOM RATE CONFIGURATION */}
+                        {data.room_id && (
+                            <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl animate-in slide-in-from-top-2">
+                                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                                    <div className="flex-1">
+                                        <Label text="Agreed Monthly Rate" fieldError={errors.monthly_rate} />
+                                        <p className="text-[10px] text-slate-500 lowercase italic mb-2">
+                                            Default rate applied. You may modify this for this specific admission.
+                                        </p>
+                                    </div>
+                                    <div className="relative w-full md:w-48">
+                                        <span className="absolute left-3 top-2.5 text-slate-400 font-bold">₱</span>
+                                        <input 
+                                            type="number" 
+                                            step="0.01"
+                                            className={`${inputClass(errors.monthly_rate)} pl-7 font-black text-blue-700 text-lg`}
+                                            value={data.monthly_rate}
+                                            onChange={e => setData('monthly_rate', e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                {errors.monthly_rate && <p className="text-red-500 text-[9px] font-bold italic mt-1 uppercase text-right">{errors.monthly_rate}</p>}
+                            </div>
+                        )}
 
                         <div>
                             <Label text="Initial Diagnosis / Notes" fieldError={errors.diagnosis} />
