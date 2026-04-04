@@ -58,6 +58,7 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
     const roomIcon = <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M80-200v-240q0-27 11-49t29-39v-112q0-50 35-85t85-35h160q23 0 43 8.5t37 23.5q17-15 37-23.5t43-8.5h160q50 0 85 35t35 85v112q18 17 29 39t11 49v240h-80v-80H160v80H80Zm440-360h240v-80q0-17-11.5-28.5T720-680H560q-17 0-28.5 11.5T520-640v80Zm-320 0h240v-80q0-17-11.5-28.5T400-680H240q-17 0-28.5 11.5T200-640v80Zm-40 200h640v-80q0-17-11.5-28.5T760-480H200q-17 0-28.5 11.5T160-440v80Zm640 0H160h640Z"/></svg>
     const logoutIcon = <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg>;
     const archiveIcon = <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#FFFFFF"><path d="m480-240 160-160-56-56-64 64v-168h-80v168l-64-64-56 56 160 160ZM200-640v440h560v-440H200Zm0 520q-33 0-56.5-23.5T120-200v-499q0-14 4.5-27t13.5-24l50-61q11-14 27.5-21.5T250-840h460q18 0 34.5 7.5T772-811l50 61q9 11 13.5 24t4.5 27v499q0 33-23.5 56.5T760-120H200Zm16-600h528l-34-40H250l-34 40Zm264 300Z"/></svg>;
+    const faqIcon = <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="currentColor"><path d="M480-120q-33 0-56.5-23.5T400-200q0-33 23.5-56.5T480-280q33 0 56.5 23.5T560-200q0 33-23.5 56.5T480-120Zm-80-240v-40q0-33 23.5-56.5T480-473q33 0 56.5-23.5T560-553q0-33-23.5-56.5T480-633q-33 0-56.5 23.5T400-553h-80q0-66 47-113t113-47q66 0 113 47t47 113q0 52-30 94.5t-83 62.5q-13 5-20 15t-7 25v30h-80Z"/></svg>;
 
     const navigation = {
         Admin: [
@@ -67,16 +68,19 @@ export default function AuthenticatedLayout({ children, header, sectionTitle }) 
             { name: 'Staff Management', routeName: 'admin.staff', href: route('admin.staff'), icon: staffIcon },
             { name: 'Room Management', routeName: 'admin.rooms', href: route('admin.rooms'), icon: roomIcon },
             { name: 'Archive Bin', routeName: 'admin.archive', href: route('admin.archive'),icon: archiveIcon },
+            { name: 'User Guide & FAQ', routeName: 'admin.faqs', href: route('admin.faqs'), icon: faqIcon },
         ],
         Doctor: [
             { name: 'Dashboard', routeName: 'doctor.dashboard', href: route('doctor.dashboard'), icon: dashboardIcon },
             { name: 'Patients', routeName: 'doctor.patients', href: route('doctor.patients'), icon: patientIcon },
             { name: 'Profile', routeName: 'profile.edit', href: route('profile.edit'), icon: staffIcon },
+            { name: 'User Guide & FAQ', routeName: 'doctor.faqs', href: route('doctor.faqs'), icon: faqIcon },
         ],
         Nurse: [
             { name: 'Dashboard', routeName: 'nurse.dashboard', href: route('nurse.dashboard'), icon: dashboardIcon },
             { name: 'Patients', routeName: 'nurse.patients', href: route('nurse.patients'), icon: patientIcon },
             { name: 'Profile', routeName: 'profile.edit', href: route('profile.edit'), icon: staffIcon },
+            { name: 'User Guide & FAQ', routeName: 'nurse.faqs', href: route('nurse.faqs'), icon: faqIcon },
         ],
     };
 

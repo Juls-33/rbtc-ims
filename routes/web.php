@@ -119,6 +119,9 @@ Route::middleware(['auth', 'verified','checkStatus', 'force.password.change'])->
         Route::post('/archive/{id}/restore', [ArchiveController::class, 'restore'])->name('admin.archive.restore');
         Route::get('/patient-logs', [App\Http\Controllers\PatientLogController::class, 'index'])->name('admin.patient.logs');
         Route::delete('/archive/{id}', [ArchiveController::class, 'destroy'])->name('admin.archive.destroy');
+
+        //faqs
+        Route::get('/faqs', fn() => Inertia::render('Admin/Faqs'))->name('admin.faqs');
     });
 
     // Doctor Routes
@@ -138,6 +141,9 @@ Route::middleware(['auth', 'verified','checkStatus', 'force.password.change'])->
         // Consultation Note
         Route::post('/doctor/patients/{id}/consultation', [DoctorController::class, 'storeConsultation'])->name('doctor.patients.consultation.store');
         Route::delete('/doctor/consultations/{id}', [DoctorController::class, 'destroyConsultation'])->name('doctor.patients.consultation.destroy');
+
+        //faqs
+        Route::get('/faqs', fn() => Inertia::render('Doctor/Faqs'))->name('doctor.faqs');
     });
 
     // Nurse Routes
@@ -154,6 +160,9 @@ Route::middleware(['auth', 'verified','checkStatus', 'force.password.change'])->
 
         Route::post('/prescriptions/{id}/administer-outside', [NurseController::class, 'administerOutside'])
             ->name('administer.outside');
+
+        //faqs
+        Route::get('/faqs', fn() => Inertia::render('Nurse/Faqs'))->name('nurse.faqs');
     });
 });
 
