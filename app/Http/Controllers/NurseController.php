@@ -21,13 +21,22 @@ class NurseController extends Controller
     public function dashboard(Request $request)
     {
         $nurseId = auth()->id();
+        $today = now()->toDateString();
         
-        $prescriptions = Prescriptions::with(['patient', 'medicine'])
-            ->whereNotNull('schedule_time')
-            ->get();
+        $prescriptions = Prescriptions::with(['patient.active_admission', 'medicine'])
+        ->whereHas('patient.admissions', function($q) {
+            $q->where('status', 'admitted');
+        })
+        ->whereNotNull('schedule_time')
+        ->get();
 
-        $administrations = $prescriptions->map(function ($p) {
+        $administrations = $prescriptions->map(function ($p) use ($today){
             $dueTime = Carbon::createFromFormat('H:i', $p->schedule_time);
+
+            $alreadyDone = MedicationLog::where('prescription_id', $p->id)
+            ->whereDate('administered_at', $today)
+            ->exists();
+            if ($alreadyDone) return null;
 
             $displayName = $p->medicine 
                 ? ($p->medicine->brand_name 
@@ -144,9 +153,14 @@ class NurseController extends Controller
                 'dob'              => $patient->birth_date,
                 'gender'           => $patient->gender,
                 'phone'            => $patient->contact_no,
+                'address'          => $patient->address,
+                'emergencyContact' => $patient->emergency_contact_name,
+                'emergencyPhone'   => $patient->emergency_contact_number,
                 'status'           => $latestAdmission ? strtoupper($latestAdmission->status) : 'OUTPATIENT',
+                'admissionDate'    => $latestAdmission?->admission_date ?? 'N/A',
                 'room'             => $latestAdmission?->room?->room_location ?? 'N/A',
                 'doctor'           => $latestAdmission?->staff ? "Dr. {$latestAdmission->staff->last_name}" : 'N/A',
+                'diagnosis'        => $latestAdmission?->diagnosis ?? 'No diagnosis recorded.',
                 // Current Vitals
                 'weight'           => $latestVisit?->weight ?? '—',
                 'bp'               => $latestVisit?->blood_pressure ?? '—', 
@@ -197,6 +211,13 @@ class NurseController extends Controller
                     'recorded_by' => $visit->staff ? $visit->staff->last_name : 'System',
                 ];
             }),
+
+            'admissionHistory' => $patient->admissions->map(fn($adm) => [
+            'id'         => 'A-' . str_pad($adm->id, 5, '0', STR_PAD_LEFT),
+            'admitted'   => $adm->admission_date,
+            'discharged' => $adm->discharge_date ?? 'Active',
+            'reason'     => $adm->diagnosis,
+            ])->toArray(),
 
             'auth' => [
                 'user' => array_merge(auth()->user()->toArray(), [
