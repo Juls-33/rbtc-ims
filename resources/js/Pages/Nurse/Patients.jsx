@@ -4,7 +4,6 @@ import { Head, Link, router } from '@inertiajs/react';
 import Pagination from '@/Components/Pagination';
 
 export default function Patients({ auth, patients, filters }) {
-    // 🔥 SAFE ACCESS: Ensure we have a data array even during initial render
     const patientData = patients?.data || [];
     
     const [search, setSearch] = useState(filters?.search || '');

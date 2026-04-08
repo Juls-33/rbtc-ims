@@ -50,7 +50,7 @@ export default function NurseDashboard({ auth, administrations, stats, batches =
         if (!admin.medicine_id) {
             handleAdministerOutside(admin);
         } else {
-            const medicineBatches = batches.filter(b => b.medicine_id === admin.medicine_id);
+            const medicineBatches = batches.filter(b => Number(b.medicine_id) === Number(admin.medicine_id));
             
             if (medicineBatches.length === 0) {
                 alert("No stock available for this medication!");
