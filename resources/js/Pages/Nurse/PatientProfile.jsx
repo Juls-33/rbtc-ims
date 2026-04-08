@@ -351,7 +351,38 @@ export default function NursePatientProfile({ auth , patient, prescriptionHistor
                                     <span className="text-gray-400">|</span>
                                     <span className="text-xs text-gray-500">Not billed to facility; no inventory tracking.</span>
                                 </div>
-                                <div className="overflow-hidden border border-gray-200 rounded-lg shadow-sm">
+
+                                {/* MOBILE VIEW: Cards (Hidden on md and up) */}
+                                <div className="md:hidden space-y-4">
+                                    {prescriptionHistory?.map((pres) => {
+                                        const isOutside = !pres.medicine_id;
+                                        return (
+                                            <div key={pres.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="text-xs text-gray-500 font-medium">{pres.date}</span>
+                                                    {isOutside && (
+                                                        <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-yellow-500 rounded-full">OFF-SITE</span>
+                                                    )}
+                                                </div>
+                                                <div className="font-bold text-[#30499B] text-base mb-1">{pres.medicine_name}</div>
+                                                <div className="text-sm text-gray-700 mb-4 font-bold">
+                                                    <span className="font-semibold">{pres.dosage}</span> • <span className="italic">{pres.frequency}</span>
+                                                </div>
+                                                <PrimaryButton 
+                                                    onClick={() => isOutside ? handleAdministerOutside(pres) : openAdministerModal(pres)}
+                                                    className={`w-full py-3 rounded text-white font-bold ${
+                                                        isOutside ? 'bg-yellow-600' : 'bg-green-700'
+                                                    }`}
+                                                >
+                                                    Administer Medicine
+                                                </PrimaryButton>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* DESKTOP VIEW: Table (Hidden on small screens) */}
+                                <div className="hidden md:block overflow-hidden border border-gray-200 rounded-lg shadow-sm">
                                     <table className="w-full text-left text-sm bg-white">
                                         <thead className="bg-gray-100 text-gray-600 uppercase font-bold text-xs">
                                             <tr>
@@ -363,17 +394,14 @@ export default function NursePatientProfile({ auth , patient, prescriptionHistor
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
                                             {prescriptionHistory?.map((pres) => {
-                                                const isOutside = !pres.medicine_id; 
-
+                                                const isOutside = !pres.medicine_id;
                                                 return (
                                                     <tr key={pres.id} className="hover:bg-gray-50 transition-colors">
                                                         <td className="px-4 py-4 text-gray-500 font-medium">{pres.date}</td>
                                                         <td className="px-4 py-4 font-bold text-[#30499B] flex items-center gap-2">
                                                             {pres.medicine_name}
                                                             {isOutside && (
-                                                                <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-yellow-500 rounded-full">
-                                                                    OFF-SITE
-                                                                </span>
+                                                                <span className="px-2 py-0.5 text-[10px] font-bold text-white bg-yellow-500 rounded-full">OFF-SITE</span>
                                                             )}
                                                         </td>
                                                         <td className="px-4 py-4 text-gray-700">
