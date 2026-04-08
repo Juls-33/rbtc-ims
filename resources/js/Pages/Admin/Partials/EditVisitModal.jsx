@@ -44,6 +44,11 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
             isValid = false;
         }
 
+        if (data.weight !== '' && parseFloat(data.weight) < 0) {
+            setError('weight', 'Weight cannot be negative.');
+            isValid = false;
+        }
+
         return isValid;
     };
 
@@ -124,9 +129,20 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
                             <input 
                                 type="number" 
                                 step="0.1"
+                                min="0"
                                 placeholder="0.0"
                                 value={data.weight} 
-                                onChange={e => setData('weight', e.target.value)} 
+                                onKeyDown={(e) => {
+                                    if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+                                        e.preventDefault();
+                                    }
+                                }}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    if (val === '' || parseFloat(val) >= 0) {
+                                        setData('weight', val);
+                                    }
+                                }} 
                                 className={inputClass(errors.weight)} 
                             />
                             {errors.weight && <p className="text-red-600 text-[10px] mt-1 font-black italic uppercase">{errors.weight}</p>}

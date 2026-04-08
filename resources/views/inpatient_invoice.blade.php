@@ -30,14 +30,14 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($stmt['room_details'] as $room)
+           @if($stmt['room_total'] > 0)
                 <tr>
-                    <td>{{ $room['description'] }}</td>
-                    <td class="text-center">{{ $room['days'] }} Day(s)</td>
-                    <td class="text-right">Php {{ number_format($room['unit_price'], 2) }}</td>
-                    <td class="text-right">Php {{ number_format($room['subtotal'], 2) }}</td>
+                    <td>Room / Facility Fee (Monthly Rate)</td>
+                    <td class="text-center">1 Month</td>
+                    <td class="text-right">Php {{ number_format($stmt['room_total'], 2) }}</td>
+                    <td class="text-right">Php {{ number_format($stmt['room_total'], 2) }}</td>
                 </tr>
-            @endforeach
+            @endif
 
             @foreach($stmt['items'] as $item)
                 <tr>
@@ -58,9 +58,9 @@
     @endforeach
 
     <div class="total-box">
-        <h3>Grand Total: Php {{ number_format($admission->live_total, 2) }}</h3>
+        <h3>Grand Total: Php {{ number_format($admission->total_bill, 2) }}</h3>
         <p>Amount Paid: Php {{ number_format($admission->amount_paid, 2) }}</p>
-        <h2 style="color: #d9534f;">Balance Due: Php {{ number_format($admission->live_balance, 2) }}</h2>
+        <h2 style="color: #d9534f;">Balance Due: Php {{ number_format($admission->balance, 2) }}</h2>
     </div>
 </body>
 </html>

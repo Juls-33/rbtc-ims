@@ -149,4 +149,19 @@ class InpatientBillController extends Controller
     {
         Admission::findOrFail($id)->syncLiveTotals();
     }
+    public function generatePDF($id)
+    {
+        $admission = Admission::with(['patient', 'room', 'billItems.medicine'])->findOrFail($id);
+
+        $data = [
+            'title' => 'Inpatient Discharge Statement',
+            'date' => now()->format('M d, Y'),
+            'admission' => $admission,
+            'patient' => $admission->patient,
+            'statements' => $admission->statements,
+        ];
+        $pdf = Pdf::loadView('inpatient_invoice', $data);
+
+        return $pdf->stream("Discharge_Statement_ADM-{$admission->id}.pdf");
+    }
 }

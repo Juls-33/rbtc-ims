@@ -192,8 +192,7 @@ class Admission extends Model
                 $items = $this->billItems()->where('bill_id', $bill->id)->get();
                 $itemsTotal = $items->sum('total_price');
 
-                // The "Truth" of the totals
-                $grandTotal = (float)($bill->facility_fee + $itemsTotal);
+                $grandTotal = (float)$bill->total_amount;
                 $paid = (float)$bill->amount_paid;
                 $balance = max(0, $grandTotal - $paid);
 
@@ -206,7 +205,7 @@ class Admission extends Model
                     'period_start' => $bill->period_start,
                     'room_total'   => (float)$bill->facility_fee,
                     'items_total'  => (float)$itemsTotal,
-                    'grand_total'  => $grandTotal,
+                    'grand_total'  => $grandTotal, 
                     'amount_paid'  => $paid,
                     'balance'      => $balance,
                     'status'       => $bill->payment_status,

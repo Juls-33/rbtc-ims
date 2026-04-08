@@ -161,10 +161,17 @@ export default function DischargeModal({ isOpen, onClose, patient }) {
                     >
                         Cancel
                     </button>
-                    <button className="w-full sm:w-auto px-10 py-3 bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black flex items-center justify-center gap-2 order-1 sm:order-2">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                        Receipt PDF
-                    </button>
+                    <a 
+                        href={route('admin.billing.inpatient.pdf', admission.id)} 
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full sm:w-auto px-10 py-3 bg-slate-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black flex items-center justify-center gap-2 order-1 sm:order-2 transition-all active:scale-95"
+                    >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                        </svg>
+                        Print PDF
+                    </a>
                 </div>
             </div>
 
