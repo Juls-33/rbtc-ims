@@ -45,16 +45,16 @@ class NurseController extends Controller
                 : ($p->medicine_name ?? 'Unknown Medicine');
 
             return [
-                'time' => $dueTime->format('g:i A'),
-                'isOverdue' => $dueTime->isPast() && $dueTime->isToday(),
-                'id' => $p->patient->patient_id ?? 'N/A',
-                'prescription_id' => $p->id,
-                'medicine_id' => $p->medicine_id,
-                'db_id' => $p->patient->id,
-                'name' => $p->patient->full_name ?? 'Unknown',
-                'room' => $p->patient->room_number ?? 'TBD',
-                'medication' => $displayName,
-                'dosage' => $p->dosage . ' (' . $p->frequency . ')',
+                'time'              => $dueTime->format('g:i A'),
+                'isOverdue'         => $dueTime->isPast() && $dueTime->isToday(),
+                'id'                => $p->patient->patient_id ?? 'N/A',
+                'prescription_id'   => $p->id,
+                'medicine_id'       => $p->medicine_id,
+                'db_id'             => $p->patient->id,
+                'name'              => $p->patient->full_name ?? 'Unknown',
+                'room'              => $p->patient->active_admission?->room?->room_location ?? 'TBD',
+                'medication'        => $displayName,
+                'dosage'            => $p->dosage . ' (' . $p->frequency . ')',
             ];
         });
 
