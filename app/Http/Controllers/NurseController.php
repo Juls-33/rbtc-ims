@@ -56,7 +56,7 @@ class NurseController extends Controller
                 'medication'        => $displayName,
                 'dosage'            => $p->dosage . ' (' . $p->frequency . ')',
             ];
-        });
+        })->filter()->values();
 
         $stats = [
             'overdue_count' => $administrations->where('isOverdue', true)->count(),
