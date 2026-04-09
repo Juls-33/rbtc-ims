@@ -34,7 +34,7 @@ class ArchiveController extends Controller
             ->withQueryString()
             ->through(function($item) {
                 $data = $item->data;
-                $displayName = 'Unknown Record';
+                $displayName = ' ';
                 
                 if (str_contains($item->archivable_type, 'Patient')) {
                     $displayName = ($data['first_name'] ?? '') . ' ' . ($data['last_name'] ?? '');

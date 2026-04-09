@@ -251,8 +251,18 @@ class Admission extends Model
     }
     public function archive($reason, $staffId)
     {
-        $data = $this->toArray();
-        $data['subject_name'] = $this->patient?->full_name ?? 'Unknown Patient';
+        $data = $this->attributesToArray(); // safer than toArray()
+
+        $admissionCode = 'ADM-' . str_pad($this->id, 5, '0', STR_PAD_LEFT);
+
+        $patientName = $this->relationLoaded('patient') && $this->patient
+            ? $this->patient->full_name
+            : null;
+
+        $data['subject_name'] = $patientName
+            ? "{$patientName} ({$admissionCode})"
+            : $admissionCode;
+
         $data['patient_id_display'] = $this->patient?->patient_id;
 
         return \DB::table('archives')->insert([
