@@ -76,6 +76,15 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
     const validate = () => {
         let isValid = true;
         clearErrors();
+        if (parseFloat(data.dosage_amount) < 0) {
+            setError('dosage_amount', 'Cannot be negative.');
+            isValid = false;
+        }
+
+        if (parseFloat(data.price_per_unit) < 0) {
+            setError('price_per_unit', 'Cannot be negative.');
+            isValid = false;
+        }
         if (!data.generic_name) { setError('generic_name', 'Required.'); isValid = false; }
         if (data.category_selection === 'Other' && !data.custom_category) { setError('custom_category', 'Required.'); isValid = false; }
         if (!data.dosage_amount) { setError('dosage_amount', 'Required.'); isValid = false; }
@@ -166,7 +175,16 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div>
                                             <Label text="Amount" fieldError={errors.dosage_amount} />
-                                            <input type="number" value={data.dosage_amount} onChange={e => setData('dosage_amount', e.target.value)} className={inputClass(errors.dosage_amount)} />
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={data.dosage_amount}
+                                                onChange={e => {
+                                                    const value = Math.max(0, e.target.value);
+                                                    setData('price_per_unit', value);
+                                                }}
+                                                className={inputClass(errors.dosage_amount)}
+                                            />
                                         </div>
                                         <div>
                                             <Label text="Unit" />
@@ -218,11 +236,27 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <Label text="Price/Unit" fieldError={errors.price_per_unit} />
-                                            <input type="number" step="0.01" value={data.price_per_unit} onChange={e => setData('price_per_unit', e.target.value)} className={inputClass(errors.price_per_unit)} />
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={data.price_per_unit}
+                                                onChange={e => {
+                                                    const value = Math.max(0, e.target.value);
+                                                    setData('price_per_unit', value);
+                                                }}
+                                                className={inputClass(errors.price_per_unit)}
+                                            />
                                         </div>
                                         <div>
                                             <Label text="Reorder Alert" />
-                                            <input type="number" value={data.reorder_point} onChange={e => setData('reorder_point', e.target.value)} className={inputClass()} />
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={data.reorder_point}
+                                                onChange={e => setData('reorder_point', Math.max(0, e.target.value))}
+                                                className={inputClass()}
+                                            />                                        
                                         </div>
                                     </div>
                                 </div>

@@ -262,6 +262,12 @@ class MedicineController extends Controller
             elseif ($action === 'delete') {
                 $batch = MedicineBatch::where('sku_batch_id', $batchData['id'])->firstOrFail();
                 
+                $isInUse = \App\Models\InpatientBillItem::where('batch_id', $batch->id)->exists() || 
+                        \App\Models\MedicationLog::where('batch_number', $batch->sku_batch_id)->exists();
+
+                if ($isInUse) {
+                    return redirect()->back()->with('error', 'Critical: This batch cannot be deleted because it is already linked to patient medical records or billing statements.');
+                }
                 StockLog::create([
                     'medicine_id' => $medicine->id,
                     'batch_id' => $batch->id,
@@ -269,7 +275,7 @@ class MedicineController extends Controller
                     'change_amount' => -$batch->current_quantity,
                     'reason' => "BATCH REMOVAL: " . $reason,
                 ]);
-
+            
                 $batch->delete();
             }
         });

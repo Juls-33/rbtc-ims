@@ -121,7 +121,7 @@ export default function RoomManagement({ auth, rooms, roomStats, filters }) {
                                         Room Location / ID <SortIcon column="room_location" />
                                     </th>
                                     <th className="p-4 border-r text-center cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('room_rate')}>
-                                        Daily Rate <SortIcon column="room_rate" />
+                                        Monthly Rate <SortIcon column="room_rate" />
                                     </th>
                                     <th className="p-4 border-r text-center cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('status')}>
                                         Status <SortIcon column="status" />

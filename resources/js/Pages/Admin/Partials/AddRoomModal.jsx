@@ -28,7 +28,7 @@ export default function AddRoomModal({ isOpen, onClose, onSuccess }) {
         }
 
         if (!data.room_rate || parseFloat(data.room_rate) <= 0) {
-            setError('room_rate', 'Provide a valid daily rate.');
+            setError('room_rate', 'Provide a valid monthly rate.');
             isValid = false;
         }
 
@@ -117,7 +117,7 @@ export default function AddRoomModal({ isOpen, onClose, onSuccess }) {
 
                         {/* Room Rate */}
                         <div>
-                            <Label text="Daily Rate (₱)" fieldError={errors.room_rate} />
+                            <Label text="Monthly Rate (₱)" fieldError={errors.room_rate} />
                             <div className="relative">
                                 <span className="absolute left-3 top-2 text-slate-400 text-sm font-bold">₱</span>
                                 <input 
