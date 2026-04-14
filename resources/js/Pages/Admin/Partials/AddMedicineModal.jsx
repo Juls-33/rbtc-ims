@@ -150,7 +150,7 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b pb-1">Dosage Configuration</h4>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div>
-                                            <Label text="Amount" fieldError={errors.dosage_amount} />
+                                            <Label text="Dosage Value" fieldError={errors.dosage_amount} />
                                             <input
                                                 type="number"
                                                 min="0"

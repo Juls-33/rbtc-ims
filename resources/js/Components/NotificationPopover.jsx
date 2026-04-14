@@ -28,6 +28,30 @@ export default function NotificationPopover({ isOpen, onClose, notifications = [
         });
     };
 
+    const getNotificationTheme = (title) => {
+        const t = title?.toUpperCase() || '';
+        if (t.includes('OUT OF STOCK')) {
+            return {
+                accent: 'border-l-red-600',
+                text: 'text-red-600',
+                bg: 'bg-red-50'
+            };
+        }
+        if (t.includes('LOW STOCK')) {
+            return {
+                accent: 'border-l-yellow-500',
+                text: 'text-yellow-600',
+                bg: 'bg-yellow-50'
+            };
+        }
+        // Default for Bill Alerts or others
+        return {
+            accent: 'border-l-[#2E4696]',
+            text: 'text-[#2E4696]',
+            bg: 'bg-slate-50'
+        };
+    };
+
     return (
         <>
             <div className="fixed inset-0 z-[190]" onClick={onClose} />
@@ -52,26 +76,31 @@ export default function NotificationPopover({ isOpen, onClose, notifications = [
                         {notifications.length === 0 ? (
                             <div className="text-center py-10"><p className="text-xs text-slate-400 font-bold uppercase italic">No new notifications</p></div>
                         ) : (
-                            notifications.map((item) => (
-                                <div key={item.id} className="relative group p-3 rounded-lg border border-slate-50 hover:bg-slate-50 transition-all border-l-4 border-l-[#5A9167]">
-                                    {/* Dismiss 'X' Button */}
-                                    <button 
-                                        onClick={() => dismissNotification(item.id)}
-                                        className="absolute top-2 right-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        &times;
-                                    </button>
+                            notifications.map((item) => {
+                                // 2. Get the theme for this specific item
+                                const theme = getNotificationTheme(item.title);
+                                
+                                return (
+                                    <div key={item.id} className={`relative group p-3 rounded-lg border border-slate-100 hover:shadow-sm transition-all border-l-4 ${theme.accent}`}>
+                                        <button 
+                                            onClick={() => dismissNotification(item.id)}
+                                            className="absolute top-2 right-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            &times;
+                                        </button>
 
-                                    <h4 className="text-xs font-bold text-slate-800 pr-4">{item.title}</h4>
-                                    <p className="text-[11px] text-slate-500 mt-1">{item.description}</p>
-                                    
-                                    <div className="mt-3">
-                                        <a href={item.link} className="text-[9px] font-black text-[#2E4696] hover:underline uppercase tracking-tighter">
-                                            {item.buttonText} →
-                                        </a>
+                                        {/* 3. Apply specific text color to the title if needed */}
+                                        <h4 className={`text-xs font-black pr-4 uppercase tracking-tight ${theme.text}`}>{item.title}</h4>
+                                        <p className="text-[11px] text-slate-500 mt-1 leading-tight">{item.description}</p>
+                                        
+                                        <div className="mt-3">
+                                            <a href={item.link} className={`text-[9px] font-black hover:underline uppercase tracking-tighter ${theme.text}`}>
+                                                {item.buttonText} →
+                                            </a>
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </div>

@@ -11,7 +11,7 @@ import EditMedicineModal from './Partials/EditMedicineModal';
 import DeleteMedicineModal from './Partials/DeleteMedicineModal';
 import ManageBatchesModal from './Partials/ManageBatchesModal';
 
-export default function MedicineInventory({ auth, inventory, logs, filters }) {
+export default function MedicineInventory({ auth, inventory, logs, filters, fullInventoryStats = [] }) {
     const [activeTab, setActiveTab] = useState('manage');
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [expandedRow, setExpandedRow] = useState(null);
@@ -57,15 +57,31 @@ export default function MedicineInventory({ auth, inventory, logs, filters }) {
 
     // Statistics logic
     const inventoryStatsData = useMemo(() => [
-        { label: 'Total Items', value: inventory.total || 0, color: 'text-slate-800', bg: 'bg-slate-50' },
-        { label: 'Critical Stock', value: processedInventory.filter(i => i.calculatedTotal < 20 && i.calculatedTotal > 0).length, color: 'text-amber-600', bg: 'bg-amber-50' },
-        { label: 'Expiring Soon', value: processedInventory.filter(i => {
-            if (!i.calculatedSoonest) return false;
-            const diff = (new Date(i.calculatedSoonest) - new Date(today)) / (1000 * 60 * 60 * 24);
-            return diff <= 30 && diff >= 0;
-        }).length, color: 'text-blue-600', bg: 'bg-blue-50' },
-        { label: 'Out of Stock', value: processedInventory.filter(i => i.calculatedTotal === 0).length, color: 'text-rose-600', bg: 'bg-rose-50' },
-    ], [inventory.total, processedInventory, today]);
+        { 
+            label: 'Total Items', 
+            value: inventory.total || 0, 
+            color: 'text-slate-800', 
+            bg: 'bg-slate-50' 
+        },
+        { 
+            label: 'Critical Stock', 
+            value: fullInventoryStats.filter(i => i.status === 'LOW STOCK').length, 
+            color: 'text-amber-600', 
+            bg: 'bg-amber-50' 
+        },
+        { 
+            label: 'Expiring Soon', 
+            value: fullInventoryStats.filter(i => i.is_expiring).length, 
+            color: 'text-blue-600', 
+            bg: 'bg-blue-50' 
+        },
+        { 
+            label: 'Out of Stock', 
+            value: fullInventoryStats.filter(i => i.status === 'OUT OF STOCK').length, 
+            color: 'text-rose-600', 
+            bg: 'bg-rose-50' 
+        },
+    ], [inventory.total, fullInventoryStats]);
 
     const handleSort = (key) => {
         setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));

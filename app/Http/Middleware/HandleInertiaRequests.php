@@ -74,14 +74,29 @@ class HandleInertiaRequests extends Middleware
             ->get()
             ->filter(fn($m) => $m->batches_sum_current_quantity <= $m->reorder_point);
 
-        foreach ($criticalMedicines as $med) {
+        $medicines = MedicineCatalog::withSum('batches', 'current_quantity')->get();
+
+        foreach ($medicines as $med) {
             $notifId = "stock_{$med->id}";
-            if (!in_array($notifId, $activeDismissedIds)) {
+            //SKIP IF SNOOZED
+            if (in_array($notifId, $activeDismissedIds)) continue;
+            $currentQty = $med->batches_sum_current_quantity ?? 0;
+
+            if ($currentQty == 0) {
+                $alerts[] = [
+                    'id' => $notifId,
+                    'group' => 'Today',
+                    'title' => 'OUT OF STOCK', // Higher urgency title
+                    'description' => "{$med->generic_name} has no available stock!",
+                    'buttonText' => 'RESTOCK NOW',
+                    'link' => route('inventory.index'),
+                ];
+            } elseif ($currentQty <= $med->reorder_point) {
                 $alerts[] = [
                     'id' => $notifId,
                     'group' => 'Today',
                     'title' => 'Low Stock Warning',
-                    'description' => "{$med->generic_name} is low ({$med->batches_sum_current_quantity}/{$med->reorder_point})",
+                    'description' => "{$med->generic_name} is low ({$currentQty}/{$med->reorder_point})",
                     'buttonText' => 'MANAGE',
                     'link' => route('inventory.index'),
                 ];

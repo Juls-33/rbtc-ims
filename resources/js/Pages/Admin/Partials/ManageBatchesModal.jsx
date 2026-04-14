@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
 import Button from '@/Components/Button';
 import Toast from '@/Components/Toast'; 
@@ -22,6 +22,18 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
     const [batchToAdjust, setBatchToAdjust] = useState(null);
     const [adjustmentData, setAdjustmentData] = useState({ type: 'add', quantity: '', reason: 'Dispensed to Patient' });
 
+    const REASONS = {
+        add: [ 'Restock'],
+        remove: ['Damaged', 'Expired Stock Removal', 'Return to Supplier']
+    };
+
+    useEffect(() => {
+        setAdjustmentData(prev => ({ 
+            ...prev, 
+            reason: REASONS[prev.type][0] 
+        }));
+    }, [adjustmentData.type]);
+    
     const showToast = (message, type = 'error') => {
         setToastInfo({ show: true, message, type });
     };
@@ -128,15 +140,24 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
     const handleAdjustmentQuantityChange = (e) => {
         let val = e.target.value;
         
+        if (val !== '' && parseInt(val) < 0) {
+            val = '0';
+        }
         // Convert to number for comparison
         const numericVal = parseInt(val);
         const maxAvailable = parseInt(batchToAdjust.stock);
 
         // If removing stock, cap the input at the max available
-        if (adjustmentData.type === 'remove' && numericVal > maxAvailable) {
+        if (
+            val !== '' &&
+            adjustmentData.type === 'remove' &&
+            !isNaN(numericVal) &&
+            numericVal > maxAvailable
+        ) {
             val = maxAvailable.toString();
             showToast(`Capped at maximum available stock: ${maxAvailable}`, 'warning');
         }
+
 
         setAdjustmentData({ ...adjustmentData, quantity: val });
     };
@@ -192,7 +213,11 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
                                     <input 
                                         type="number" 
                                         value={formData.quantity} 
-                                        onChange={(e) => setFormData({...formData, quantity: e.target.value})} 
+                                        onChange={(e) => {
+                                            let val = e.target.value;
+                                            if (val !== '' && parseInt(val) < 0) val = '0';
+                                            setFormData({...formData, quantity: val});
+                                        }}
                                         className={inputClass(errors.quantity)} 
                                         placeholder="e.g. 100" 
                                     />
@@ -267,7 +292,7 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
 
                 {/* FOOTER */}
                 <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-center shrink-0">
-                    <Button variant="gray" onClick={handleModalClose} className="w-full md:w-auto px-16 py-2.5 font-black text-[10px] uppercase">CLOSE MANAGER</Button>
+                    <Button variant="gray" onClick={handleModalClose} className="w-full md:w-auto px-16 py-2.5 font-black text-[10px] uppercase">CLOSE</Button>
                 </div>
 
                 {/* ADJUST OVERLAY */}
@@ -357,11 +382,9 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
                                         onChange={(e) => setAdjustmentData({...adjustmentData, reason: e.target.value})} 
                                         className="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white"
                                     >
-                                        <option>Inventory Correction</option>
-                                        <option>Dispensed to Patient</option>
-                                        <option>Damaged</option>
-                                        <option>Expired Stock Removal</option>
-                                        <option>Return to Supplier</option>
+                                        {REASONS[adjustmentData.type].map((r) => (
+                                            <option key={r} value={r}>{r}</option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>

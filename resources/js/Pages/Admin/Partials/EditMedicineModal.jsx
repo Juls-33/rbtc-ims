@@ -174,14 +174,15 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
                                     <h4 className="text-[10px] font-black text-orange-800/60 uppercase tracking-widest border-b border-orange-100 pb-1">Dosage Details</h4>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div>
-                                            <Label text="Amount" fieldError={errors.dosage_amount} />
+                                            <Label text="Dosage Value" fieldError={errors.dosage_amount} />
                                             <input
                                                 type="number"
                                                 min="0"
                                                 value={data.dosage_amount}
                                                 onChange={e => {
-                                                    const value = Math.max(0, e.target.value);
-                                                    setData('price_per_unit', value);
+                                                    let val = e.target.value;
+                                                    if (val !== '' && parseFloat(val) < 0) val = '0';
+                                                    setData('dosage_amount', val);
                                                 }}
                                                 className={inputClass(errors.dosage_amount)}
                                             />
@@ -242,8 +243,9 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
                                                 min="0"
                                                 value={data.price_per_unit}
                                                 onChange={e => {
-                                                    const value = Math.max(0, e.target.value);
-                                                    setData('price_per_unit', value);
+                                                    let val = e.target.value;
+                                                    if (val !== '' && parseFloat(val) < 0) val = '0';
+                                                    setData('price_per_unit', val);
                                                 }}
                                                 className={inputClass(errors.price_per_unit)}
                                             />

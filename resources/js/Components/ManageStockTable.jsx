@@ -1,12 +1,54 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import Button from '@/Components/Button';
 
 export default function ManageStockTable({ items, expandedRow, toggleRow, today, onManage, onEdit, onDelete, sortConfig, onSort }) {
+    const sortedItems = useMemo(() => {
+        let sortableItems = [...items];
+        
+        if (sortConfig && sortConfig.key) {
+            sortableItems.sort((a, b) => {
+                let aValue = a[sortConfig.key];
+                let bValue = b[sortConfig.key];
+
+                // Handle nulls for safe comparison
+                if (aValue === null || aValue === undefined) aValue = '';
+                if (bValue === null || bValue === undefined) bValue = '';
+
+                // Convert to lowercase for accurate string sorting
+                if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+                if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+
+                if (aValue < bValue) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (aValue > bValue) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [items, sortConfig]);
+    
     const SortIcon = ({ column }) => {
         if (sortConfig.key !== column) return <span className="ml-1 opacity-20 text-[10px]">↕</span>;
         return sortConfig.direction === 'asc' 
             ? <span className="ml-1 text-blue-600 font-bold">↑</span> 
             : <span className="ml-1 text-blue-600 font-bold">↓</span>;
+    };
+
+    const StatusBadge = ({ status }) => {
+        const colors = {
+            'OUT OF STOCK': 'bg-red-100 text-red-700 border border-red-200',    // Red for Out of Stock
+            'LOW STOCK': 'bg-yellow-100 text-yellow-700 border border-yellow-200', // Yellow for Critical/Low
+            'IN STOCK': 'bg-emerald-100 text-emerald-700 border border-emerald-200' // Green for others
+        };
+
+        return (
+            <span className={`px-2 py-1 rounded text-[9px] font-black uppercase transition-colors ${colors[status] || 'bg-slate-100 text-slate-600'}`}>
+                {status}
+            </span>
+        );
     };
     return (
         <div className="overflow-x-auto relative border border-slate-200 rounded">
@@ -15,32 +57,48 @@ export default function ManageStockTable({ items, expandedRow, toggleRow, today,
                     <tr>
                         <th className="p-3 w-10 text-center"></th>
                         <th className="p-3 border-r border-slate-200 min-w-[120px]">SKU</th>
+                        
+                        {/* Medicine Name Sort */}
                         <th 
                             className="p-3 border-r cursor-pointer hover:bg-slate-100 transition-colors" 
                             onClick={() => onSort('name')}
                         >
                             Medicine Name <SortIcon column="name" />
                         </th>
+
                         <th className="p-3 border-r border-slate-200 min-w-[150px]">Category</th>
+
+                        {/* Total Stock Sort */}
                         <th 
                             className="p-3 border-r text-center cursor-pointer hover:bg-slate-100 transition-colors" 
                             onClick={() => onSort('calculatedTotal')}
                         >
                             Total Stock <SortIcon column="calculatedTotal" />
                         </th>
-                        <th className="p-3 border-r text-center cursor-pointer hover:bg-slate-100" onClick={() => onSort('calculatedSoonest')}>
+
+                        {/* Expiry Sort */}
+                        <th 
+                            className="p-3 border-r text-center cursor-pointer hover:bg-slate-100" 
+                            onClick={() => onSort('calculatedSoonest')}
+                        >
                             Expiry <SortIcon column="calculatedSoonest" />
                         </th>
-                        <th className="p-3 border-r text-center cursor-pointer hover:bg-slate-100" onClick={() => onSort('calculatedStatus')}>
+
+                        {/* Status Sort */}
+                        <th 
+                            className="p-3 border-r text-center cursor-pointer hover:bg-slate-100" 
+                            onClick={() => onSort('calculatedStatus')}
+                        >
                             Status <SortIcon column="calculatedStatus" />
                         </th>
+
                         <th className="p-2 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-20 w-[90px] md:w-[160px]">
                             Actions
                         </th>
                     </tr>
                 </thead>
                 <tbody className="text-slate-600">
-                    {items.map((item) => (
+                    {sortedItems.map((item) => (
                         <React.Fragment key={item.id}>
                             <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors group">
                                 <td className="p-3 text-center border-r border-slate-200">

@@ -15,6 +15,24 @@ class MedicineController extends Controller
     public function index(Request $request)
     {
         $today = Carbon::today();
+
+        $allStats = MedicineCatalog::withSum('batches', 'current_quantity')->get()->map(function($m) use ($today) {
+            // Calculate total usable stock for this medicine
+            $total = (int)$m->batches_sum_current_quantity;
+            
+            // Determine status for the counter
+            $status = 'IN STOCK';
+            if ($total === 0) {
+                $status = 'OUT OF STOCK';
+            } elseif ($total <= ($m->reorder_point ?? 20)) {
+                $status = 'LOW STOCK';
+            }
+
+            return [
+                'status' => $status,
+                'is_expiring' => $m->batches()->whereBetween('expiry_date', [$today, $today->copy()->addDays(30)])->exists()
+            ];
+        });
         $query = MedicineCatalog::query();
         if ($request->search) {
             $searchTerm = "%{$request->search}%";
@@ -25,12 +43,10 @@ class MedicineController extends Controller
                   ->orWhere('sku_id', 'LIKE', $searchTerm);
             });
         }
-        $inventoryPaginator = $query->with(['batches' => function($query) use ($today) {
-                $query->where('current_quantity', '>', 0)
-                      ->whereDate('expiry_date', '>=', $today)
-                      ->orderBy('expiry_date', 'asc'); 
+        $inventoryPaginator = $query->with(['batches' => function($query) {
+                $query->orderBy('expiry_date', 'asc'); 
             }])
-            ->latest()
+                ->latest()
             ->paginate(10)
             ->withQueryString();
 
@@ -44,10 +60,14 @@ class MedicineController extends Controller
             });
 
             // 3. Calculate Usable Total Stock
-            $totalUsableStock = (int)$activeBatches->sum('current_quantity');
+            $totalUsableStock = $medicine->batches->filter(function($batch) use ($today) {
+                return $batch->current_quantity > 0 && Carbon::parse($batch->expiry_date)->startOfDay() >= $today;
+            })->sum('current_quantity');
 
             // 4. Identify the first valid batch for default selection (FEFO)
-            $defaultBatch = $activeBatches->first(); 
+            $defaultBatch = $medicine->batches->filter(function($batch) use ($today) {
+                return $batch->current_quantity > 0 && Carbon::parse($batch->expiry_date)->startOfDay() >= $today;
+            })->first();
 
             return [
                 'id' => $medicine->id,
@@ -73,28 +93,51 @@ class MedicineController extends Controller
                     'id' => $b->sku_batch_id,
                     'expiry' => $b->expiry_date,
                     'stock' => $b->current_quantity,
+                    'received' => $b->date_received,
                 ]),
             ];
         });
 
-        $logs = StockLog::with(['batch.medicine', 'staff'])
-            ->latest()
-            ->paginate(10, ['*'], 'log_page') // Use a different page name to avoid conflict
+        $logsQuery = StockLog::with(['batch.medicine', 'staff']);
+
+        // 1. ADD: Universal Search for Logs
+        if ($request->search) {
+            $searchTerm = "%{$request->search}%";
+            $logsQuery->where(function($q) use ($searchTerm) {
+                $q->where('reason', 'LIKE', $searchTerm)
+                ->orWhereHas('batch.medicine', function($mq) use ($searchTerm) {
+                    $mq->where('generic_name', 'LIKE', $searchTerm);
+                })
+                ->orWhereHas('staff', function($sq) use ($searchTerm) {
+                    $sq->where('first_name', 'LIKE', $searchTerm)
+                        ->orWhere('last_name', 'LIKE', $searchTerm);
+                })
+                ->orWhereHas('batch', function($bq) use ($searchTerm) {
+                    $bq->where('sku_batch_id', 'LIKE', $searchTerm);
+                });
+            });
+        }
+
+        // 2. Paginate logs
+        $logs = $logsQuery->latest()
+            ->paginate(10, ['*'], 'log_page')
             ->withQueryString();
 
+        // 3. Transform for Frontend
         $logs->getCollection()->transform(function($log) {
             return [
                 'dateTime' => $log->created_at->format('Y-m-d H:i'),
                 'id' => $log->batch->sku_batch_id ?? 'N/A',
                 'medicine_name' => $log->batch->medicine->generic_name ?? 'Catalog Update',
                 'action' => $log->change_amount != 0 ? ($log->change_amount > 0 ? 'STOCK IN' : 'DISPENSE') : 'CATALOG MOD',
-                'amount' => $log->change_amount == 0 ? '—' : ($log->change_amount > 0 ? '+' : '') . $log->change_amount,
+                'amount' => (string)$log->change_amount, // Ensure it's a string for .startsWith check
                 'reason' => $log->reason,
                 'admin' => $log->staff ? $log->staff->first_name . ' ' . $log->staff->last_name : 'System',
             ];
         });
         return Inertia::render('Admin/MedicineInventory', [
             'inventory' => $inventoryPaginator, 
+            'fullInventoryStats' => $allStats,
             'logs' => $logs,
             'filters' => $request->only(['search'])
         ]);
@@ -195,6 +238,10 @@ class MedicineController extends Controller
     {
         $medicine = MedicineCatalog::findOrFail($id);
 
+        if ($medicine->batches()->exists()) {
+            return redirect()->back()->with('error', 'Cannot delete this medicine because it has associated stock batches. This prevents inventory errors.');
+        }
+
         return DB::transaction(function () use ($medicine) {
             StockLog::create([
                 'medicine_id'   => null,
@@ -205,7 +252,7 @@ class MedicineController extends Controller
             ]);
 
             $medicine->delete();
-            return redirect()->back()->with('success', 'Medicine has been moved to the archive. Billing history is preserved.');
+            return redirect()->back()->with('success', 'Medicine has been moved to the archive.');
         });
     }
 
@@ -215,6 +262,8 @@ class MedicineController extends Controller
         $action = $request->input('action_type'); 
         $batchData = $request->input('batch');
         $reason = $request->input('reason', 'Manual Update');
+
+        $redirect = null;
 
         DB::transaction(function () use ($medicine, $action, $batchData, $reason) {
             $staffId = auth()->id(); // FIX: Use numeric ID directly
@@ -273,9 +322,19 @@ class MedicineController extends Controller
                     'batch_id' => $batch->id,
                     'staff_id' => $staffId,
                     'change_amount' => -$batch->current_quantity,
-                    'reason' => "BATCH REMOVAL: " . $reason,
+                    'reason' => "ARCHIVED: " . $reason, // Reason for archiving
                 ]);
-            
+
+                \App\Models\Archive::create([
+                    'archivable_id' => $batch->id,
+                    'archivable_type' => MedicineBatch::class,
+                    'data' => $batch->toJson(), 
+                    'reason' => $reason,
+                    'staff_id' => $staffId,
+                    'archived_at'     => now(),
+                    'scheduled_deletion_at' => now()->addDays(30),
+                ]);
+
                 $batch->delete();
             }
         });
