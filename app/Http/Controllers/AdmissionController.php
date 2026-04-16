@@ -173,6 +173,7 @@ class AdmissionController extends Controller
             'admission_id'  => 'required|exists:admissions,id',
             'payment_type'  => 'required|in:full,none',
             'amount_to_pay' => 'nullable|numeric|min:0',
+            'payment_source' => 'nullable|string',
         ]);
 
         return DB::transaction(function () use ($validated) {
@@ -193,6 +194,8 @@ class AdmissionController extends Controller
             // 3. WATERFALL PAYMENT LOGIC
             $paymentAmount = (float)($validated['amount_to_pay'] ?? 0);
 
+            $paymentSource = $validated['payment_source'] ?? 'Cash';
+
             if ($validated['payment_type'] === 'full' && $paymentAmount > 0) {
                 $remainingPayment = $paymentAmount;
 
@@ -210,7 +213,8 @@ class AdmissionController extends Controller
                         // Scenario: We have enough to pay off this entire month
                         $bill->update([
                             'amount_paid' => $billTotal,
-                            'payment_status' => 'PAID'
+                            'payment_status' => 'PAID',
+                            'payment_source' => $paymentSource,
                         ]);
                         $remainingPayment -= $billOwed;
                     } else {
@@ -218,7 +222,8 @@ class AdmissionController extends Controller
                         $newAmountPaid = $alreadyPaid + $remainingPayment;
                         $bill->update([
                             'amount_paid' => $newAmountPaid,
-                            'payment_status' => 'PARTIAL'
+                            'payment_status' => 'PARTIAL',
+                            'payment_source' => $paymentSource,
                         ]);
                         $remainingPayment = 0; // All money used up
                     }

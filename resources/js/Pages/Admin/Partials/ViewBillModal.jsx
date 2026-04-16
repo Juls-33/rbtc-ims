@@ -20,6 +20,7 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
     const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
     const [itemToDelete, setItemToDelete] = useState(null);
     const [isMiscMode, setIsMiscMode] = useState(false);
+    const [paymentSource, setPaymentSource] = useState('Cash');
 
     // Pagination State for Billing Cycles Table
     const [cyclePage, setCyclePage] = useState(1);
@@ -157,11 +158,13 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
         router.post(route('admin.billing.inpatient.pay'), {
             admission_id: admission.id,
             bill_id: currentStatement?.id, // Ensures the payment is applied to THIS statement
+            payment_source: paymentSource,
             amount_paid: paymentInput,
         }, {
             onSuccess: () => {                              
                 setShowPaymentConfirm(false);
                 setPaymentInput(0);
+                setPaymentSource('Cash');
                 setToast({ message: 'Payment processed for this statement!', type: 'success' });
             }
         });
@@ -251,8 +254,30 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                                             <td className="p-3 font-bold text-slate-700 uppercase">
                                                 {stmt.period_start ? new Date(stmt.period_start).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : `MONTH ${stmt.index}`}
                                             </td>
-                                            <td className="p-3 text-right">₱{parseFloat(stmt.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                            <td className="p-3 text-right text-emerald-600">₱{parseFloat(stmt.amount_paid || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                            <td className="p-3 text-right">
+                                                <div className="flex flex-col items-end">
+                                                    <span className="text-emerald-600 font-bold">
+                                                        ₱{parseFloat(stmt.amount_paid || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </span>
+                                                    {/* Tiny badge showing payment source */}
+                                                    {stmt.amount_paid > 0 && stmt.payment_source && (
+                                                        <span className="text-[7px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded mt-0.5">
+                                                            {stmt.payment_source}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="p-3 text-right">
+                                                <div className="flex flex-col items-end">
+                                                    <span className="text-emerald-600 font-bold">₱{parseFloat(stmt.amount_paid || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                    {/* Tiny badge that only shows if there is a payment source and an amount paid */}
+                                                    {stmt.amount_paid > 0 && stmt.payment_source && (
+                                                        <span className="text-[7px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded mt-0.5">
+                                                            {stmt.payment_source}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className="p-3 text-right font-black text-rose-600">₱{parseFloat(stmt.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                             <td className="p-3 text-center">
                                                 <button 
@@ -440,9 +465,21 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                                 <span className="text-[10px] font-black uppercase text-blue-200 tracking-widest block mb-1">Cycle Balance</span>
                                 <h4 className="text-4xl font-black text-emerald-400">₱ {totals.periodBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h4>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right flex flex-col items-end">
                                 <span className="text-[10px] font-black uppercase text-blue-200 block mb-1 tracking-widest">Statement Total</span>
-                                <p className="text-xl font-bold opacity-70 italic">₱ {totals.periodTotal.toLocaleString()}</p>
+                                <p className="text-xl font-bold opacity-70 italic leading-none mb-2">₱ {totals.periodTotal.toLocaleString()}</p>
+                                
+                                {/* Explicit Payment Source indicator for the selected statement */}
+                                {currentStatement?.amount_paid > 0 && currentStatement?.payment_source && (
+                                    <div className="bg-blue-900/50 border border-blue-400/30 rounded-lg px-2.5 py-1 flex items-center gap-1.5 shadow-sm">
+                                        <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-emerald-100">
+                                            Paid via: <span className="text-white">{currentStatement.payment_source}</span>
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -509,6 +546,26 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                                 <span className="text-[10px] font-bold text-emerald-700 uppercase block mb-1">Paying for this period</span>
                                 <span className="text-2xl font-black text-emerald-700">₱{parseFloat(paymentInput).toLocaleString()}</span>
                             </div>
+
+                            <div className="text-left">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-1">
+                                    Payment Source / Method
+                                </label>
+                                <select
+                                    value={paymentSource}
+                                    onChange={(e) => setPaymentSource(e.target.value)}
+                                    className="w-full border-slate-300 rounded-xl text-sm font-bold text-slate-700 py-3 px-4 shadow-sm focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-slate-50"
+                                >
+                                    <option value="Cash">Cash</option>
+                                    <option value="GCash / Maya">GCash / Maya</option>
+                                    <option value="Credit / Debit Card">Credit / Debit Card</option>
+                                    <option value="Cheque">Cheque</option>
+                                    <option value="PhilHealth">PhilHealth</option>
+                                    <option value="HMO / Corporate">HMO / Corporate</option>
+                                    <option value="Charity / Discount">Charity / Discount</option>
+                                </select>
+                            </div>
+
                             <div className="flex gap-2">
                                 <button onClick={() => setShowPaymentConfirm(false)} className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl font-black uppercase text-[10px]">Back</button>
                                 <button disabled={paymentForm.processing} onClick={handleProcessPayment} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px]">Confirm</button>

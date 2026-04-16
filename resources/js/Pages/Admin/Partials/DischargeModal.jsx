@@ -10,10 +10,11 @@ export default function DischargeModal({ isOpen, onClose, patient }) {
     const totalBalance = parseFloat(admission?.balance || 0);
     const isFullyPaid = parseFloat(admission.balance) <= 0;
 
-    const { data, setData, post, processing } = useForm({ 
+    const { data, setData, post, processing, errors } = useForm({
         admission_id: admission?.id || '',
         amount_to_pay: 0,
         payment_type: 'full',
+        payment_source: 'Cash',
     });
 
     useEffect(() => {
@@ -114,6 +115,26 @@ export default function DischargeModal({ isOpen, onClose, patient }) {
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div className="mt-4 mb-4">
+                        <label htmlFor="payment_source" className="block text-xs font-black text-slate-700 uppercase tracking-wide">
+                            Payment Source / Method
+                        </label>
+                        <select
+                            id="payment_source"
+                            value={data.payment_source}
+                            onChange={(e) => setData('payment_source', e.target.value)}
+                            className="mt-1 block w-full border-slate-300 rounded-lg shadow-sm focus:border-[#2E4696] focus:ring focus:ring-[#2E4696] focus:ring-opacity-50 text-sm font-medium text-slate-700"
+                        >
+                            <option value="Cash">Cash</option>
+                            <option value="GCash / Maya">GCash / Maya</option>
+                            <option value="Credit / Debit Card">Credit / Debit Card</option>
+                            <option value="Cheque">Cheque</option>
+                            <option value="PhilHealth">PhilHealth</option>
+                            <option value="HMO / Corporate">HMO / Corporate</option>
+                            <option value="Charity / Discount">Charity / Discount</option>
+                        </select>
+                        {errors.payment_source && <p className="text-red-500 text-xs mt-1 font-bold">{errors.payment_source}</p>}
                     </div>
                     <div className="bg-[#2E4696] rounded-2xl p-5 md:p-7 text-white shadow-xl space-y-6 border border-white/10 shrink-0">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

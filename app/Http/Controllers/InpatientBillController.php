@@ -18,7 +18,7 @@ class InpatientBillController extends Controller
      */
     public function addItem(Request $request)
     {
-        $validated = $request->validate([
+        $validated = $request->validate([   
             'admission_id' => 'required|exists:admissions,id',
             'bill_id'      => 'required|exists:bill_details,id',
             'medicine_id'  => 'nullable|exists:medicine_catalog,id',
@@ -116,6 +116,7 @@ class InpatientBillController extends Controller
         $request->validate([
             'bill_id'     => 'required|exists:bill_details,id',
             'amount_paid' => 'required|numeric|min:0.01',
+            'payment_source' => 'required|string|max:50',
         ]);
 
         return DB::transaction(function () use ($request) {
@@ -133,6 +134,7 @@ class InpatientBillController extends Controller
             $bill->update([
                 'amount_paid' => $newPaid,
                 'payment_status' => $status,
+                'payment_source' => $request->payment_source,
             ]);
 
             // 2. Increment the global paid amount on the Admission record
