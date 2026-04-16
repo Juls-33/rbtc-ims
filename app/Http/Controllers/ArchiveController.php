@@ -15,48 +15,84 @@ class ArchiveController extends Controller
         $query = Archive::with('archiver');
 
         // 1. Server-side Search
-        if ($request->search) {
+        if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function($q) use ($searchTerm) {
-                // Search in the JSON 'data' column and 'reason'
-                $q->where('data->first_name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('data->last_name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('data->name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('data->generic_name', 'LIKE', "%{$searchTerm}%")
+                $q->where('data->>first_name', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('data->>last_name', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('data->>name', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('data->>generic_name', 'LIKE', "%{$searchTerm}%")
                   ->orWhere('reason', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('archivable_type', 'LIKE', "%{$searchTerm}%");
+                  ->orWhere('archivable_type', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('archived_at', 'LIKE', "%{$searchTerm}%") // Search Date
+                  ->orWhereHas('archiver', function($archiverQuery) use ($searchTerm) { // Search Staff Name
+                      $archiverQuery->where('first_name', 'LIKE', "%{$searchTerm}%")
+                                    ->orWhere('last_name', 'LIKE', "%{$searchTerm}%");
+                  });
             });
         }
 
+        if ($request->filled('type') && $request->type !== 'All') {
+            $query->where('archivable_type', 'App\\Models\\' . $request->type);
+        }
+        
+
         // 2. Paginate and Transform
-        $archives = $query->latest('archived_at')
+       $archives = $query->latest('archived_at')
             ->paginate(10)
             ->withQueryString()
             ->through(function($item) {
                 $data = $item->data;
+                $exactType = str_replace('App\\Models\\', '', $item->archivable_type);
                 $displayName = ' ';
                 
-                if (str_contains($item->archivable_type, 'Patient')) {
+                // --- NEW: DYNAMIC PATIENT LOOKUP ---
+                // If the archived JSON data contains a patient_id, fetch the patient (even if soft-deleted)
+                $patientName = null;
+                if (isset($data['patient_id'])) {
+                    $patient = \App\Models\Patient::withTrashed()->find($data['patient_id']);
+                    if ($patient) {
+                        $patientName = trim("{$patient->first_name} {$patient->last_name}");
+                    }
+                }
+                
+                // Apply the display name based on the type
+                if ($exactType === 'Patient') {
+                    // For patients, their name is directly in the root of the data
                     $displayName = ($data['first_name'] ?? '') . ' ' . ($data['last_name'] ?? '');
-                } elseif (str_contains($item->archivable_type, 'Medicine')) {
+                } 
+                elseif ($exactType === 'PatientVisit') {
+                    // Use the dynamically found name, fallback to JSON name (if injected), fallback to ID
+                    $name = $patientName ?: trim(($data['patient_first_name'] ?? '') . ' ' . ($data['patient_last_name'] ?? ''));
+                    $displayName = $name ? "{$name} (Visit)" : "Visit #{$item->archivable_id}";
+                } 
+                elseif ($exactType === 'Admission') {
+                    // Use the dynamically found name, fallback to ID
+                    $displayName = $patientName ? "{$patientName} (Admission)" : "Admission #{$item->archivable_id}";
+                } 
+                elseif (str_contains($exactType, 'Medicine')) {
                     $displayName = $data['name'] ?? $data['generic_name'] ?? 'Medicine Record';
+                } 
+                else {
+                    // Fallback for any other random types (like Rooms)
+                    $displayName = isset($data['id']) ? "{$exactType} #{$data['id']}" : 'System Record';
                 }
 
                 return [
                     'id'            => $item->id,
-                    'type'          => str_replace('App\\Models\\', '', $item->archivable_type),
-                    'display_name'  => $displayName,
+                    'type'          => $exactType,
+                    'display_name'  => trim($displayName) ?: 'Unknown Record',
                     'original_id'   => $item->archivable_id,
                     'reason'        => $item->reason,
                     'archived_by'   => $item->archiver ? "{$item->archiver->first_name} {$item->archiver->last_name}" : 'System',
-                    'archived_at'   => $item->archived_at->format('M d, Y | h:i A'),
-                    'days_left'     => (int)now()->diffInDays($item->scheduled_deletion_at, false),
+                    'archived_at'   => $item->archived_at ? $item->archived_at->format('M d, Y | h:i A') : 'N/A',
+                    'days_left'     => $item->scheduled_deletion_at ? (int)now()->diffInDays($item->scheduled_deletion_at, false) : 0,
                 ];
             });
 
         return Inertia::render('Admin/ArchiveManagement', [
             'archives' => $archives,
-            'filters'  => $request->only(['search'])
+            'filters'  => $request->only(['search', 'type'])
         ]);
     }
 

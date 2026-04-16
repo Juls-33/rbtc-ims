@@ -115,6 +115,8 @@ Route::middleware(['auth', 'verified','checkStatus', 'force.password.change'])->
             Route::delete('remove-item/{id}', [InpatientBillController::class, 'removeItem'])->name('admin.billing.inpatient.removeItem');
             Route::post('pay', [InpatientBillController::class, 'pay'])->name('admin.billing.inpatient.pay');
         });
+
+        // Archive Management
         Route::get('/archive', [ArchiveController::class, 'index'])->name('admin.archive');
         Route::post('/archive/{id}/restore', [ArchiveController::class, 'restore'])->name('admin.archive.restore');
         Route::get('/patient-logs', [App\Http\Controllers\PatientLogController::class, 'index'])->name('admin.patient.logs');
@@ -122,6 +124,7 @@ Route::middleware(['auth', 'verified','checkStatus', 'force.password.change'])->
 
         //faqs
         Route::get('/faqs', fn() => Inertia::render('Admin/Faqs'))->name('admin.faqs');
+
     });
 
     // Doctor Routes

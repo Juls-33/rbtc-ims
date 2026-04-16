@@ -330,7 +330,7 @@ class MedicineController extends Controller
                     'archivable_type' => MedicineBatch::class,
                     'data' => $batch->toJson(), 
                     'reason' => $reason,
-                    'staff_id' => $staffId,
+                    'archived_by' => auth()->id(),
                     'archived_at'     => now(),
                     'scheduled_deletion_at' => now()->addDays(30),
                 ]);

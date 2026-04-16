@@ -14,6 +14,7 @@ class BillDetail extends Model
         'facility_fee',
         'total_amount',
         'amount_paid',
+        'payment_source',
         'payment_status',
         'date_issued',
     ];

@@ -58,7 +58,8 @@ class PatientVisit extends Model
     {
         $data = $this->toArray();
         // Load relationships to include in the archive snapshot
-        $data['patient_name'] = $this->patient?->name;
+        $data['patient_first_name'] = $this->patient?->first_name;
+        $data['patient_last_name'] = $this->patient?->last_name;
         $data['items'] = $this->bill_items()->get()->toArray();
 
         return \DB::table('archives')->insert([

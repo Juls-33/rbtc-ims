@@ -6,19 +6,29 @@ import Pagination from '@/Components/Pagination';
 
 export default function ArchiveManagement({ archives, filters = {} }) {
     const [searchQuery, setSearchQuery] = useState(filters?.search || '');
+    const [filterType, setFilterType] = useState(filters?.type || 'All');
     const [isProcessing, setIsProcessing] = useState(false);
 
     // SERVER SYNC: Debounced Search
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
+            // Clean parameter assembly to avoid sending empty search strings
+            const params = {};
+            if (searchQuery) params.search = searchQuery;
+            if (filterType && filterType !== 'All') params.type = filterType;
+
             router.get(
-                route('admin.archive.index'), 
-                { search: searchQuery },
-                { preserveState: true, replace: true, preserveScroll: true, only: ['archives', 'filters'] }
+                route('admin.archive'),
+                params, 
+                { 
+                    preserveState: true, 
+                    replace: true, 
+                    preserveScroll: true 
+                }
             );
         }, 300);
         return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery]);
+    }, [searchQuery, filterType]);
 
     const formatPurgeTime = (totalDays) => {
         if (totalDays <= 0) return "PURGE PENDING";
@@ -73,21 +83,34 @@ export default function ArchiveManagement({ archives, filters = {} }) {
                 </div>
 
                 <div className="p-8 flex-1 flex flex-col">
-                    <div className="relative w-full md:w-1/3 mb-8">
+                    {/* NEW: Search and Filter Row */}
+                    <div className="w-full mb-8 flex flex-col sm:flex-row justify-between items-center gap-4">
                         <input 
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search archived records..."
-                            className="w-full border-slate-300 rounded-xl p-3 text-xs focus:ring-red-500 focus:border-red-500 transition-all pl-10"
+                            placeholder="Search by name, reason, type, date, or archiver..."
+                            className="w-full sm:max-w-md border-slate-300 rounded-xl p-3 text-xs focus:ring-red-500 focus:border-red-500 transition-all pl-4 shadow-sm"
                         />
+                        <select
+                            value={filterType}
+                            onChange={(e) => setFilterType(e.target.value)}
+                            className="w-full sm:w-48 border-slate-300 rounded-xl p-3 text-xs font-bold text-slate-600 focus:ring-red-500 focus:border-red-500 transition-all bg-white shadow-sm shrink-0"
+                        >
+                            <option value="All">ALL TYPES</option>
+                            <option value="Patient">Patient</option>
+                            <option value="PatientVisit">Patient Visit</option>
+                            <option value="Admission">Admission</option>
+                            <option value="MedicineCatalog">Medicine Catalog</option>
+                            <option value="MedicineBatch">Medicine Batch</option>
+                        </select>
                     </div>
 
                     <div className="border border-slate-200 rounded-2xl overflow-x-auto bg-white">
                         <table className="w-full text-left text-sm min-w-[1000px] border-collapse">
                             <thead className="bg-slate-50 text-slate-500 font-black uppercase text-[10px] tracking-widest border-b">
                                 <tr>
-                                    <th className="p-4 border-r w-24 text-center">Type</th>
+                                    <th className="p-4 border-r w-32 text-center">Type</th>
                                     <th className="p-4 border-r">Subject Name</th>
                                     <th className="p-4 border-r">Reason</th>
                                     <th className="p-4 border-r text-center">Archived By</th>
@@ -101,7 +124,9 @@ export default function ArchiveManagement({ archives, filters = {} }) {
                                     <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
                                         <td className="p-4 border-r text-center">
                                             <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${
-                                                item.type === 'Patient' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                item.type === 'Patient' ? 'bg-blue-50 text-blue-700 border-blue-200' : 
+                                                item.type.includes('Medicine') ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                'bg-amber-50 text-amber-700 border-amber-200'
                                             }`}> {item.type} </span>
                                         </td>
                                         <td className="p-4 border-r font-black text-slate-800 tracking-tight uppercase text-xs whitespace-nowrap">{item.display_name}</td>
