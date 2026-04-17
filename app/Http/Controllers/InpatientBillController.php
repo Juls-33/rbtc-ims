@@ -155,13 +155,40 @@ class InpatientBillController extends Controller
     {
         $admission = Admission::with(['patient', 'room', 'billItems.medicine'])->findOrFail($id);
 
+        // Filter statements to only show PAST and CURRENT months (ignores future placeholders)
+        $statements = collect($admission->statements)
+            ->filter(function ($stmt) {
+                $periodStart = \Carbon\Carbon::parse($stmt['period_start']);
+
+                // Include if past/current
+                if ($periodStart->isPast() || $periodStart->isCurrentMonth()) {
+                    return true;
+                }
+
+                // Include future ONLY if paid
+                return $stmt['status'] === 'PAID';
+            })
+            ->values();
+
+
+        $totalBill = $statements->sum('grand_total');
+        $totalPaid = $statements->sum('amount_paid');
+        $totalBalance = $statements->sum('balance');
+        // Get the current logged-in user generating the receipt
+        $adminName = auth()->check() ? auth()->user()->first_name . ' ' . auth()->user()->last_name : 'System Admin';
+
         $data = [
-            'title' => 'Inpatient Discharge Statement',
-            'date' => now()->format('M d, Y'),
-            'admission' => $admission,
-            'patient' => $admission->patient,
-            'statements' => $admission->statements,
+            'title'        => 'Inpatient Discharge Statement',
+            'date'         => now()->format('F d, Y h:i A'),
+            'admin_name'   => $adminName,
+            'admission'    => $admission,
+            'patient'      => $admission->patient,
+            'statements'   => $statements,
+            'totalBill'    => $totalBill,
+            'totalPaid'    => $totalPaid,
+            'totalBalance' => $totalBalance,
         ];
+        
         $pdf = Pdf::loadView('inpatient_invoice', $data);
 
         return $pdf->stream("Discharge_Statement_ADM-{$admission->id}.pdf");
