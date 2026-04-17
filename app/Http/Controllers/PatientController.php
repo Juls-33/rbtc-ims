@@ -181,7 +181,7 @@ class PatientController extends Controller
                 'status' => ($p->admissions->first() && strtolower($p->admissions->first()->status) === 'admitted') ? 'ADMITTED' : 'OUTPATIENT',
             ]);
 
-        $rooms = Room::select('id', 'room_location', 'room_rate', 'status')->get();
+        $rooms = Room::with('category')->select('id', 'room_category_id', 'room_location', 'room_rate', 'status')->get();
         $doctors = Staff::whereRaw('LOWER(role) = ?', ['doctor'])->select('id', 'first_name', 'last_name')->get();
 
         $inventory = \App\Models\MedicineCatalog::with(['batches' => fn($q) => $q->where('current_quantity', '>', 0)->orderBy('expiry_date', 'asc')])

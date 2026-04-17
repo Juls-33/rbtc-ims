@@ -16,6 +16,7 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
     const [modalError, setModalError] = useState({ show: false, message: '' });
     const [searchTerm, setSearchTerm] = useState('');
     const [roomSearchQuery, setRoomSearchQuery] = useState(''); 
+    const [categoryFilter, setCategoryFilter] = useState('All'); // NEW: Category Filter State
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     
     const dropdownRef = useRef(null);
@@ -32,35 +33,39 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
         }
     };
 
+    // Extract unique categories for the new dropdown filter
+    const uniqueCategories = useMemo(() => {
+        const cats = rooms.map(r => r.category?.name || 'Uncategorized');
+        return [...new Set(cats)].sort();
+    }, [rooms]);
+
+    // Apply Search AND Category filters
     const filteredAndSortedRooms = useMemo(() => {
         let filtered = rooms.filter(r => {
             const query = roomSearchQuery.toLowerCase();
-            return r.room_location.toLowerCase().includes(query) || 
-                   r.room_rate.toString().includes(query);
+            const categoryName = r.category?.name || 'Uncategorized';
+            
+            const matchesSearch = r.room_location.toLowerCase().includes(query) || r.room_rate.toString().includes(query);
+            const matchesCategory = categoryFilter === 'All' || categoryName === categoryFilter;
+            
+            return matchesSearch && matchesCategory;
         });
         return filtered.sort((a, b) => (a.status === 'Available' ? -1 : 1));
-    }, [rooms, roomSearchQuery]);
+    }, [rooms, roomSearchQuery, categoryFilter]);
 
     const filteredPatients = useMemo(() => {
         const query = searchTerm.toLowerCase();
 
-        // 1. Filter by search term first
         let filtered = patients.filter(p => 
             p.name.toLowerCase().includes(query) || 
             p.patient_id?.toLowerCase().includes(query)
         );
 
-        // 2. Apply Priority Sorting
         return filtered.sort((a, b) => {
             const aAdmitted = a.status === 'ADMITTED';
             const bAdmitted = b.status === 'ADMITTED';
 
-            // PRIORITY 1: Status (Non-admitted patients first)
-            if (aAdmitted !== bAdmitted) {
-                return aAdmitted ? 1 : -1;
-            }
-
-            // PRIORITY 2: Alphabetical Name (A-Z)
+            if (aAdmitted !== bAdmitted) return aAdmitted ? 1 : -1;
             return a.name.localeCompare(b.name);
         });
     }, [searchTerm, patients]);
@@ -79,14 +84,11 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
 
         if (data.admission_date) {
             const selectedDate = new Date(data.admission_date);
-            const now = new Date();
-            
             if (selectedDate > now) {
                 setError('admission_date', 'Admission date cannot be in the future.');
                 isValid = false;
             }
         }
-
         return isValid;
     };
 
@@ -112,6 +114,7 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
         reset();
         setSearchTerm('');
         setRoomSearchQuery('');
+        setCategoryFilter('All');
         setIsDropdownOpen(false);
         setModalError({ show: false, message: '' });
         onClose();
@@ -215,20 +218,30 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
                             </div>
                         </div>
 
-                        {/* ROOM CAROUSEL */}
+                        {/* ROOM CAROUSEL W/ CATEGORY FILTERS */}
                         <div className="pt-4 border-t border-slate-100">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
-                                <div className="w-full sm:max-w-xs">
+                                <div className="w-full sm:max-w-lg">
                                     <Label text="Facility Placement (Select Room)" fieldError={errors.room_id} />
-                                    <input 
-                                        type="text" 
-                                        placeholder="Filter rooms by name/price..."
-                                        className="w-full border-slate-300 rounded-full px-4 py-1.5 text-[11px] focus:ring-[#3D52A0] shadow-sm"
-                                        value={roomSearchQuery}
-                                        onChange={(e) => setRoomSearchQuery(e.target.value)}
-                                    />
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Search bed or price..."
+                                            className="w-1/2 border-slate-300 rounded-lg px-3 py-1.5 text-[11px] focus:ring-[#3D52A0] shadow-sm"
+                                            value={roomSearchQuery}
+                                            onChange={(e) => setRoomSearchQuery(e.target.value)}
+                                        />
+                                        <select 
+                                            className="w-1/2 border-slate-300 rounded-lg px-2 py-1.5 text-[11px] focus:ring-[#3D52A0] shadow-sm font-bold text-slate-600"
+                                            value={categoryFilter}
+                                            onChange={(e) => setCategoryFilter(e.target.value)}
+                                        >
+                                            <option value="All">All Wards / Categories</option>
+                                            {uniqueCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </div>
                                 </div>
-                                <Link href="/admin/rooms" className="text-[9px] font-black text-blue-600 hover:text-blue-800 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full border border-blue-100 transition-all">Manage Rooms ↗</Link>
+                                <Link href="/admin/rooms" className="text-[9px] font-black text-blue-600 hover:text-blue-800 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full border border-blue-100 transition-all mt-2 sm:mt-0">Manage Rooms ↗</Link>
                             </div>
 
                             <div className="relative group px-1">
@@ -238,6 +251,8 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
                                     {filteredAndSortedRooms.map(room => {
                                         const isAvailable = room.status === 'Available';
                                         const isSelected = data.room_id === room.id;
+                                        const catName = room.category?.name || 'Uncategorized';
+
                                         return (
                                             <button
                                                 key={room.id} type="button" disabled={!isAvailable}
@@ -248,25 +263,36 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
                                                         monthly_rate: room.room_rate
                                                     });
                                                 }}
-                                                className={`min-w-[170px] md:min-w-[200px] snap-start p-4 rounded-xl border-2 text-left transition-all relative ${isSelected ? 'border-[#3D52A0] bg-blue-50 ring-4 ring-blue-50/50' : isAvailable ? 'border-slate-100 bg-white hover:border-slate-300 shadow-sm' : 'border-slate-50 bg-slate-50 opacity-50 cursor-not-allowed'}`}
+                                                className={`min-w-[170px] md:min-w-[200px] snap-start p-4 rounded-xl border-2 text-left transition-all relative flex flex-col justify-between ${isSelected ? 'border-[#3D52A0] bg-blue-50 ring-4 ring-blue-50/50' : isAvailable ? 'border-slate-100 bg-white hover:border-slate-300 shadow-sm' : 'border-slate-50 bg-slate-50 opacity-50 cursor-not-allowed'}`}
                                             >
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${isAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>{room.status}</span>
-                                                    {isSelected && <span className="bg-[#3D52A0] text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg animate-in zoom-in">✓</span>}
+                                                <div>
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${isAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>{room.status}</span>
+                                                        {isSelected && <span className="bg-[#3D52A0] text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg animate-in zoom-in">✓</span>}
+                                                    </div>
+                                                    
+                                                    {/* NEW: Displays the category inside the card */}
+                                                    <p className="text-[9px] text-[#3D52A0] font-black uppercase tracking-widest mb-1 mt-2 truncate">{catName}</p>
+                                                    <p className="font-bold text-slate-800 text-sm line-clamp-1 uppercase tracking-tighter">{room.room_location}</p>
                                                 </div>
-                                                <p className="font-bold text-slate-800 text-sm line-clamp-1 uppercase tracking-tighter">{room.room_location}</p>
-                                                <p className="text-base font-black text-[#3D52A0] mt-1">₱{parseFloat(room.room_rate).toLocaleString()}</p>
-                                                <p className="text-[8px] text-slate-400 uppercase font-black tracking-widest">Monthly Rate</p>
+
+                                                <div className="mt-3">
+                                                    <p className="text-base font-black text-[#3D52A0]">₱{parseFloat(room.room_rate).toLocaleString()}</p>
+                                                    <p className="text-[8px] text-slate-400 uppercase font-black tracking-widest">Monthly Rate</p>
+                                                </div>
                                             </button>
                                         );
                                     })}
+                                    {filteredAndSortedRooms.length === 0 && (
+                                        <div className="text-[11px] font-bold text-slate-400 py-4 italic">No rooms match your filters.</div>
+                                    )}
                                 </div>
                                 <button type="button" onClick={() => scroll('right')} className="absolute right-[-10px] top-1/2 -translate-y-1/2 z-10 bg-white/90 backdrop-blur shadow-xl border border-slate-200 rounded-full w-8 h-8 hidden md:flex items-center justify-center text-slate-600 hover:bg-[#3D52A0] hover:text-white transition-all opacity-0 group-hover:opacity-100">❯</button>
                             </div>
                             {errors.room_id && <p className="text-red-500 text-[9px] font-bold italic mt-1 uppercase">{errors.room_id}</p>}
                         </div>
 
-                        {/* ROOM RATE CONFIGURATION */}
+                        {/* ROOM RATE CONFIGURATION WITH NEGATIVE VALUE BLOCKER */}
                         {data.room_id && (
                             <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl animate-in slide-in-from-top-2">
                                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -281,6 +307,13 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
                                         <input 
                                             type="number" 
                                             step="0.01"
+                                            min="0" // Prevents HTML submission
+                                            onKeyDown={(e) => {
+                                                // Actively blocks typing minus, plus, and 'e' characters
+                                                if (['-', '+', 'e', 'E'].includes(e.key)) {
+                                                    e.preventDefault();
+                                                }
+                                            }}
                                             className={`${inputClass(errors.monthly_rate)} pl-7 font-black text-blue-700 text-lg`}
                                             value={data.monthly_rate}
                                             onChange={e => setData('monthly_rate', e.target.value)}

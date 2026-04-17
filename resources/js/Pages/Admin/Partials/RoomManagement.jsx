@@ -1,20 +1,15 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import Button from '@/Components/Button';
 import AddRoomModal from './AddRoomModal';
 import EditRoomModal from './EditRoomModal';
 import DeleteRoomModal from './DeleteRoomModal';
-import Pagination from '@/Components/Pagination';
 import InventoryStats from '@/Components/InventoryStats';
 
-export default function RoomManagement({ auth, rooms, roomStats, filters }) {
+export default function RoomManagement({ auth, categories, groupedCategories, orphanedRooms, roomStats, filters }) {
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'All'); 
-    const [sortConfig, setSortConfig] = useState({ 
-        key: filters.sort || 'room_location', 
-        direction: filters.direction || 'asc' 
-    });
     
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -24,148 +19,117 @@ export default function RoomManagement({ auth, rooms, roomStats, filters }) {
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
             router.get(route('admin.rooms'), 
-                { 
-                    search: searchQuery, 
-                    status: statusFilter,
-                    sort: sortConfig.key,
-                    direction: sortConfig.direction
-                }, 
+                { search: searchQuery, status: statusFilter }, 
                 { preserveState: true, replace: true, preserveScroll: true }
             );
         }, 300);
         return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery, statusFilter, sortConfig]);
+    }, [searchQuery, statusFilter]);
 
-    const currentRooms = useMemo(() => {
-        const data = [...(rooms.data || [])];
-        data.sort((a, b) => {
-            let valA = a[sortConfig.key];
-            let valB = b[sortConfig.key];
-            if (sortConfig.key === 'room_rate') {
-                valA = parseFloat(valA); valB = parseFloat(valB);
-            }
-            if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-            return 0;
-        });
-        return data;
-    }, [rooms.data, sortConfig]);
-
-    const handleSort = (key) => {
-        setSortConfig(prev => ({
-            key,
-            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
-        }));
-    };
-
-    const SortIcon = ({ column }) => {
-        if (sortConfig.key !== column) return <span className="ml-1 opacity-20 text-[10px]">↕</span>;
-        return sortConfig.direction === 'asc' 
-            ? <span className="ml-1 text-blue-600 font-bold">↑</span> 
-            : <span className="ml-1 text-blue-600 font-bold">↓</span>;
-    };
+    // Helper to render a room card inside the grid
+    const renderRoomCard = (room) => (
+        <div key={room.id} className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow group flex flex-col justify-between">
+            <div>
+                <div className="flex justify-between items-start mb-2">
+                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
+                        room.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
+                        room.status === 'Occupied' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-amber-50 text-amber-700 border-amber-100'
+                    }`}>
+                        {room.status}
+                    </span>
+                </div>
+                <h4 className="font-black text-slate-800 text-sm uppercase tracking-tight line-clamp-1">{room.room_location}</h4>
+                <p className="font-mono text-emerald-600 font-bold text-xs mt-1 mb-4">₱{parseFloat(room.room_rate).toLocaleString(undefined, {minimumFractionDigits: 2})}/mo</p>
+            </div>
+            
+            <div className="flex justify-between gap-2 border-t border-slate-100 pt-3 mt-auto">
+                <button onClick={() => { setSelectedRoom(room); setIsEditModalOpen(true); }} className="flex-1 bg-amber-50 text-amber-700 hover:bg-amber-100 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">Edit</button>
+                <button onClick={() => { setSelectedRoom(room); setIsDeleteModalOpen(true); }} className="flex-1 bg-rose-50 text-rose-700 hover:bg-rose-100 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">Delete</button>
+            </div>
+        </div>
+    );
 
     return (
-        <AuthenticatedLayout header="Admin / Room Registry" sectionTitle="Room Management">
+        <AuthenticatedLayout header="Admin / Room Registry" sectionTitle="Facility Management">
             <Head title="Room Management" />
 
-            {/* 🔥 Uses pre-calculated stats from server */}
             <InventoryStats stats={roomStats} />
 
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[600px] flex flex-col">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+                {/* FILTER HEADER */}
                 <div className="p-6 border-b bg-slate-50/30">
                     <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
                         <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
                             <div className="relative w-full sm:w-72">
                                 <input 
-                                    type="text" 
-                                    placeholder="Search location..." 
-                                    className="w-full border-slate-300 rounded-lg shadow-sm text-sm focus:ring-[#3D52A0] focus:border-[#3D52A0] pl-4 py-2.5"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    type="text" placeholder="Search beds/locations..." 
+                                    className="w-full border-slate-300 rounded-lg shadow-sm text-sm focus:ring-[#3D52A0] pl-4 py-2.5"
+                                    value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
-
                             <select 
                                 className="w-full sm:w-44 border-slate-300 rounded-lg text-sm focus:ring-[#3D52A0] py-2.5 font-bold text-slate-600"
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
+                                value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
                             >
                                 <option value="All">All Statuses</option>
                                 <option value="Available">Available</option>
                                 <option value="Occupied">Occupied</option>
                                 <option value="Maintenance">Maintenance</option>
-                                <option value="Cleaning">Cleaning</option>
                             </select>
-
-                            <Button 
-                                variant="success" 
-                                className="w-full sm:w-auto px-6 py-3 shadow-lg font-black text-[10px] uppercase tracking-widest whitespace-nowrap"
-                                onClick={() => setIsAddModalOpen(true)}
-                            > + REGISTER ROOM </Button>
+                            <Button variant="success" onClick={() => setIsAddModalOpen(true)} className="w-full sm:w-auto px-6 py-3 shadow-lg font-black text-[10px] uppercase whitespace-nowrap tracking-widest">
+                                + Add Bed / Room
+                            </Button>
                         </div>
-
-                        <Link 
-                            href={route('admin.patients')} 
-                            className="w-full lg:w-auto px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-slate-200 flex items-center justify-center gap-2"
-                        > Patient Directory → </Link>
                     </div>
                 </div>
 
-                <div className="p-6 flex-1 flex flex-col">
-                    <div className="overflow-x-auto border border-slate-200 rounded-xl relative">
-                        <table className="w-full text-left text-sm border-collapse min-w-[800px]">
-                            <thead className="bg-slate-50 text-slate-500 font-black uppercase text-[10px] tracking-widest border-b">
-                                <tr>
-                                    <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('room_location')}>
-                                        Room Location / ID <SortIcon column="room_location" />
-                                    </th>
-                                    <th className="p-4 border-r text-center cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('room_rate')}>
-                                        Monthly Rate <SortIcon column="room_rate" />
-                                    </th>
-                                    <th className="p-4 border-r text-center cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('status')}>
-                                        Status <SortIcon column="status" />
-                                    </th>
-                                    <th className="p-4 text-center sticky right-0 bg-slate-50 z-20 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] w-48"> Actions </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-slate-600">
-                                {currentRooms.map(room => (
-                                    <tr key={room.id} className="hover:bg-slate-50/50 transition-colors group text-[13px]">
-                                        <td className="p-4 font-black text-slate-800 border-r uppercase tracking-tight">{room.room_location}</td>
-                                        <td className="p-4 font-mono text-emerald-700 font-black border-r text-center">
-                                            ₱{parseFloat(room.room_rate).toLocaleString(undefined, {minimumFractionDigits: 2})}
-                                        </td>
-                                        <td className="p-4 text-center border-r">
-                                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm ${
-                                                room.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
-                                                room.status === 'Occupied' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-rose-50 text-rose-700 border-rose-100'
-                                            }`}> {room.status} </span>
-                                        </td>
-                                        <td className="p-4 text-center sticky right-0 bg-white group-hover:bg-slate-50/50 z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] transition-colors">
-                                            <div className="flex justify-center gap-2">
-                                                <Button variant="warning" onClick={() => { setSelectedRoom(room); setIsEditModalOpen(true); }} className="px-4 py-2 font-black text-[9px] uppercase tracking-widest shadow-sm"> Edit </Button>
-                                                <Button variant="danger" onClick={() => { setSelectedRoom(room); setIsDeleteModalOpen(true); }} className="px-4 py-2 font-black text-[9px] uppercase tracking-widest shadow-sm"> Delete </Button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        {currentRooms.length === 0 && (
-                            <div className="p-20 text-center text-slate-400 italic text-sm">No units found matching your current filters.</div>
-                        )}
+                {/* DYNAMIC CATEGORY GRID LAYOUT */}
+                <div className="p-6 bg-slate-50">
+                    
+                    {/* Wrap the mapped categories in a 2-column grid for Desktop */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {groupedCategories.map(category => {
+                            if (category.rooms.length === 0) return null; // Hide empty categories
+                            
+                            return (
+                                /* Wraps each category in its own neat container box */
+                                <div key={category.id} className="space-y-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                    <h3 className="font-black text-lg text-[#3D52A0] uppercase tracking-tighter border-b-2 border-slate-100 pb-2">
+                                        {category.name} <span className="text-[10px] text-slate-400 font-bold ml-2">({category.rooms.length} Beds)</span>
+                                    </h3>
+                                    
+                                    {/* The individual beds inside this specific category */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                                        {category.rooms.map(renderRoomCard)}
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
-                </div>
 
-                {/* 🔥 Correct Pagination Component Usage */}
-                <div className="p-6 border-t bg-slate-50/30 mt-auto">
-                    <Pagination data={rooms} />
+                    {/* ORPHANED ROOMS (Legacy fallback) */}
+                    {orphanedRooms.length > 0 && (
+                        <div className="space-y-4 pt-8 mt-8 border-t-4 border-dashed border-rose-200">
+                            <h3 className="font-black text-lg text-rose-600 uppercase tracking-tighter border-b-2 border-rose-200 pb-2 inline-block pr-8">
+                                Uncategorized / Legacy Rooms <span className="text-[10px] text-rose-400 font-bold ml-2">({orphanedRooms.length} Beds)</span>
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {orphanedRooms.map(renderRoomCard)}
+                            </div>
+                        </div>
+                    )}
+
+                    {groupedCategories.every(c => c.rooms.length === 0) && orphanedRooms.length === 0 && (
+                        <div className="text-center py-20 text-slate-400 font-bold uppercase tracking-widest text-xs">
+                            No rooms match your filters.
+                        </div>
+                    )}
                 </div>
             </div>
-            {/* Modals */}
-            <AddRoomModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
-            <EditRoomModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} room={selectedRoom} />
+
+            {/* Modals: Notice we pass the 'categories' list down to them */}
+            <AddRoomModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} categories={categories} />
+            <EditRoomModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} room={selectedRoom} categories={categories} />
             <DeleteRoomModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} room={selectedRoom} />
         </AuthenticatedLayout>
     );

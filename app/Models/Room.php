@@ -9,6 +9,7 @@ class Room extends Model
 {
     use HasFactory; 
     protected $fillable = [
+        'room_category_id',
         'room_location', 
         'room_rate', 
         'status'
@@ -21,4 +22,9 @@ class Room extends Model
     {
         return $this->hasMany(Admission::class);
     }
+
+    public function category()
+    {
+        return $this->belongsTo(RoomCategory::class, 'room_category_id');
+    }   
 }
