@@ -209,8 +209,16 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
                                             <td className="p-3 border-r font-bold">{v.weight}</td>
                                             <td className="p-3 border-r truncate max-w-[150px]">{v.reason}</td>
                                             <td className="p-3 border-r text-right font-bold">₱ {parseFloat(v.total_bill || 0).toLocaleString()}</td>
-                                            <td className={`p-3 border-r text-right font-black ${parseFloat(v.balance) > 0 ? 'text-rose-600' : 'text-slate-900'}`}>
-                                                ₱ {parseFloat(v.balance || 0).toLocaleString()}
+                                            <td className={`p-3 border-r text-right ${parseFloat(v.balance) > 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                                                <div className="flex flex-col items-end">
+                                                    <span className="font-black">₱ {parseFloat(v.balance || 0).toLocaleString()}</span>
+                                                    {/* Tiny badge showing payment source if a payment was made */}
+                                                    {parseFloat(v.amount_paid) > 0 && v.payment_source && (
+                                                        <span className="text-[7px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded mt-0.5">
+                                                            {v.payment_source}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="p-3 text-center flex justify-center gap-2">
                                                 <Button 

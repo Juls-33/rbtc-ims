@@ -61,6 +61,7 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
     const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
     const [isEditingFee, setIsEditingFee] = useState(false);
     const [feeInput, setFeeInput] = useState(CHECKUP_FEE);
+    const [paymentSource, setPaymentSource] = useState('Cash');
 
     const medDropdownRef = useRef(null); 
 
@@ -138,11 +139,13 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
         router.post(route('admin.billing.outpatient.store'), {
             visit_id: visit.id,
             amount_paid: paymentInput,
+            payment_source: paymentSource, 
         }, {
-            onSuccess: () => { setShowPaymentConfirm(false); onClose(); },
+            onSuccess: () => { setShowPaymentConfirm(false); onClose(); setPaymentSource('Cash'); },
             onFinish: () => setIsFinalizing(false)
         });
     };
+
 
     if (!isOpen) return null;
 
@@ -263,7 +266,16 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
                                         <Button variant="success" className="flex-1 px-4 text-[10px] font-black uppercase tracking-widest" onClick={() => setPaymentInput(totals.maxPayable)}>FULL</Button>
                                     </div>
                                 </div>
-                                <p className="text-[9px] text-blue-300 uppercase font-black italic tracking-tighter">Previously Paid: ₱ {totals.previousPaid.toLocaleString()}</p>
+                                <div className="flex items-center justify-between mt-2">
+                                    <p className="text-[9px] text-blue-300 uppercase font-black italic tracking-tighter">
+                                        Previously Paid: ₱ {totals.previousPaid.toLocaleString()}
+                                    </p>
+                                    {totals.previousPaid > 0 && visit?.payment_source && (
+                                        <span className="text-[8px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-100 px-2 py-0.5 rounded border border-emerald-500/30">
+                                            Via: {visit.payment_source}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                             <div className="bg-white/10 p-5 rounded-2xl flex-1 text-center md:text-right border border-white/5 shadow-inner">
                                 <span className="text-[10px] font-black uppercase text-blue-200 block mb-1">Projected Balance</span>
@@ -311,7 +323,28 @@ export default function ViewOutpatientBillModal({ isOpen, onClose, patient, visi
                                 <span className="text-[10px] font-bold text-emerald-700 uppercase">Amount</span>
                                 <span className="text-2xl font-black text-emerald-700">₱{parseFloat(paymentInput).toLocaleString()}</span>
                             </div>
-                            <div className="flex gap-2">
+
+                            {/* NEW: Payment Source Dropdown */}
+                            <div className="text-left">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-1">
+                                    Payment Source / Method
+                                </label>
+                                <select
+                                    value={paymentSource}
+                                    onChange={(e) => setPaymentSource(e.target.value)}
+                                    className="w-full border-slate-300 rounded-xl text-sm font-bold text-slate-700 py-3 px-4 shadow-sm focus:ring-emerald-500 focus:border-emerald-500 transition-all bg-slate-50"
+                                >
+                                    <option value="Cash">Cash</option>
+                                    <option value="GCash / Maya">GCash / Maya</option>
+                                    <option value="Credit / Debit Card">Credit / Debit Card</option>
+                                    <option value="Cheque">Cheque</option>
+                                    <option value="PhilHealth">PhilHealth</option>
+                                    <option value="HMO / Corporate">HMO / Corporate</option>
+                                    <option value="Charity / Discount">Charity / Discount</option>
+                                </select>
+                            </div>
+
+                            <div className="flex gap-2 pt-2">
                                 <button onClick={() => setShowPaymentConfirm(false)} className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl font-black uppercase text-[10px]">Back</button>
                                 <button disabled={isFinalizing} onClick={handleConfirmPayment} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] shadow-lg">Confirm</button>
                             </div>

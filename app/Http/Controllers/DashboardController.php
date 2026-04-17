@@ -28,6 +28,31 @@ class DashboardController extends Controller
             });
         }
 
+        $months = collect(range(5, 0))->map(function ($i) {
+            return now()->subMonths($i);
+        });
+
+        // Generate Financial Trends
+        $revenueTrends = $months->map(function ($date) {
+            $inpatient = \App\Models\Admission::whereMonth('created_at', $date->month)->whereYear('created_at', $date->year)->sum('amount_paid');
+            $outpatient = \App\Models\PatientVisit::whereMonth('created_at', $date->month)->whereYear('created_at', $date->year)->sum('amount_paid');
+            return [
+                'label'      => $date->format('M y'),
+                'inpatient'  => (float)$inpatient,
+                'outpatient' => (float)$outpatient,
+                'total'      => (float)($inpatient + $outpatient),
+            ];
+        });
+
+        // Generate Patient Volume Trends
+        $censusTrends = $months->map(function ($date) {
+            return [
+                'label'      => $date->format('M y'),
+                'admissions' => \App\Models\Admission::whereMonth('admission_date', $date->month)->whereYear('admission_date', $date->year)->count(),
+                'outpatient' => \App\Models\PatientVisit::whereMonth('visit_date', $date->month)->whereYear('visit_date', $date->year)->count(),
+            ];
+        });
+
         return Inertia::render('Dashboard', [
             'doctors' => (clone $staffQuery)->where('role', 'Doctor')->get(),
             'nurses'  => (clone $staffQuery)->where('role', 'Nurse')->get(),
@@ -50,7 +75,8 @@ class DashboardController extends Controller
             'billingStats' => [
                 'monthlyEarnings'  => (float)Admission::whereMonth('created_at', now()->month)->sum('amount_paid') + 
                                      (float)PatientVisit::whereMonth('created_at', now()->month)->sum('amount_paid'),
-                'unpaidInpatient'  => Admission::where('status', 'ADMITTED')->where('balance', '>', 0)->count(),
+                'unpaidAdmitted'   => Admission::where('status', 'ADMITTED')->where('balance', '>', 0)->count(),
+                'unpaidDischarged' => Admission::where('status', 'DISCHARGED')->where('balance', '>', 0)->count(),
                 'unpaidOutpatient' => PatientVisit::where('balance', '>', 0)->count(),
             ],
 
@@ -74,6 +100,9 @@ class DashboardController extends Controller
                 'expired'  => MedicineBatch::where('expiry_date', '<', now())->count(),
                 'expiring' => MedicineBatch::whereBetween('expiry_date', [now(), now()->addMonths(3)])->count(),
             ],
+
+            'revenueTrends' => $revenueTrends,
+            'censusTrends'  => $censusTrends,
         ]);
     }
 }

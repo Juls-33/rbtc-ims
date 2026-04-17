@@ -28,9 +28,27 @@ class PatientController extends Controller
         }
 
         if ($request->tab === 'inpatient') {
-            $query->has('admissions');
-        } elseif ($request->tab === 'outpatient') {
-            $query->has('visits');
+            if ($request->payment_filter === 'paid') {
+                // Strict "Fully Settled": Has past admissions, but ZERO active stays and ZERO unpaid bills anywhere
+                $query->whereHas('admissions')
+                      ->whereDoesntHave('admissions', function ($q) {
+                          $q->where('status', 'Admitted')->orWhere('balance', '>', 0);
+                      });
+            } elseif (in_array($request->payment_filter, ['unpaid_discharged', 'unpaid_admitted', 'unpaid_all'])) {
+                // For Unpaid filters, finding AT LEAST ONE matching unpaid admission is what we want
+                $query->whereHas('admissions', function ($q) use ($request) {
+                    if ($request->payment_filter === 'unpaid_discharged') {
+                        $q->where('status', 'Discharged')->where('balance', '>', 0);
+                    } elseif ($request->payment_filter === 'unpaid_admitted') {
+                        $q->where('status', 'Admitted')->where('balance', '>', 0);
+                    } elseif ($request->payment_filter === 'unpaid_all') {
+                        $q->where('balance', '>', 0);
+                    }
+                });
+            } else {
+                // Default "all": Just make sure they have at least one admission
+                $query->has('admissions');
+            }
         }
 
         // 2. Fetch Paginated Results (This prevents the lag)
@@ -136,6 +154,7 @@ class PatientController extends Controller
                     'checkup_fee' => (float)$visit->checkup_fee, 
                     'total_bill'  => (float)($visit->total_bill ?? $visit->checkup_fee),
                     'amount_paid' => (float)($visit->amount_paid ?? 0),
+                    'payment_source' => $visit->payment_source,
                     'balance'     => (float)($visit->balance ?? $visit->checkup_fee),
                     'status'      => $visit->status,
                     'bill_items'  => $visit->bill_items->map(fn($item) => [
@@ -182,13 +201,33 @@ class PatientController extends Controller
             ]),
         ]);
 
+        $reports = [
+            // How many are currently occupying a room?
+            'admitted_patients' => \App\Models\Admission::where('status', 'Admitted')->count(),
+            
+            // How many went home but still owe money? (Inpatient)
+            'unpaid_discharged' => \App\Models\Admission::where('status', 'Discharged')->where('balance', '>', 0)->count(),
+            
+            // How many outpatients still owe money?
+            'unpaid_outpatient' => \App\Models\PatientVisit::where('balance', '>', 0)->count(),
+            
+            // How many total inpatient records are fully paid?
+            'paid_inpatient' => \App\Models\Patient::whereHas('admissions')
+                ->whereDoesntHave('admissions', function($q) {
+                    $q->where('status', 'Admitted')->orWhere('balance', '>', 0);
+                })->count(),
+        ];
+
+        $reports['total_unpaid'] = $reports['unpaid_discharged'] + $reports['unpaid_outpatient'] + \App\Models\Admission::where('status', 'Admitted')->where('balance', '>', 0)->count();
+
         return Inertia::render('Admin/PatientManagement', [
             'patients'           => $patientsPaginator, 
             'selectablePatients' => $selectablePatients,
             'rooms'              => $rooms,
             'inventory'          => $inventory,
             'doctors'            => $doctors,
-            'filters'            => $request->only(['search', 'tab']) // Pass filters back to React
+            'filters' => $request->only(['search', 'tab', 'payment_filter']),
+            'reports'            => $reports
         ]);
     }
 

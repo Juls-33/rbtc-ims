@@ -10,11 +10,12 @@ import AdmitPatientModal from './Partials/AdmitPatientModal';
 import PatientProfile from './Partials/PatientProfile';
 import AddVisitModal from './Partials/AddVisitModal';
 
-export default function PatientManagement({ auth, patients, filters, selectablePatients, rooms, doctors, inventory = [] }) {
+export default function PatientManagement({ auth, patients, filters, selectablePatients, rooms, doctors, inventory = [], reports = {} }) {
     const allPatients = patients.data || [];
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [activeTab, setActiveTab] = useState(filters.tab || 'all');
-    
+    const [paymentFilter, setPaymentFilter] = useState(filters.payment_filter || 'all');
+
     const [sortConfig, setSortConfig] = useState({ key: 'patient_id', direction: 'desc' });
     
     const [viewMode, setViewMode] = useState('list');
@@ -28,7 +29,6 @@ export default function PatientManagement({ auth, patients, filters, selectableP
     const [isAddVisitModalOpen, setIsAddVisitModalOpen] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [patientToDelete, setPatientToDelete] = useState(null);
-    
     const itemsPerPage = 10;
     
     const activePatient = useMemo(() => 
@@ -38,12 +38,16 @@ export default function PatientManagement({ auth, patients, filters, selectableP
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
             router.get(route('admin.patients'), 
-                { search: searchQuery, tab: activeTab }, 
+                { 
+                    search: searchQuery, 
+                    tab: activeTab,
+                    payment_filter: activeTab === 'inpatient' ? paymentFilter : null 
+                }, 
                 { preserveState: true, replace: true, preserveScroll: true }
             );
         }, 300);
         return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery, activeTab]);
+    }, [searchQuery, activeTab, paymentFilter]);
    
     const processedData = useMemo(() => {
         let data = allPatients.map(p => {
@@ -188,6 +192,34 @@ export default function PatientManagement({ auth, patients, filters, selectableP
             }
         >
             <Head title="Patient Management" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                {/* Card 1: Total Admitted */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 border-l-4 border-l-blue-500">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Currently Admitted</p>
+                    <h3 className="text-3xl font-black text-blue-600">{reports?.admitted_patients || 0}</h3>
+                </div>
+
+                {/* Card 2: Unpaid & Discharged (The Panel's Request) */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 border-l-4 border-l-rose-500">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Unpaid & Discharged</p>
+                    <div className="flex items-end gap-2">
+                        <h3 className="text-3xl font-black text-rose-600">{reports?.unpaid_discharged || 0}</h3>
+                        <span className="text-[10px] font-bold text-rose-400 mb-1.5 uppercase">Inpatients</span>
+                    </div>
+                </div>
+
+                {/* Card 3: Total Unpaid Accounts */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 border-l-4 border-l-amber-500">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Unpaid Accounts</p>
+                    <h3 className="text-3xl font-black text-amber-600">{reports?.total_unpaid || 0}</h3>
+                </div>
+
+                {/* Card 4: Fully Paid */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 border-l-4 border-l-emerald-500">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Fully Settled (Inpatient | Discharged & Paid)</p>
+                    <h3 className="text-3xl font-black text-emerald-600">{reports?.paid_inpatient || 0}</h3>
+                </div>
+            </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[600px] flex flex-col">
                 <div className="bg-[#3D52A0] text-white p-4 font-black text-sm uppercase tracking-widest flex justify-between items-center shrink-0 shadow-md">
@@ -198,9 +230,28 @@ export default function PatientManagement({ auth, patients, filters, selectableP
                 <div className="p-6 flex-1 flex flex-col">
                     <StatusLegend />
                     <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                        <div className="relative w-full md:w-80">
-                            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by ID or Exact Name..." className="w-full pl-4 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-1 focus:ring-[#3D52A0] outline-none text-xs transition-all" />
+                        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                            {/* Search Bar */}
+                            <div className="relative w-full md:w-80">
+                                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by ID or Exact Name..." className="w-full pl-4 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-1 focus:ring-[#3D52A0] outline-none text-xs transition-all" />
+                            </div>
+
+                            {/* NEW: Inpatient Filter Dropdown */}
+                            {activeTab === 'inpatient' && (
+                                <select 
+                                    value={paymentFilter}
+                                    onChange={(e) => setPaymentFilter(e.target.value)}
+                                    className="w-full md:w-48 border border-slate-300 rounded-lg shadow-sm focus:ring-1 focus:ring-[#3D52A0] outline-none text-xs py-2 px-3 font-bold text-slate-600 bg-slate-50 cursor-pointer"
+                                >
+                                    <option value="all">All Inpatients</option>
+                                    <option value="unpaid_all">🔴 Any Unpaid</option>
+                                    <option value="unpaid_admitted">🟠 Admitted & Unpaid</option>
+                                    <option value="unpaid_discharged">🔴 Discharged & Unpaid</option>
+                                    <option value="paid">🟢 Fully Settled</option>
+                                </select>
+                            )}
                         </div>
+
                         {renderActionButton()}
                     </div>
 

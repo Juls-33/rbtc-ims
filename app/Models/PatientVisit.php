@@ -33,6 +33,7 @@ class PatientVisit extends Model
         'reason',
         'total_bill',
         'amount_paid',
+        'payment_source',
         'balance'
 
     ];

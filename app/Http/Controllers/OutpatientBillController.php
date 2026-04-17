@@ -17,6 +17,7 @@ class OutpatientBillController extends Controller
         $request->validate([
             'visit_id'    => 'required|exists:patient_visits,id',
             'amount_paid' => 'required|numeric|min:0',
+            'payment_source' => 'nullable|string',
         ]);
 
         return DB::transaction(function () use ($request) {
@@ -62,6 +63,7 @@ class OutpatientBillController extends Controller
             $visit->update([
                 'total_bill'  => $grandTotal,
                 'amount_paid' => $newTotalPaid,
+                'payment_source' => $request->payment_source ?? 'Cash',
                 'balance'     => $finalBalance,
                 'status'      => $finalBalance <= 0 ? 'PAID' : 'PARTIALLY PAID',
             ]);
