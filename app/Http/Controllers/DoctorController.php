@@ -214,14 +214,26 @@ class DoctorController extends Controller
     {
         $validated = $request->validate([
             'blood_pressure' => ['required', 'string', 'regex:/^\d{2,3}\/\d{2,3}$/'],
-            'heart_rate' => ['required', 'numeric', 'between:30,220'],
-            'temperature'    => 'required|numeric|between:30,45',
-            'weight'         => 'required|numeric|between:1,500',
-            'visit_date'     => 'required|date',
-            'reason'         => 'required|string|max:255',
-            ], [
-            'blood_pressure.regex' => 'Please enter a valid BP (e.g., 120/80). Systolic: 70-190, Diastolic: 40-130.',
-            'heart_rate.between'   => 'Heart rate must be between 30 and 220 bpm.',
+                function ($attribute, $value, $fail) {
+                $parts = explode('/', $value);
+                $systolic = (int) $parts[0];
+                $diastolic = (int) $parts[1];
+
+                if ($systolic > 250 || $systolic < 70) {
+                    $fail('Systolic pressure (top) must be between 70 and 250.');
+                }
+                if ($diastolic > 150 || $diastolic < 40) {
+                    $fail('Diastolic pressure (bottom) must be between 40 and 150.');
+                }
+                if ($systolic <= $diastolic) {
+                    $fail('Systolic pressure must be higher than diastolic pressure.');
+                }
+            },
+            'heart_rate'     => 'required|numeric|between:40,180',
+            'temperature'    => 'required|numeric|between:34,42',
+            'weight'         => 'required|numeric|between:35,400',
+            'visit_date'     => 'required|date|before_or_equal:today',
+            'reason'         => 'nullable|string|max:500',
         ]);
 
         PatientVisit::create([
@@ -242,7 +254,7 @@ class DoctorController extends Controller
     {
         $validated = $request->validate([
             'medicine_id'     => 'nullable',
-            'medicine_name'   => 'required|string|max:255',
+            'medicine_name'   => 'nullable|string|max:255',
             'dosage'          => 'required|string|max:100',
             'frequency'       => 'required|string|max:100',
             'time'            => 'required', 
@@ -250,10 +262,11 @@ class DoctorController extends Controller
         ]);
 
         $finalMedicineId = ($request->medicine_id === 'other' || !$request->medicine_id) 
-                           ? null 
-                           : $request->medicine_id;
+                        ? null 
+                        : $request->medicine_id;
 
-        $finalMedicineName = $validated['medicine_name'];
+    
+        $finalMedicineName = $request->medicine_name;
 
 
         if ($finalMedicineId) {
@@ -264,6 +277,10 @@ class DoctorController extends Controller
                     : $catalogItem->generic_name;
             }
         }
+
+        if (!$finalMedicineName) {
+        return back()->withErrors(['medicine_name' => 'The system could not determine the medicine name. Please re-select.']);
+    }
 
         Prescriptions::create([
             'patient_id'      => $id, // This is the Patient's ID from the URL
@@ -309,7 +326,7 @@ class DoctorController extends Controller
 
         $prescription->update([
             'medicine_id'     => $finalMedicineId,
-            'medicine_name'   => $validated['medicine_name'],
+            'medicine_name'   => $finalMedicineName,
             'dosage'          => $validated['dosage'],
             'frequency'       => $validated['frequency'],
             'schedule_time'   => $validated['time'], 

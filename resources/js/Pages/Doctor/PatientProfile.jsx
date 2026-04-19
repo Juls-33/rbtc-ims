@@ -10,238 +10,279 @@ import SecondaryButton from '@/Components/SecondaryButton';
 import Button from '@/Components/Button';
 import Toast from '@/Components/Toast';
 
-export default function DoctorPatientProfile({ auth, patient, admissionHistory, medicines, prescriptionHistory, consultationHistory = [] }) {
-    const [activeTab, setActiveTab] = useState('admission');
-    
-    // Modal States
-    const [showNoteModal, setShowNoteModal] = useState(false);
-    const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
-    const [showVitals, setShowVitals] = useState(false);
-    const [isOther, setIsOther] = useState(false);
-    const [editingPrescription, setEditingPrescription] = useState(null);
-    const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' });
-    
-    const vitals = useForm({
-        blood_pressure: '', heart_rate: '', temperature: '', weight: '',
-        visit_date: new Date().toISOString().split('T')[0], reason: 'Routine Checkup',
-    });
+    export default function DoctorPatientProfile({ auth, patient, admissionHistory, medicines, prescriptionHistory, consultationHistory = [] }) {
+        const [activeTab, setActiveTab] = useState('admission');
+        
+        // Modal States
+        const [showNoteModal, setShowNoteModal] = useState(false);
+        const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+        const [showVitals, setShowVitals] = useState(false);
+        const [isOther, setIsOther] = useState(false);
+        const [editingPrescription, setEditingPrescription] = useState(null);
+        const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' });
+        const [currentUnit, setCurrentUnit] = useState('');
+        
+        const vitals = useForm({
+            blood_pressure: '', heart_rate: '', temperature: '', weight: '',
+            visit_date: new Date().toISOString().split('T')[0], reason: 'Routine Checkup',
+        });
 
-    const prescription = useForm({
-        patient_id: patient.db_id, medicine_id: '', medicine_name: '',
-        custom_medicine: '', dosage: '', frequency: '', time: '',
-        date_prescribed: new Date().toISOString().split('T')[0],
-    });
+        const prescription = useForm({
+            patient_id: patient.db_id, 
+            medicine_id: '', 
+            medicine_name: '',
+            custom_medicine: '', 
+            frequency: '', 
+            time: '',
+            dosage: '', 
+            dosage_unit: 'mg',
+            custom_unit: '',
+            date_prescribed: new Date().toISOString().split('T')[0],
+        });
 
-    const noteForm = useForm({
-        patient_id: patient.db_id, display_patient_id: patient.id,
-        patient_name: patient.name, doctor_id: auth.user.id, doctor_name: auth.user.name,
-        visit_date: new Date().toISOString().slice(0, 16),
-        note: '',
-    });
+        const noteForm = useForm({
+            patient_id: patient.db_id, display_patient_id: patient.id,
+            patient_name: patient.name, doctor_id: auth.user.id, doctor_name: auth.user.name,
+            visit_date: new Date().toISOString().slice(0, 16),
+            note: '',
+        });
 
-    // Principles: Blueprint Helpers (Styles and Labels)
-    const inputClass = (error) => `w-full border rounded px-3 py-2 text-sm transition-colors ${
-        error ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-slate-300 focus:ring-[#3D52A0] focus:border-[#3D52A0]'
-    }`;
+        // Principles: Blueprint Helpers (Styles and Labels)
+        const inputClass = (error) => `w-full border rounded px-3 py-2 text-sm transition-colors ${
+            error ? 'border-red-500 focus:ring-red-500 bg-red-50' : 'border-slate-300 focus:ring-[#3D52A0] focus:border-[#3D52A0]'
+        }`;
 
-    const Label = ({ text, current, max, required = true, fieldError }) => (
-        <div className="flex justify-between items-center mb-1">
-            <label className={`text-[10px] font-black uppercase tracking-tighter ${fieldError ? 'text-red-500' : 'text-slate-500'}`}>
-                {text} {required && <span className="text-red-600 font-bold">*</span>}
-            </label>
-            {max !== undefined && (
-                <span className={`text-[9px] font-bold ${current > max ? 'text-red-500' : 'text-slate-400'}`}>
-                    {current}/{max}
-                </span>
-            )}
-        </div>
-    );
+        const Label = ({ text, current, max, required = true, fieldError }) => (
+            <div className="flex justify-between items-center mb-1">
+                <label className={`text-[10px] font-black uppercase tracking-tighter ${fieldError ? 'text-red-500' : 'text-slate-500'}`}>
+                    {text} {required && <span className="text-red-600 font-bold">*</span>}
+                </label>
+                {max !== undefined && (
+                    <span className={`text-[9px] font-bold ${current > max ? 'text-red-500' : 'text-slate-400'}`}>
+                        {current}/{max}
+                    </span>
+                )}
+            </div>
+        );
 
-    // 2. Prescription Form
-    const { 
-    data: prescriptionData, 
-    setData: setPrescriptionData, 
-    post: postPrescription, 
-    processing: processingPrescription, 
-    reset: resetPrescription,
-    errors: prescriptionErrors,
-    setError: setPrescriptionError, 
-    clearErrors: clearPrescriptionErrors
-    } = prescription;
+        // 2. Prescription Form
+        const { 
+        data: prescriptionData, 
+        setData: setPrescriptionData, 
+        post: postPrescription, 
+        processing: processingPrescription, 
+        reset: resetPrescription,
+        errors: prescriptionErrors,
+        setError: setPrescriptionError, 
+        clearErrors: clearPrescriptionErrors
+        } = prescription;
 
-    // 3. Note Form
-    const { 
-        data: noteData, setData: setNoteData, post: postNote, reset: resetNote, 
-        processing: processingNote, errors: noteErrors, setError: setNoteError, clearErrors: clearNoteErrors 
-    } = useForm({
-        patient_id: patient.db_id, display_patient_id: patient.id,
-        patient_name: patient.name, doctor_id: auth.user.id, doctor_name: auth.user.name,
-        visit_date: new Date().toISOString().slice(0, 16), note: '',
-    });
+        // 3. Note Form
+        const { 
+            data: noteData, setData: setNoteData, post: postNote, reset: resetNote, 
+            processing: processingNote, errors: noteErrors, setError: setNoteError, clearErrors: clearNoteErrors 
+        } = useForm({
+            patient_id: patient.db_id, display_patient_id: patient.id,
+            patient_name: patient.name, doctor_id: auth.user.id, doctor_name: auth.user.name,
+            visit_date: new Date().toISOString().slice(0, 16), note: '',
+        });
 
-    const submitVitals = (e) => {
-        e.preventDefault();
+        const submitVitals = (e) => {
+            e.preventDefault();
 
-        if (validateVitals()) {
-            vitals.post(route('doctor.patients.vitals.update', patient.db_id), {
-                onSuccess: () => {
-                    setToastInfo({ show: true, message: 'Vitals Recorded Successfully!', type: 'success' });
-                    closeVitalsModal();
-                },
-                onError: () => {
-                    setToastInfo({ show: true, message: 'Check clinical requirements.', type: 'error' });
+            if (validateVitals()) {
+                vitals.post(route('doctor.patients.vitals.update', patient.db_id), {
+                    onSuccess: () => {
+                        setToastInfo({ show: true, message: 'Vitals Recorded Successfully!', type: 'success' });
+                        closeVitalsModal();
+                    },
+                    onError: () => {
+                        setToastInfo({ show: true, message: 'Check clinical requirements.', type: 'error' });
+                    }
+                });
+            } else {
+                setToastInfo({ show: true, message: 'Mandatory vital signs are missing.', type: 'error' });
+            }
+        };
+
+        const handleMedicineChange = (e) => {
+            const selectedId = e.target.value;
+            
+            if (selectedId === 'other') {
+                setIsOther(true);
+                prescription.setData({
+                    ...prescription.data,
+                    medicine_id: 'other',
+                    medicine_name: '' // The user will fill this via custom_medicine input
+                });
+            } else {
+                setIsOther(false);
+                
+                // We find the medicine ONLY to get the name string for the database
+                const selectedMed = medicines.find(m => m.id == selectedId);
+
+                prescription.setData({
+                    ...prescription.data,
+                    medicine_id: selectedId,
+                    // This satisfies the 'required' rule in your Controller
+                    medicine_name: selectedMed ? selectedMed.generic_name : '' 
+                });
+            }
+        };
+
+        const submitPrescription = (e) => {
+            e.preventDefault();
+            if (validatePrescription()) {
+                
+                // Fix the undefined: Get unit from data object
+                const selectedUnit = prescription.data.dosage_unit === 'other' 
+                    ? prescription.data.custom_unit 
+                    : prescription.data.dosage_unit;
+
+                const payload = {
+                    ...prescription.data,
+                    // Merge dosage + unit
+                    dosage: `${prescription.data.dosage}${selectedUnit}`,
+                    medicine_id: isOther ? null : prescription.data.medicine_id,
+                    medicine_name: isOther ? prescription.data.custom_medicine : prescription.data.medicine_name,
+                };
+
+                const config = {
+                    onSuccess: () => {
+                        setToastInfo({ show: true, message: editingPrescription ? 'Updated!' : 'Saved!', type: 'success' });
+                        closePrescriptionModal();
+                    },
+                    onError: (err) => setToastInfo({ show: true, message: Object.values(err)[0], type: 'error' })
+                };
+
+                // CRITICAL: Check editingPrescription (the state object) 
+                if (editingPrescription && editingPrescription.id) {
+                    router.put(route('doctor.prescriptions.update', editingPrescription.id), payload, config);
+                } else {
+                    router.post(route('doctor.prescriptions.store', patient.db_id), payload, config);
+                }
+            }
+        };
+
+        const handleEditPrescription = (pres) => {
+            setEditingPrescription(pres); // Set the full object so submitPrescription knows we are editing
+            
+            const wasOther = !pres.medicine_id || pres.medicine_id === 'other';
+            setIsOther(wasOther);
+
+            // Extract unit for the dropdown (e.g., "500mg" -> "mg")
+            // If your DB saves "500mg", this regex grabs the "mg"
+            const unitOnly = pres.dosage ? pres.dosage.replace(/[0-9.]/g, '').trim() : 'mg';
+            const numericOnly = pres.dosage ? pres.dosage.match(/[0-9.]+/)?.[0] : '';
+
+            prescription.setData({
+                id: pres.id, // VERY IMPORTANT for the update route
+                medicine_id: wasOther ? 'other' : pres.medicine_id,
+                medicine_name: pres.medicine_name,
+                custom_medicine: wasOther ? pres.medicine_name : '',
+                dosage: numericOnly,
+                dosage_unit: unitOnly, // This fixes the 'undefined' issue
+                custom_unit: '', 
+                frequency: pres.frequency,
+                time: pres.schedule_time || pres.time,
+                date_prescribed: pres.date_prescribed,
+            });
+            
+            setShowPrescriptionModal(true);
+        };
+
+        const handleDeletePrescription = (id) => {
+            if (confirm('Are you sure you want to delete this prescription?')) {
+                router.delete(route('doctor.prescriptions.destroy', id), {
+                    onSuccess: () => alert('Prescription deleted'),
+                });
+            }
+        };
+        const closeNoteModal = () => {
+            noteForm.reset();
+            noteForm.clearErrors();
+            setShowNoteModal(false);
+        };
+
+        const closeVitalsModal = () => {
+            vitals.reset();
+            vitals.clearErrors();
+            setShowVitals(false);
+        };
+
+        const closePrescriptionModal = () => {
+            prescription.reset();
+            prescription.clearErrors();
+            setEditingPrescription(null);
+            setIsOther(false);
+            setShowPrescriptionModal(false);
+        };
+
+        const { data, setData, post, reset, processing, errors } = useForm({
+            patient_id: patient.db_id, // The numeric ID for the DB
+            display_patient_id: patient.id, // The "P-00001" for display
+            patient_name: patient.name,
+            doctor_id: auth.user.id,
+            doctor_name: auth.user.name,
+            visit_date: new Date().toISOString().slice(0, 16), // Pre-fills current time
+            note: '',
+        });
+
+        const validateNote = () => {
+            let isValid = true;
+            clearNoteErrors();
+            let newErrors = {};
+
+            if (!noteData.note || noteData.note.trim() === '') {
+                newErrors.note = 'Clinical note is required.';
+                isValid = false;
+            }
+
+            if (!isValid) setNoteError(newErrors);
+            return isValid;
+        };
+
+        const validatePrescription = () => {
+            let isValid = true;
+            // Use the useForm clearErrors helper
+            prescription.clearErrors(); 
+            let newErrors = {};
+
+            // 1. Medicine Name Validation
+            if (isOther) {
+                if (!prescription.data.custom_medicine?.trim()) {
+                    newErrors.custom_medicine = 'Specify medicine name.';
+                    isValid = false;
+                }
+            } else {
+                if (!prescription.data.medicine_id) {
+                    newErrors.medicine_id = 'Please select a medication.';
+                    isValid = false;
+                }
+            }
+
+            // 2. Dosage Unit Validation (Important for your new layout!)
+            if (prescription.data.dosage_unit === 'other' && !prescription.data.custom_unit?.trim()) {
+                newErrors.custom_unit = 'Specify unit.';
+                isValid = false;
+            }
+
+            // 3. Generic Field Validation
+            ['dosage', 'frequency', 'date_prescribed', 'time'].forEach(field => {
+                // Access data from the useForm object: prescription.data
+                if (!prescription.data[field] || prescription.data[field].toString().trim() === '') {
+                    newErrors[field] = 'Required field.';
+                    isValid = false;
                 }
             });
-        } else {
-            setToastInfo({ show: true, message: 'Mandatory vital signs are missing.', type: 'error' });
-        }
-    };
 
-    const handleMedicineChange = (e) => {
-        const selectedId = e.target.value;
-        prescription.clearErrors('medicine_id', 'custom_medicine'); // Clear errors on change
-
-        if (selectedId === 'other') {
-            setIsOther(true);
-            prescription.setData({ ...prescription.data, medicine_id: 'other', medicine_name: '' });
-        } else {
-            setIsOther(false);
-            const selectedMed = medicines.find(m => m.id == selectedId);
-            prescription.setData({ 
-                ...prescription.data, 
-                medicine_id: selectedId, 
-                medicine_name: selectedMed ? selectedMed.name : '' 
-            });
-        }
-    };
-
-    const submitPrescription = (e) => {
-        e.preventDefault();
-        if (validatePrescription()) {
-            const payload = {
-                ...prescription.data,
-                medicine_id: isOther ? null : prescription.data.medicine_id,
-                medicine_name: isOther ? prescription.data.custom_medicine : prescription.data.medicine_name,
-            };
-            const config = {
-                onSuccess: () => {
-                    setToastInfo({ show: true, message: 'Prescription Saved!', type: 'success' });
-                    closePrescriptionModal();
-                },
-                onError: () => setToastInfo({ show: true, message: 'Submission error.', type: 'error' })
-            };
-            if (editingPrescription) {
-                router.put(route('doctor.prescriptions.update', editingPrescription.id), payload, config);
-            } else {
-                router.post(route('doctor.prescriptions.store', patient.db_id), payload, config);
+            if (!isValid) {
+                // Use the useForm setErrors helper
+                prescription.setError(newErrors);
             }
-        } else {
-            setToastInfo({ show: true, message: 'Highlighted fields are mandatory.', type: 'error' });
-        }
-    };
-
-    const handleDeletePrescription = (id) => {
-        if (confirm('Are you sure you want to delete this prescription?')) {
-            router.delete(route('doctor.prescriptions.destroy', id), {
-                onSuccess: () => alert('Prescription deleted'),
-            });
-        }
-    };
-
-
-    const handleEditPrescription = (pres) => {
-        setEditingPrescription(pres);
-        const wasOther = !pres.medicine_id || pres.medicine_id === 'other';
-        setIsOther(wasOther);
-        
-        setPrescriptionData({
-            ...prescriptionData,
-            id: pres.id, 
-            medicine_id: wasOther ? 'other' : pres.medicine_id,
-            medicine_name: pres.medicine_name || '',
-            custom_medicine: wasOther ? (pres.medicine_name || pres.medicine || '') : '',
-            dosage: pres.dosage,
-            frequency: pres.frequency,
-            time: pres.time || '', 
-            date_prescribed: pres.date_prescribed || pres.date,
-        });
-        
-        setShowPrescriptionModal(true);
-    };
-
-    const closeNoteModal = () => {
-        noteForm.reset();
-        noteForm.clearErrors();
-        setShowNoteModal(false);
-    };
-
-    const closeVitalsModal = () => {
-        vitals.reset();
-        vitals.clearErrors();
-        setShowVitals(false);
-    };
-
-    const closePrescriptionModal = () => {
-        prescription.reset();
-        prescription.clearErrors();
-        setEditingPrescription(null);
-        setIsOther(false);
-        setShowPrescriptionModal(false);
-    };
-
-    const { data, setData, post, reset, processing, errors } = useForm({
-        patient_id: patient.db_id, // The numeric ID for the DB
-        display_patient_id: patient.id, // The "P-00001" for display
-        patient_name: patient.name,
-        doctor_id: auth.user.id,
-        doctor_name: auth.user.name,
-        visit_date: new Date().toISOString().slice(0, 16), // Pre-fills current time
-        note: '',
-    });
-
-    const validateNote = () => {
-        let isValid = true;
-        clearNoteErrors();
-        let newErrors = {};
-
-        if (!noteData.note || noteData.note.trim() === '') {
-            newErrors.note = 'Clinical note is required.';
-            isValid = false;
-        }
-
-        if (!isValid) setNoteError(newErrors);
-        return isValid;
-    };
-
-    const validatePrescription = () => {
-        let isValid = true;
-        clearPrescriptionErrors();
-        let newErrors = {};
-
-        // Check if it's a custom (manual) entry
-        if (isOther) {
-            if (!prescriptionData.custom_medicine || prescriptionData.custom_medicine.trim() === '') {
-                newErrors.custom_medicine = 'Name required.';
-                isValid = false;
-            }
-        } else {
-            // Validation: Allow if ID OR Name is present
-            if (!prescriptionData.medicine_id && !prescriptionData.medicine_name) {
-                newErrors.medicine_id = 'Selection required.';
-                isValid = false;
-            }
-        }
-
-        ['dosage', 'frequency', 'date_prescribed', 'time'].forEach(field => {
-            if (!prescriptionData[field] || prescriptionData[field].toString().trim() === '') {
-                newErrors[field] = 'Required field.';
-                isValid = false;
-            }
-        });
-
-        if (!isValid) setPrescriptionError(newErrors);
-        return isValid;
-    };
+            
+            return isValid;
+        };
 
     const validateVitals = () => {
         let isValid = true;
@@ -310,6 +351,44 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
             },
         });
     }
+    };
+
+    const getValidationState = (field, value) => {
+        if (!value) return 'normal';
+        const rules = {
+            blood_pressure: /^\d{2,3}\/\d{2,3}$/,
+            heart_rate: { min: 40, max: 180 },
+            temperature: { min: 34, max: 42 },
+            weight: { min: 35, max: 500 },
+        };
+
+        if (field === 'blood_pressure') {
+            if (!rules.blood_pressure.test(value)) return 'invalid';
+            const [sys, dia] = value.split('/').map(Number);
+            const isLogical = sys > dia;
+            const inRange = (sys >= 70 && sys <= 250) && (dia >= 40 && dia <= 150);
+            return (isLogical && inRange) ? 'valid' : 'invalid';
+        }
+
+        const numValue = parseFloat(value);
+        if (rules[field]) {
+            return (numValue >= rules[field].min && numValue <= rules[field].max) ? 'valid' : 'invalid';
+        }
+        return 'normal';
+    };
+
+    // This merges your existing design with the dynamic validation colors
+    const getDynamicClass = (field, value, serverError) => {
+        const state = getValidationState(field, value);
+        let baseClass = "w-full border p-2 text-sm rounded transition-all duration-200 ";
+        
+        if (serverError || state === 'invalid') {
+            return baseClass + "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500";
+        }
+        if (state === 'valid') {
+            return baseClass + "border-green-500 bg-green-50 focus:ring-green-500 focus:border-green-500";
+        }
+        return baseClass + "border-slate-200 bg-white focus:ring-[#3D52A0] focus:border-[#3D52A0]";
     };
     return (
         <AuthenticatedLayout
@@ -713,7 +792,7 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
             </Modal>
 
             {/* 2. Add Prescription Modal */}
-            <Modal show={showPrescriptionModal} onClose={closePrescriptionModal} maxWidth="md">
+            <Modal show={showPrescriptionModal} onClose={closePrescriptionModal} maxWidth="xl">
                 <form onSubmit={submitPrescription} noValidate>
                     {/* Responsive Header */}
                     <div className="bg-[#30499B] text-white px-5 md:px-6 py-4 flex justify-between items-center shadow-md">
@@ -777,59 +856,105 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                             <InputError message={prescription.errors.medicine_id || prescription.errors.custom_medicine} className="mt-1" />
                         </div>
 
-                        {/* Dosage Grid: 3 columns on desktop, 1 on mobile */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <Label text="Dosage" fieldError={prescription.errors.dosage} />
-                                <input 
-                                    className={inputClass(prescription.errors.dosage)} 
-                                    value={prescription.data.dosage} 
-                                    onChange={e => {
-                                        prescription.setData('dosage', e.target.value);
-                                        if(prescription.errors.dosage) prescription.clearErrors('dosage');
-                                    }} 
-                                    placeholder="e.g. 500mg" 
-                                />
-                            </div>
-                            <div>
-                                <Label text="Frequency" fieldError={prescription.errors.frequency} />
-                                <input 
-                                    className={inputClass(prescription.errors.frequency)} 
-                                    value={prescription.data.frequency} 
-                                    onChange={e => {
-                                        prescription.setData('frequency', e.target.value);
-                                        if(prescription.errors.frequency) prescription.clearErrors('frequency');
-                                    }} 
-                                    placeholder="e.g. 2x Daily" 
-                                />
-                            </div>
-                            <div>
-                                <Label text="Admin. Time" fieldError={prescription.errors.time} />
-                                <input 
-                                    type="time" 
-                                    className={inputClass(prescription.errors.time)} 
-                                    value={prescription.data.time} 
-                                    onChange={e => {
-                                        prescription.setData('time', e.target.value);
-                                        if(prescription.errors.time) prescription.clearErrors('time');
-                                    }} 
-                                />
-                                <InputError message={prescription.errors.time} className="mt-1" />
+                            {/* --- Row 1: Dosage & Unit --- */}
+                            <div className="mb-4">
+                                <Label text="Dosage & Unit" />
+                                <div className="grid grid-cols-12 gap-3">
+                                    {/* Dosage Number - Spans 6 on small/standard, 4 if 'Other' is active */}
+                                    <div className={prescription.data.dosage_unit === 'other' ? "col-span-4" : "col-span-6"}>
+                                        <input 
+                                            type="number"
+                                            step="any"
+                                            placeholder="e.g., 500"
+                                            value={prescription.data.dosage}
+                                            onChange={e => prescription.setData('dosage', e.target.value)}
+                                            className={inputClass(prescription.errors.dosage)}
+                                        />
+                                        <InputError message={prescription.errors.dosage} className="mt-1" />
+                                    </div>
+
+                                {/* Unit Dropdown */}
+                                <div className={prescription.data.dosage_unit === 'other' ? "col-span-4" : "col-span-6"}>
+                                    <select 
+                                        value={prescription.data.dosage_unit}
+                                        onChange={e => prescription.setData('dosage_unit', e.target.value)}
+                                        className={inputClass(prescription.errors.dosage_unit)}
+                                    >
+                                        <option value="mg">mg</option>
+                                        <option value="g">g</option>
+                                        <option value="ml">ml</option>
+                                        <option value="Tablet">Tablet</option>
+                                        <option value="Capsule">Capsule</option>
+                                        <option value="IU">IU</option>
+                                        <option value="other">Other...</option>
+                                    </select>
+                                </div>
+
+                                {/* Custom Unit Specification */}
+                                {prescription.data.dosage_unit === 'other' && (
+                                    <div className="col-span-4 animate-in fade-in slide-in-from-left-2">
+                                        <input 
+                                            type="text"
+                                            placeholder="Specify unit..."
+                                            value={prescription.data.custom_unit}
+                                            onChange={e => prescription.setData('custom_unit', e.target.value)}
+                                            className={inputClass(prescription.errors.custom_unit)}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
+                            {/* --- Row 2: Timing & Logistics --- */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <Label text="Date Prescribed" />
+                                <input 
+                                    type="date" 
+                                    className={inputClass(prescription.errors.date_prescribed)} 
+                                    value={prescription.data.date_prescribed} 
+                                    onChange={e => prescription.setData('date_prescribed', e.target.value)} 
+                                />
+                            </div>
 
-                        {/* Date Prescribed */}
-                        <div>
-                            <Label text="Date Prescribed" fieldError={prescription.errors.date_prescribed} />
-                            <input 
-                                type="date" 
-                                className={inputClass(prescription.errors.date_prescribed)} 
-                                value={prescription.data.date_prescribed} 
-                                onChange={e => {
-                                    prescription.setData('date_prescribed', e.target.value);
-                                    if(prescription.errors.date_prescribed) prescription.clearErrors('date_prescribed');
-                                }} 
-                            />
+                            <div>
+                                <Label text="Admin. Time" />
+                                <input 
+                                    type="time"
+                                    value={prescription.data.time ?? ''} 
+                                    onChange={(e) => prescription.setData('time', e.target.value)}
+                                    className={inputClass(prescription.errors.time)}
+                                />
+                            </div>
+
+                            <div>
+                                <Label text="Frequency" />
+                                    <select 
+                                        className={inputClass(prescription.errors.frequency)} 
+                                        value={prescription.data.frequency} 
+                                        onChange={e => prescription.setData('frequency', e.target.value)} 
+                                    >
+                                        <option value="">-- Select Frequency --</option>
+                                    <optgroup label="Standard Daily">
+                                        <option value="Once Daily (QD)">Once Daily (QD)</option>
+                                        <option value="Twice Daily (BID)">Twice Daily (BID)</option>
+                                        <option value="Three Times Daily (TID)">Three Times Daily (TID)</option>
+                                        <option value="Four Times Daily (QID)">Four Times Daily (QID)</option>
+                                    </optgroup>
+                                    <optgroup label="Intervals">
+                                        <option value="Every 4 Hours">Every 4 Hours</option>
+                                        <option value="Every 6 Hours">Every 6 Hours</option>
+                                        <option value="Every 8 Hours">Every 8 Hours</option>
+                                        <option value="Every 12 Hours">Every 12 Hours</option>
+                                    </optgroup>
+                                    <optgroup label="Special Instructions">
+                                        <option value="As Needed (PRN)">As Needed (PRN)</option>
+                                        <option value="Before Meals (AC)">Before Meals (AC)</option>
+                                        <option value="After Meals (PC)">After Meals (PC)</option>
+                                        <option value="At Bedtime (HS)">At Bedtime (HS)</option>
+                                    </optgroup>
+                                    </select>
+                                <InputError message={prescription.errors.frequency} className="mt-1" />
+                            </div>
                         </div>
 
                         {/* Responsive Footer */}
@@ -874,12 +999,9 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                                 <Label text="Date of Visit" fieldError={vitals.errors.visit_date} />
                                 <input 
                                     type="date" 
-                                    className={inputClass(vitals.errors.visit_date)} 
+                                    className={getDynamicClass('visit_date', vitals.data.visit_date, vitals.errors.visit_date)} 
                                     value={vitals.data.visit_date} 
-                                    onChange={e => {
-                                        vitals.setData('visit_date', e.target.value);
-                                        if(vitals.errors.visit_date) vitals.clearErrors('visit_date');
-                                    }} 
+                                    onChange={e => vitals.setData('visit_date', e.target.value)} 
                                 />
                                 <InputError message={vitals.errors.visit_date} className="mt-1" />
                             </div>
@@ -898,11 +1020,8 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                                 rows="3"
                                 maxLength={255}
                                 value={vitals.data.reason}
-                                onChange={e => {
-                                    vitals.setData('reason', e.target.value);
-                                    if(vitals.errors.reason) vitals.clearErrors('reason');
-                                }}
-                                placeholder="Enter routine checkup details or specific symptoms..."
+                                onChange={e => vitals.setData('reason', e.target.value)}
+                                placeholder="Enter routine checkup details..."
                             />
                         </div>
 
@@ -911,12 +1030,9 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                             <div>
                                 <Label text="Blood Pressure" fieldError={vitals.errors.blood_pressure} />
                                 <input 
-                                    className={inputClass(vitals.errors.blood_pressure)} 
+                                    className={getDynamicClass('blood_pressure', vitals.data.blood_pressure, vitals.errors.blood_pressure)} 
                                     value={vitals.data.blood_pressure} 
-                                    onChange={e => {
-                                        vitals.setData('blood_pressure', e.target.value);
-                                        if(vitals.errors.blood_pressure) vitals.clearErrors('blood_pressure');
-                                    }} 
+                                    onChange={e => vitals.setData('blood_pressure', e.target.value)} 
                                     placeholder="120/80" 
                                 />
                                 <InputError message={vitals.errors.blood_pressure} className="mt-1" />
@@ -925,49 +1041,35 @@ export default function DoctorPatientProfile({ auth, patient, admissionHistory, 
                                 <Label text="Heart Rate" fieldError={vitals.errors.heart_rate} />
                                 <input 
                                     type="number" 
-                                    className={inputClass(vitals.errors.heart_rate)} 
+                                    className={getDynamicClass('heart_rate', vitals.data.heart_rate, vitals.errors.heart_rate)} 
                                     value={vitals.data.heart_rate} 
-                                    onChange={e => {
-                                        vitals.setData('heart_rate', e.target.value);
-                                        if(vitals.errors.heart_rate) vitals.clearErrors('heart_rate');
-                                    }} 
-                                    placeholder="72" 
+                                    onChange={e => vitals.setData('heart_rate', e.target.value)} 
+                                    placeholder="40-180" 
                                 />
                                 <InputError message={vitals.errors.heart_rate} className="mt-1" />
                             </div>
                             <div>
                                 <Label text="Temp (°C)" fieldError={vitals.errors.temperature} />
                                 <input 
-                                    className={inputClass(vitals.errors.temperature)} 
+                                    className={getDynamicClass('temperature', vitals.data.temperature, vitals.errors.temperature)} 
                                     value={vitals.data.temperature} 
-                                    onChange={e => {
-                                        vitals.setData('temperature', e.target.value);
-                                        if(vitals.errors.temperature) vitals.clearErrors('temperature');
-                                    }} 
-                                    placeholder="36.5" 
+                                    onChange={e => vitals.setData('temperature', e.target.value)} 
+                                    placeholder="34-42" 
                                 />
                                 <InputError message={vitals.errors.temperature} className="mt-1" />
                             </div>
                         </div>
 
                         {/* Weight and Calibration Note */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                            <div>
-                                <Label text="Weight (kg)" fieldError={vitals.errors.weight} />
-                                <input 
-                                    className={inputClass(vitals.errors.weight)} 
-                                    value={vitals.data.weight} 
-                                    onChange={e => {
-                                        vitals.setData('weight', e.target.value);
-                                        if(vitals.errors.weight) vitals.clearErrors('weight');
-                                    }} 
-                                    placeholder="70.5"
-                                />
-                                <InputError message={vitals.errors.weight} className="mt-1" />
-                            </div>
-                            <div className="flex items-end italic text-[11px] text-slate-400 pb-3">
-                                * Confirm patient stability before recording data.
-                            </div>
+                        <div>
+                            <Label text="Weight (kg)" fieldError={vitals.errors.weight} />
+                            <input 
+                                className={getDynamicClass('weight', vitals.data.weight, vitals.errors.weight)} 
+                                value={vitals.data.weight} 
+                                onChange={e => vitals.setData('weight', e.target.value)} 
+                                placeholder="35-500"
+                            />
+                            <InputError message={vitals.errors.weight} className="mt-1" />
                         </div>
 
                         {/* FOOTER: Mobile Responsive Buttons */}

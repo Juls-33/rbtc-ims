@@ -248,11 +248,26 @@ class NurseController extends Controller
 
         $validated = $request->validate([
             'blood_pressure' => ['required', 'string', 'regex:/^\d{2,3}\/\d{2,3}$/'],
-            'heart_rate'     => 'required|numeric|between:30,220',
-            'temperature'    => 'required|numeric|between:30,45',
-            'weight'         => 'required|numeric|between:1,500',
-            'visit_date'     => 'required|date',
-            'reason'         => 'nullable|string|max:255',
+                function ($attribute, $value, $fail) {
+                $parts = explode('/', $value);
+                $systolic = (int) $parts[0];
+                $diastolic = (int) $parts[1];
+
+                if ($systolic > 250 || $systolic < 70) {
+                    $fail('Systolic pressure (top) must be between 70 and 250.');
+                }
+                if ($diastolic > 150 || $diastolic < 40) {
+                    $fail('Diastolic pressure (bottom) must be between 40 and 150.');
+                }
+                if ($systolic <= $diastolic) {
+                    $fail('Systolic pressure must be higher than diastolic pressure.');
+                }
+            },
+            'heart_rate'     => 'required|numeric|between:40,180',
+            'temperature'    => 'required|numeric|between:34,42',
+            'weight'         => 'required|numeric|between:35,400',
+            'visit_date'     => 'required|date|before_or_equal:today',
+            'reason'         => 'nullable|string|max:500',
         ]);
 
         PatientVisit::create([

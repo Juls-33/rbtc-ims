@@ -153,6 +153,46 @@ export default function NursePatientProfile({ auth , patient, prescriptionHistor
         setToastInfo(prev => ({ ...prev, show: false }));
     }, []); 
 
+    const getValidationState = (field, value) => {
+    if (!value) return 'normal';
+
+    const rules = {
+        blood_pressure: /^\d{2,3}\/\d{2,3}$/,
+        heart_rate: { min: 40, max: 180 },
+        temperature: { min: 34, max: 42 },
+        weight: { min: 35, max: 500 },
+    };
+
+    if (field === 'blood_pressure') {
+        const pattern = /^\d{2,3}\/\d{2,3}$/;
+        if (!pattern.test(value)) return 'invalid';
+
+        const [sys, dia] = value.split('/').map(Number);
+        
+        // Medical logic check
+        const isLogical = sys > dia;
+        const inRange = (sys >= 70 && sys <= 250) && (dia >= 40 && dia <= 150);
+
+        return (isLogical && inRange) ? 'valid' : 'invalid';
+    }
+
+    const numValue = parseFloat(value);
+        if (rules[field]) {
+            return (numValue >= rules[field].min && numValue <= rules[field].max) 
+                ? 'valid' 
+                : 'invalid';
+        }
+        return 'normal';
+    };
+
+    const getInputClass = (field, value) => {
+        const state = getValidationState(field, value);
+        const base = "w-full mt-1 transition-colors duration-200 ";
+        if (state === 'valid') return base + "border-green-500 focus:border-green-600 focus:ring-green-200 bg-green-50";
+        if (state === 'invalid') return base + "border-red-500 focus:border-red-600 focus:ring-red-200 bg-red-50";
+        return base;
+    };
+
     return (
         <AuthenticatedLayout
             auth={auth}
@@ -558,14 +598,18 @@ export default function NursePatientProfile({ auth , patient, prescriptionHistor
                             />
                             <InputError message={vitalsErrors.visit_date} />
                         </div>
+                        {/* Weight Field */}
                         <div>
                             <InputLabel value="Weight (kg)" />
                             <TextInput 
-                                className="w-full mt-1" 
+                                className={getInputClass('weight', vitalsData.weight)} 
+                                placeholder="Range: 35 - 500"
                                 value={vitalsData.weight} 
                                 onChange={e => setVitalsData('weight', e.target.value)} 
                             />
-                            <InputError message={vitalsErrors.weight} />
+                            {getValidationState('weight', vitalsData.weight) === 'invalid' && (
+                                <p className="text-xs text-red-600 mt-1">Weight must be between 35 and 500kg</p>
+                            )}
                         </div>
                     </div>
                     
@@ -581,36 +625,45 @@ export default function NursePatientProfile({ auth , patient, prescriptionHistor
                     </div>
 
                     <div className="grid grid-cols-3 gap-4">
+                        {/* Blood Pressure */}
                         <div>
                             <InputLabel value="Blood Pressure" />
                             <TextInput 
-                                className="w-full mt-1" 
+                                className={getInputClass('blood_pressure', vitalsData.blood_pressure)} 
                                 placeholder="120/80"
                                 value={vitalsData.blood_pressure} 
                                 onChange={e => setVitalsData('blood_pressure', e.target.value)} 
                             />
-                            <InputError message={vitalsErrors.blood_pressure} />
+                            {getValidationState('blood_pressure', vitalsData.blood_pressure) === 'invalid' && (
+                                <p className="text-xs text-red-600 mt-1">Format: XXX/XX</p>
+                            )}
                         </div>
+                        {/* Heart Rate */}
                         <div>
                             <InputLabel value="Heart Rate" />
                             <TextInput 
                                 type="number" 
-                                className="w-full mt-1" 
-                                placeholder="BPM"
+                                className={getInputClass('heart_rate', vitalsData.heart_rate)} 
+                                placeholder="40-180 BPM"
                                 value={vitalsData.heart_rate} 
                                 onChange={e => setVitalsData('heart_rate', e.target.value)} 
                             />
-                            <InputError message={vitalsErrors.heart_rate} />
+                            {getValidationState('heart_rate', vitalsData.heart_rate) === 'invalid' && (
+                                <p className="text-xs text-red-600 mt-1">Range: 40 - 180</p>
+                            )}
                         </div>
+                        {/* Temperature */}
                         <div>
                             <InputLabel value="Temp (°C)" />
                             <TextInput 
-                                className="w-full mt-1" 
-                                placeholder="36.5"
+                                className={getInputClass('temperature', vitalsData.temperature)} 
+                                placeholder="34 - 42"
                                 value={vitalsData.temperature} 
                                 onChange={e => setVitalsData('temperature', e.target.value)} 
                             />
-                            <InputError message={vitalsErrors.temperature} />
+                            {getValidationState('temperature', vitalsData.temperature) === 'invalid' && (
+                                <p className="text-xs text-red-600 mt-1">Range: 34 - 42°C</p>
+                            )}
                         </div>
                     </div>
 
