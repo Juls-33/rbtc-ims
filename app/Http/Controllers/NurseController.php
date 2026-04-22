@@ -21,6 +21,7 @@ class NurseController extends Controller
     public function dashboard(Request $request)
     {
         $nurseId = auth()->id();
+        $now = now();
         $today = now()->toDateString();
         
         $prescriptions = Prescriptions::with(['patient.active_admission', 'medicine'])
@@ -30,33 +31,75 @@ class NurseController extends Controller
         ->whereNotNull('schedule_time')
         ->get();
 
-        $administrations = $prescriptions->map(function ($p) use ($today){
-            $dueTime = Carbon::createFromFormat('H:i', $p->schedule_time);
+        $administrations = $prescriptions->map(function ($p) use ($now) {
+            $lastLog = MedicationLog::where('prescription_id', $p->id)
+                ->latest('administered_at')
+                ->first();
 
-            $alreadyDone = MedicationLog::where('prescription_id', $p->id)
-            ->whereDate('administered_at', $today)
-            ->exists();
-            if ($alreadyDone) return null;
+            $shouldShow = false;
+            $nextDueTime = null;
+            $freq = $p->frequency;
 
-            $displayName = $p->medicine 
-                ? ($p->medicine->brand_name 
-                    ? "{$p->medicine->generic_name} ({$p->medicine->brand_name})" 
-                    : $p->medicine->generic_name)
-                : ($p->medicine_name ?? 'Unknown Medicine');
+            if (!$lastLog) {
+                // Initial dose logic: Compare current time to the doctor's scheduled start time
+                $initialDue = Carbon::createFromFormat('H:i', $p->schedule_time);
+                if ($initialDue->isPast()) $shouldShow = true;
+                $nextDueTime = $initialDue;
+            } else {
+                $lastAdmin = Carbon::parse($lastLog->administered_at);
 
-            return [
-                'time'              => $dueTime->format('g:i A'),
-                'isOverdue'         => $dueTime->isPast() && $dueTime->isToday(),
-                'id'                => $p->patient->patient_id ?? 'N/A',
-                'prescription_id'   => $p->id,
-                'medicine_id'       => $p->medicine_id,
-                'db_id'             => $p->patient->id,
-                'name'              => $p->patient->full_name ?? 'Unknown',
-                'room'              => $p->patient->active_admission?->room?->room_location ?? 'TBD',
-                'medication'        => $displayName,
-                'dosage'            => $p->dosage . ' (' . $p->frequency . ')',
-            ];
-        })->filter()->values();
+                // Define the hour intervals for each dropdown option
+                $hours = match (true) {
+                    str_contains($freq, 'Every 4 Hours') => 4,
+                    str_contains($freq, 'Every 6 Hours') => 6,
+                    str_contains($freq, 'Every 8 Hours') => 8,
+                    str_contains($freq, 'Every 12 Hours') => 12,
+                    str_contains($freq, 'Four Times Daily') => 6,  // 24/4
+                    str_contains($freq, 'Three Times Daily') => 8, // 24/3
+                    str_contains($freq, 'Twice Daily') => 12,      // 24/2
+                    str_contains($freq, 'As Needed (PRN)') => 0,   // PRN is always visible
+                    default => null, // Once Daily or Special Instructions
+                };
+
+                if ($hours === 0) {
+                    // PRN logic: Show if at least 1 hour has passed (prevent accidental double-click)
+                    $shouldShow = $lastAdmin->diffInMinutes($now) >= 60;
+                    $nextDueTime = $lastAdmin->addHour();
+                } elseif ($hours !== null) {
+                    // Interval logic: Reappear exactly X hours after last administration
+                    $nextDueTime = $lastAdmin->addHours($hours);
+                    $shouldShow = $now->greaterThanOrEqualTo($nextDueTime);
+                } else {
+                    // "Once Daily" or "Bedtime" logic: Show only if it hasn't been done today
+                    // and the scheduled hour has arrived.
+                    $scheduledTime = Carbon::createFromFormat('H:i', $p->schedule_time);
+                    if (!$lastAdmin->isToday() && $now->hour >= $scheduledTime->hour) {
+                        $shouldShow = true;
+                        $nextDueTime = $scheduledTime;
+                    }
+                }
+            }
+
+            if (!$shouldShow) return null;
+
+        // 3. Formatting for the Frontend
+        $displayName = $p->medicine 
+            ? ($p->medicine->brand_name ? "{$p->medicine->generic_name} ({$p->medicine->brand_name})" : $p->medicine->generic_name)
+            : ($p->medicine_name ?? 'Unknown Medicine');
+
+        return [
+            'time'              => $nextDueTime ? $nextDueTime->format('g:i A') : 'Due Now',
+            'isOverdue'         => $nextDueTime ? $nextDueTime->isPast() : true,
+            'id'                => $p->patient->patient_id ?? 'N/A',
+            'prescription_id'   => $p->id,
+            'medicine_id'       => $p->medicine_id,
+            'db_id'             => $p->patient->id,
+            'name'              => $p->patient->full_name ?? 'Unknown',
+            'room'              => $p->patient->active_admission?->room?->room_location ?? 'TBD',
+            'medication'        => $displayName,
+            'dosage'            => $p->dosage . ' (' . $p->frequency . ')',
+        ];
+    })->filter()->values();
 
         $stats = [
             'overdue_count' => $administrations->where('isOverdue', true)->count(),
@@ -297,8 +340,8 @@ class NurseController extends Controller
         
         $admission = $prescription->patient->active_admission;
 
-        if (!$admission) {
-            return back()->withErrors(['error' => 'Patient is not currently admitted.']);
+        if (!$admission || $admission->status !== 'admitted') {
+            return back()->withErrors(['error' => 'Action Denied: Patient has been discharged or is not admitted.']);
         }
 
         // 2. Validate Inventory Batch
@@ -382,8 +425,8 @@ class NurseController extends Controller
         }
 
         $admission = $prescription->patient->active_admission;
-        if (!$admission) {
-            return back()->withErrors(['error' => 'Patient is not currently admitted. Cannot attach to a billing statement.']);
+        if (!$admission || $admission->status !== 'admitted') {
+            return back()->withErrors(['error' => 'Cannot log outside medication for a discharged patient.']);
         }
 
         return DB::transaction(function () use ($prescription, $admission) {

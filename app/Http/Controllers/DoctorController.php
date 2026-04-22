@@ -252,6 +252,10 @@ class DoctorController extends Controller
 
     public function storePrescription(Request $request, $id)
     {
+        $patient = Patient::with('active_admission')->findOrFail($id);
+        (!$patient->active_admission || $patient->active_admission->status !== 'admitted') {
+            return back()->withErrors(['error' => 'Cannot prescribe: Patient is not currently admitted.']);
+        }
         $validated = $request->validate([
             'medicine_id'     => 'nullable',
             'medicine_name'   => 'nullable|string|max:255',
@@ -308,6 +312,11 @@ class DoctorController extends Controller
         ]);
 
         $prescription = Prescriptions::findOrFail($id);
+
+        $admission = $prescription->patient->active_admission;
+        if (!$admission || $admission->status !== 'admitted') {
+            return back()->withErrors(['error' => 'Cannot update: Patient is no longer admitted.']);
+        }
 
         $finalMedicineId = ($request->medicine_id === 'other' || !$request->medicine_id) 
                            ? null 
