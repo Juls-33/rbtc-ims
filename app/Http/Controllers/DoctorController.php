@@ -253,7 +253,7 @@ class DoctorController extends Controller
     public function storePrescription(Request $request, $id)
     {
         $patient = Patient::with('active_admission')->findOrFail($id);
-        (!$patient->active_admission || $patient->active_admission->status !== 'admitted') {
+        if (!$patient->active_admission || $patient->active_admission->status !== 'admitted') {
             return back()->withErrors(['error' => 'Cannot prescribe: Patient is not currently admitted.']);
         }
         $validated = $request->validate([
