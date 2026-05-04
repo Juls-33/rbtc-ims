@@ -91,7 +91,7 @@ export default function Welcome({ status, canResetPassword }) {
                                         value={loginForm.data.email}
                                         onChange={(e) => loginForm.setData('email', e.target.value)}
                                         className="w-full border-slate-200 rounded-lg p-3 text-sm focus:ring-[#2E4696] focus:border-[#2E4696]"
-                                        placeholder="admin@rbtc.com"
+                                        placeholder="rbtc.ims.official@gmail.com"
                                         required
                                     />
                                     {loginForm.errors.email && <p className="text-red-500 text-[10px] mt-1 italic font-bold uppercase">{loginForm.errors.email}</p>}
