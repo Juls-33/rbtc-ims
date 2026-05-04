@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
             //MasterSeeder::class,   // 1. Staff (Credentials)
             RoomSeeder::class,     // 2. Rooms
             MedicineSeeder::class, // 3. Medicines
-            PatientSeeder::class,  // 4. Random Patients
+            //PatientSeeder::class,  // 4. Random Patients
             StaffSeeder::class,    // 5. Random Staff (Doctors/Nurses)
             ///InpatientSeeder::class,
         ]);
