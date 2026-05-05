@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
+import DatePicker from '@/Components/DatePicker';
 
 export default function EditAdmissionModal({ isOpen, onClose, admission, doctors = [], rooms = [], onSuccess, onError }) {
     const { data, setData, put, processing, errors, reset, setError, clearErrors } = useForm({
@@ -144,15 +145,16 @@ export default function EditAdmissionModal({ isOpen, onClose, admission, doctors
                                 fieldError={errors.admission_date} 
                                 required={!admission?.is_billing_locked} 
                             />
-                            <input 
-                                type="datetime-local" 
-                                max={currentDateTime}
-                                value={data.admission_date} 
-                                onChange={e => setData('admission_date', e.target.value)} 
+                            <DatePicker 
+                                // label="Admission Date/Time"
+                                value={data.admission_date}
+                                onChange={(val) => setData('admission_date', val)}
+                                maxDate={new Date()} // Prevents selection of future dates
+                                // showTimeSelect // Maintains the 'datetime-local' functionality
+                                dateFormat="yyyy-MM-dd"
                                 disabled={admission?.is_billing_locked}
-                                className={`${inputClass(errors.admission_date)} ${
-                                    admission?.is_billing_locked ? 'bg-slate-100 cursor-not-allowed opacity-70' : ''
-                                }`} 
+                                error={errors.admission_date}
+                                required={!admission?.is_billing_locked}
                             />
                             
                             {admission?.is_billing_locked && (

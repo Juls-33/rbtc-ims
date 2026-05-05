@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { router } from '@inertiajs/react';
+import { usePage, router } from '@inertiajs/react';
 import Button from '@/Components/Button';
 import Toast from '@/Components/Toast'; 
 import Pagination from '@/Components/Pagination';
+import DatePicker from '@/Components/DatePicker';
 
 export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
     if (!isOpen) return null;
@@ -26,6 +27,13 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
         add: [ 'Restock'],
         remove: ['Damaged', 'Expired Stock Removal', 'Return to Supplier']
     };
+
+    const { flash } = usePage().props;
+
+    useEffect(() => {
+        if (flash?.error) showToast(flash.error, 'error');
+        if (flash?.success) showToast(flash.success, 'success');
+    }, [flash]);
 
     useEffect(() => {
         setAdjustmentData(prev => ({ 
@@ -65,6 +73,7 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
             onSuccess: () => {
                 setIsProcessing(false);
                 setErrors({}); 
+                setFormData({ batchId: generateId(), quantity: '', expiryDate: '' });
             },
             onError: () => {
                 setIsProcessing(false);
@@ -225,12 +234,13 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
                                 </div>
                                 <div>
                                     <Label text="Expiry Date" fieldError={errors.expiryDate} />
-                                    <input 
-                                        type="date" 
-                                        min={today} 
-                                        value={formData.expiryDate} 
-                                        onChange={(e) => setFormData({...formData, expiryDate: e.target.value})} 
-                                        className={inputClass(errors.expiryDate)} 
+                                    <DatePicker 
+                                        // label="Expiry Date"
+                                        value={formData.expiryDate}
+                                        onChange={(val) => setFormData({...formData, expiryDate: val})}
+                                        minDate={new Date()} // Prevents past dates
+                                        error={errors.expiryDate}
+                                        required
                                     />
                                     {errors.expiryDate && <p className="text-[9px] text-red-500 mt-1 font-bold italic uppercase">{errors.expiryDate}</p>}
                                 </div>
@@ -366,11 +376,11 @@ export default function ManageBatchesModal({ isOpen, onClose, medicine }) {
                                 {/* Expiry Date Field */}
                                 <div>
                                     <Label text="Update Expiry Date" />
-                                    <input 
-                                        type="date" 
-                                        value={adjustmentData.expiryDate || batchToAdjust.expiry} 
-                                        onChange={(e) => setAdjustmentData({...adjustmentData, expiryDate: e.target.value})} 
-                                        className={inputClass()} 
+                                    <DatePicker 
+                                        // label="Update Expiry Date"
+                                        value={adjustmentData.expiryDate || batchToAdjust.expiry}
+                                        onChange={(val) => setAdjustmentData({...adjustmentData, expiryDate: val})}
+                                        minDate={new Date()} // Ensures adjusted expiry is not in the past
                                     />
                                 </div>
 

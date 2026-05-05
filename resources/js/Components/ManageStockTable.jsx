@@ -2,33 +2,33 @@ import React, { useMemo } from 'react';
 import Button from '@/Components/Button';
 
 export default function ManageStockTable({ items, expandedRow, toggleRow, today, onManage, onEdit, onDelete, sortConfig, onSort }) {
-    const sortedItems = useMemo(() => {
-        let sortableItems = [...items];
+    // const sortedItems = useMemo(() => {
+    //     let sortableItems = [...items];
         
-        if (sortConfig && sortConfig.key) {
-            sortableItems.sort((a, b) => {
-                let aValue = a[sortConfig.key];
-                let bValue = b[sortConfig.key];
+    //     if (sortConfig && sortConfig.key) {
+    //         sortableItems.sort((a, b) => {
+    //             let aValue = a[sortConfig.key];
+    //             let bValue = b[sortConfig.key];
 
-                // Handle nulls for safe comparison
-                if (aValue === null || aValue === undefined) aValue = '';
-                if (bValue === null || bValue === undefined) bValue = '';
+    //             // Handle nulls for safe comparison
+    //             if (aValue === null || aValue === undefined) aValue = '';
+    //             if (bValue === null || bValue === undefined) bValue = '';
 
-                // Convert to lowercase for accurate string sorting
-                if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-                if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+    //             // Convert to lowercase for accurate string sorting
+    //             if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+    //             if (typeof bValue === 'string') bValue = bValue.toLowerCase();
 
-                if (aValue < bValue) {
-                    return sortConfig.direction === 'asc' ? -1 : 1;
-                }
-                if (aValue > bValue) {
-                    return sortConfig.direction === 'asc' ? 1 : -1;
-                }
-                return 0;
-            });
-        }
-        return sortableItems;
-    }, [items, sortConfig]);
+    //             if (aValue < bValue) {
+    //                 return sortConfig.direction === 'asc' ? -1 : 1;
+    //             }
+    //             if (aValue > bValue) {
+    //                 return sortConfig.direction === 'asc' ? 1 : -1;
+    //             }
+    //             return 0;
+    //         });
+    //     }
+    //     return sortableItems;
+    // }, [items, sortConfig]);
     
     const SortIcon = ({ column }) => {
         if (sortConfig.key !== column) return <span className="ml-1 opacity-20 text-[10px]">↕</span>;
@@ -92,13 +92,13 @@ export default function ManageStockTable({ items, expandedRow, toggleRow, today,
                             Status <SortIcon column="calculatedStatus" />
                         </th>
 
-                        <th className="p-2 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-20 w-[90px] md:w-[160px]">
+                        <th className="p-2 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-15 w-[90px] md:w-[160px]">
                             Actions
                         </th>
                     </tr>
                 </thead>
                 <tbody className="text-slate-600">
-                    {sortedItems.map((item) => (
+                    {items.map((item) => (
                         <React.Fragment key={item.id}>
                             <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors group">
                                 <td className="p-3 text-center border-r border-slate-200">

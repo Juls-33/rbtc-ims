@@ -134,13 +134,19 @@ export default function PatientManagement({ auth, patients, filters, selectableP
     };
 
     const renderActionButton = () => {
-        const btnClass = "px-6 py-2 font-black text-[9px] uppercase tracking-widest shadow-md active:scale-95";
+        const btnClass = "px-4 py-2.5 font-black text-[9px] uppercase tracking-widest shadow-md active:scale-95 whitespace-nowrap flex-shrink-0";
         return (
-            <div className="flex gap-2 w-full md:w-auto">
-                <Link href={route('admin.patient.logs')} className="flex-1 lg:flex-none justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center border border-slate-300 transition-all">View Audit Logs</Link>
-                {activeTab === 'inpatient' && <Button variant="success" className={btnClass} onClick={() => setIsAdmitModalOpen(true)}>Admit Patient</Button>}
-                {activeTab === 'outpatient' && <Button variant="success" className={btnClass} onClick={() => setIsAddVisitModalOpen(true)}>Log Visit</Button>}
-                {activeTab === 'all' && <Button variant="success" className={btnClass} onClick={() => setIsAddModalOpen(true)}>+ Register New</Button>}
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-start md:justify-end">
+                <Link 
+                    href={route('admin.patient.logs')} 
+                    className="flex-1 sm:flex-none justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-2.5 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center border border-slate-300 transition-all whitespace-nowrap flex-shrink-0"
+                >
+                    View Audit Logs
+                </Link>
+                
+                {activeTab === 'inpatient' && <Button variant="success" className={`${btnClass} flex-1 sm:flex-none`} onClick={() => setIsAdmitModalOpen(true)}>Admit Patient</Button>}
+                {activeTab === 'outpatient' && <Button variant="success" className={`${btnClass} flex-1 sm:flex-none`} onClick={() => setIsAddVisitModalOpen(true)}>Log Visit</Button>}
+                {activeTab === 'all' && <Button variant="success" className={`${btnClass} flex-1 sm:flex-none`} onClick={() => setIsAddModalOpen(true)}>+ Register New</Button>}
             </div>
         );
     };
@@ -232,8 +238,14 @@ export default function PatientManagement({ auth, patients, filters, selectableP
                     <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                         <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
                             {/* Search Bar */}
-                            <div className="relative w-full md:w-80">
-                                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by ID or Exact Name..." className="w-full pl-4 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-1 focus:ring-[#3D52A0] outline-none text-xs transition-all" />
+                            <div className="relative flex-1 md:w-52">
+                                <input 
+                                    type="text" 
+                                    value={searchQuery} 
+                                    onChange={(e) => setSearchQuery(e.target.value)} 
+                                    placeholder="Search By ID / Exact Name" 
+                                    className="w-full pl-4 pr-4 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-1 focus:ring-[#3D52A0] outline-none text-xs transition-all" 
+                                />
                             </div>
 
                             {/* NEW: Inpatient Filter Dropdown */}

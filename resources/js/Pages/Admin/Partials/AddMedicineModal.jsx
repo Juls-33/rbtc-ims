@@ -210,6 +210,9 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                                             <option value="">Select Category</option>
                                             <option value="Antibiotic">Antibiotic</option>
                                             <option value="Analgesic">Analgesic</option>
+                                            <option value="Analgesic">Antipsychotic</option>
+                                            <option value="Analgesic">Antihistamine</option>
+                                            <option value="Analgesic">Vitamins</option>
                                             <option value="Other">Other...</option>
                                         </select>
                                         {data.category_selection === 'Other' && (

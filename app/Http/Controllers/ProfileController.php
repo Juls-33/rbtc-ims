@@ -27,17 +27,30 @@ class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(Request $request): RedirectResponse
     {
-       $user = $request->user();
-    
-        $user->fill($request->validated());
+        $user = $request->user();
 
-        if ($user->isDirty('email')) {
-            $user->email_verified_at = null;
-        }
+        // Use standard validation or ensure ProfileUpdateRequest matches these keys
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'last_name'  => 'required|string|max:255',
+            'email'      => 'required|email|unique:staff,email,' . $user->id,
+            'phone'      => 'required|string|max:20', // Matches React 'setData'
+            'address'    => 'required|string|max:500',
+        ]);
 
-        $user->save();
+        // Manually update to ensure correct column mapping
+        $user->update([
+            'first_name' => $validated['first_name'],
+            'last_name'  => $validated['last_name'],
+            'email'      => $validated['email'],
+            'address'    => $validated['address'],
+            'contact_no' => $validated['phone'], // Maps React 'phone' to DB 'contact_no'
+        ]);
+
+        // Remove the email_verified_at logic entirely as it doesn't exist in your schema
+
         return Redirect::to('/profile')->with('success', 'Profile information updated successfully.');
     }
 

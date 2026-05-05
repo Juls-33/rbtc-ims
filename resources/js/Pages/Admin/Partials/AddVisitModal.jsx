@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm } from '@inertiajs/react';
+import DatePicker from '@/Components/DatePicker';
 
 export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
     const { data, setData, post, processing, reset, errors, setError, clearErrors } = useForm({
@@ -177,7 +178,16 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div className="space-y-1">
                             <Label text="Visit Date" required fieldError={errors.visit_date} />
-                            <input type="date" max={today} value={data.visit_date} onChange={e => setData('visit_date', e.target.value)} className={inputClass(errors.visit_date)} />
+                            <div className="space-y-1">
+                                <DatePicker 
+                                    // label="Visit Date"
+                                    value={data.visit_date}
+                                    onChange={(val) => setData('visit_date', val)}
+                                    maxDate={new Date()} // Prevents future dates
+                                    error={errors.visit_date}
+                                    required
+                                />
+                            </div>
                             {errors.visit_date && <p className="text-red-600 text-[10px] mt-1 font-black italic uppercase">{errors.visit_date}</p>}
                         </div>
                         <div className="space-y-1">

@@ -17,23 +17,18 @@ class MedicineController extends Controller
         $today = Carbon::today();
 
         $allStats = MedicineCatalog::withSum('batches', 'current_quantity')->get()->map(function($m) use ($today) {
-            // Calculate total usable stock for this medicine
             $total = (int)$m->batches_sum_current_quantity;
-            
-            // Determine status for the counter
-            $status = 'IN STOCK';
-            if ($total === 0) {
-                $status = 'OUT OF STOCK';
-            } elseif ($total <= ($m->reorder_point ?? 20)) {
-                $status = 'LOW STOCK';
-            }
-
+            $status = $total === 0 ? 'OUT OF STOCK' : ($total <= ($m->reorder_point ?? 20) ? 'LOW STOCK' : 'IN STOCK');
             return [
                 'status' => $status,
                 'is_expiring' => $m->batches()->whereBetween('expiry_date', [$today, $today->copy()->addDays(30)])->exists()
             ];
         });
-        $query = MedicineCatalog::query();
+
+       $query = MedicineCatalog::query()
+        ->withSum('batches as total_stock', 'current_quantity')
+        ->withMin('batches as soonest_expiry', 'expiry_date'); 
+
         if ($request->search) {
             $searchTerm = "%{$request->search}%";
             $query->where(function($q) use ($searchTerm) {
@@ -43,10 +38,23 @@ class MedicineController extends Controller
                   ->orWhere('sku_id', 'LIKE', $searchTerm);
             });
         }
-        $inventoryPaginator = $query->with(['batches' => function($query) {
-                $query->orderBy('expiry_date', 'asc'); 
+
+        $sortField = $request->input('sort', 'generic_name'); // Default sort
+        $sortDirection = $request->input('direction', 'asc');
+
+        $sortMap = [
+            'name' => 'generic_name',
+            'calculatedTotal' => 'total_stock',
+            'calculatedSoonest' => 'soonest_expiry',
+            'calculatedStatus' => 'total_stock', // Sorting by total stock effectively sorts status
+        ];
+
+        $dbField = $sortMap[$sortField] ?? 'generic_name';
+        $query->orderBy($dbField, $sortDirection);
+
+        $inventoryPaginator = $query->with(['batches' => function($q) {
+                $q->orderBy('expiry_date', 'asc'); 
             }])
-                ->latest()
             ->paginate(10)
             ->withQueryString();
 
@@ -77,8 +85,9 @@ class MedicineController extends Controller
                 'brand_name' => $medicine->brand_name, 
                 'dosage' => $medicine->dosage,
                 'price' => (float)$medicine->price_per_unit,
+
+                'reorder_point' => (int)$medicine->reorder_point,
                 
-                // --- CORRECTED TOTALS (Excludes Expired) ---
                 'totalStock' => $totalUsableStock, // Usable units only
                 'is_available' => $totalUsableStock > 0, // False if all stock is expired
                 

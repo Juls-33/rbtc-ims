@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useForm, Link } from '@inertiajs/react';
 import Button from '@/Components/Button'; 
 import Toast from '@/Components/Toast'; 
+import DatePicker from '@/Components/DatePicker';
 
 export default function AdmitPatientModal({ isOpen, onClose, patients = [], rooms = [], doctors = [], onSuccess }) {
     const { data, setData, post, processing, errors, reset, setError, clearErrors } = useForm({
@@ -205,7 +206,17 @@ export default function AdmitPatientModal({ isOpen, onClose, patients = [], room
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <Label text="Admission Timestamp" fieldError={errors.admission_date} />
-                                <input type="datetime-local" max={currentDateTime} value={data.admission_date} onChange={e => setData('admission_date', e.target.value)} className={inputClass(errors.admission_date)} />
+                            <div>
+                                <DatePicker 
+                                    // label="Admission Timestamp"
+                                    value={data.admission_date}
+                                    onChange={(val) => setData('admission_date', val)}
+                                    maxDate={new Date()} // Prevents future dates
+                                    dateFormat="yyyy-MM-dd"
+                                    error={errors.admission_date}
+                                    required
+                                />
+                            </div>
                                 {errors.admission_date && <p className="text-red-500 text-[9px] font-bold italic mt-1 uppercase">{errors.admission_date}</p>}
                             </div>
                             <div>

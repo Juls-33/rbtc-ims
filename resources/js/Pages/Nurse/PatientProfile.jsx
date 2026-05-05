@@ -8,7 +8,7 @@ import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Toast from '@/Components/Toast';
-
+import DatePicker from '@/Components/DatePicker';
 
 export default function NursePatientProfile({ auth , patient, prescriptionHistory, vitalsHistory, availableBatches, medicalNotes = [] }) {
     const [activeTab, setActiveTab] = useState('prescription'); 
@@ -590,12 +590,14 @@ export default function NursePatientProfile({ auth , patient, prescriptionHistor
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <InputLabel value="Date of Visit" />
-                            <TextInput 
-                                type="date" 
-                                className="w-full mt-1" 
-                                value={vitalsData.visit_date} 
-                                onChange={e => setVitalsData('visit_date', e.target.value)} 
-                            />
+                            <DatePicker 
+                                // label="Date of Visit"
+                                value={vitalsData.visit_date}
+                                onChange={(val) => setVitalsData('visit_date', val)}
+                                maxDate={new Date()} // Prevents future recordings
+                                error={vitalsErrors.visit_date}
+                                required
+    />
                             <InputError message={vitalsErrors.visit_date} />
                         </div>
                         {/* Weight Field */}

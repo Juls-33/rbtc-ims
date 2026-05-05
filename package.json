@@ -25,6 +25,7 @@
     },
     "dependencies": {
         "dexie": "^4.3.0",
-        "lodash": "^4.17.23"
+        "lodash": "^4.17.23",
+        "react-datepicker": "^9.1.0"
     }
 }

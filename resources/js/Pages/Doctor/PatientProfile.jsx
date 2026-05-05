@@ -9,6 +9,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Button from '@/Components/Button';
 import Toast from '@/Components/Toast';
+import DatePicker from '@/Components/DatePicker';
 
     export default function DoctorPatientProfile({ auth, patient, admissionHistory, medicines, prescriptionHistory, consultationHistory = [] }) {
         const [activeTab, setActiveTab] = useState('admission');
@@ -908,11 +909,13 @@ import Toast from '@/Components/Toast';
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <Label text="Date Prescribed" />
-                                <input 
-                                    type="date" 
-                                    className={inputClass(prescription.errors.date_prescribed)} 
-                                    value={prescription.data.date_prescribed} 
-                                    onChange={e => prescription.setData('date_prescribed', e.target.value)} 
+                                <DatePicker 
+                                    // label="Date Prescribed"
+                                    value={prescription.data.date_prescribed}
+                                    onChange={(val) => prescription.setData('date_prescribed', val)}
+                                    maxDate={new Date()} // Prescriptions are recorded for today or past
+                                    error={prescription.errors.date_prescribed}
+                                    required
                                 />
                             </div>
 
@@ -997,12 +1000,14 @@ import Toast from '@/Components/Toast';
                             </div>
                             <div>
                                 <Label text="Date of Visit" fieldError={vitals.errors.visit_date} />
-                                <input 
-                                    type="date" 
-                                    className={getDynamicClass('visit_date', vitals.data.visit_date, vitals.errors.visit_date)} 
-                                    value={vitals.data.visit_date} 
-                                    onChange={e => vitals.setData('visit_date', e.target.value)} 
-                                />
+                                <DatePicker 
+                                    // label="Date of Visit"
+                                    value={vitals.data.visit_date}
+                                    onChange={(val) => vitals.setData('visit_date', val)}
+                                    maxDate={new Date()} // Prevents future vital recordings
+                                    error={vitals.errors.visit_date}
+                                    required
+    />
                                 <InputError message={vitals.errors.visit_date} className="mt-1" />
                             </div>
                         </div>

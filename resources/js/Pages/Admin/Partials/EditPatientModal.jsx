@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import Button from '@/Components/Button';
 import Toast from '@/Components/Toast'; 
+import DatePicker from '@/Components/DatePicker';
 
 export default function EditPatientModal({ isOpen, onClose, patient, onSuccess }) {
     const { data, setData, put, processing, errors, reset, setError, clearErrors } = useForm({
@@ -168,7 +169,14 @@ export default function EditPatientModal({ isOpen, onClose, patient, onSuccess }
                                         </label>
                                         {agePreview && <span className="text-[9px] font-black bg-blue-100 text-blue-700 px-2 rounded-full uppercase">{agePreview}</span>}
                                     </div>
-                                    <input type="date" value={data.birth_date} onChange={e => setData('birth_date', e.target.value)} className={inputClass(errors.birth_date)} />
+                                    <DatePicker 
+                                        // label="Date of Birth"
+                                        value={data.birth_date}
+                                        onChange={(val) => setData('birth_date', val)}
+                                        maxDate={new Date()} // Restricts selection to past dates only
+                                        error={errors.birth_date}
+                                        required
+                                    />
                                     {errors.birth_date && <p className="text-red-500 text-[9px] font-bold italic mt-1 uppercase">{errors.birth_date}</p>}
                                 </div>
                                 <div>

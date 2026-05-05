@@ -15,7 +15,10 @@ export default function MedicineInventory({ auth, inventory, logs, filters, full
     const [activeTab, setActiveTab] = useState('manage');
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [expandedRow, setExpandedRow] = useState(null);
-    const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+    const [sortConfig, setSortConfig] = useState({ 
+        key: filters.sort || 'name', 
+        direction: filters.direction || 'asc' 
+    });
     
     // --- MODAL STATES ---
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -31,12 +34,16 @@ export default function MedicineInventory({ auth, inventory, logs, filters, full
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
             router.get(route('inventory.index'), 
-                { search: searchQuery }, 
+                { 
+                    search: searchQuery, 
+                    sort: sortConfig.key, 
+                    direction: sortConfig.direction 
+                }, 
                 { preserveState: true, replace: true, preserveScroll: true }
             );
         }, 300);
         return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery]);
+    }, [searchQuery, sortConfig]);
 
    
     const processedInventory = useMemo(() => {
@@ -84,7 +91,10 @@ export default function MedicineInventory({ auth, inventory, logs, filters, full
     ], [inventory.total, fullInventoryStats]);
 
     const handleSort = (key) => {
-        setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
     };
 
     return (

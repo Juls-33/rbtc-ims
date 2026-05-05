@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
+import DatePicker from '@/Components/DatePicker';
 
 export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onError }) {
     // 1. ADDED: 'checkup_fee' to form data to satisfy controller validation
@@ -114,13 +115,16 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div className="space-y-1">
                             <Label text="Date of Visit" required fieldError={errors.visit_date} />
-                            <input 
-                                type="date" 
-                                max={today}
-                                value={data.visit_date} 
-                                onChange={e => setData('visit_date', e.target.value)} 
-                                className={inputClass(errors.visit_date)} 
-                            />
+                            <div className="space-y-1">
+                                <DatePicker 
+                                    // label="Date of Visit"
+                                    value={data.visit_date}
+                                    onChange={(val) => setData('visit_date', val)}
+                                    maxDate={new Date()} // Prevents accidental future-dating of records
+                                    error={errors.visit_date}
+                                    required
+                                />
+                            </div>
                             {errors.visit_date && <p className="text-red-600 text-[10px] mt-1 font-black italic uppercase">{errors.visit_date}</p>}
                         </div>
 
