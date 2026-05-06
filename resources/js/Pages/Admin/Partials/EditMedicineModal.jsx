@@ -6,7 +6,14 @@ import Toast from '@/Components/Toast';
 export default function EditMedicineModal({ isOpen, onClose, medicine }) {
     const standardUnits = ['mg', 'g', 'mL', 'mcg', 'IU'];
     const standardForms = ['Tablet', 'Capsule', 'Syrup', 'Suspension', 'Injection', 'Cream'];
-    const standardCategories = ['Antibiotic', 'Analgesic', 'Vitamin', 'Antihistamine', 'Anti-Inflammatory'];
+    const standardCategories = [
+        'Antibiotic', 
+        'Analgesic', 
+        'Antihistamine', 
+        // 'Anti-Inflammatory', 
+        'Antipsychotic', // Added
+        'Vitamins'      
+    ];
 
     const { data, setData, put, processing, errors, reset, setError, clearErrors, transform } = useForm({
         generic_name: '',

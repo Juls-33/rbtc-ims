@@ -176,8 +176,12 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                                             <Label text="Form" />
                                             <select value={data.dosage_form_selection} onChange={e => setData('dosage_form_selection', e.target.value)} className={inputClass()}>
                                                 <option value="Tablet">Tablet</option>
+                                                <option value="Tablet">Tablet</option>
                                                 <option value="Capsule">Capsule</option>
                                                 <option value="Syrup">Syrup</option>
+                                                <option value="Suspension">Suspension</option>
+                                                <option value="Injection">Injection</option>
+                                                <option value="Cream">Cream</option>
                                                 <option value="Other">Other...</option>
                                             </select>
                                         </div>
@@ -210,9 +214,9 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                                             <option value="">Select Category</option>
                                             <option value="Antibiotic">Antibiotic</option>
                                             <option value="Analgesic">Analgesic</option>
-                                            <option value="Analgesic">Antipsychotic</option>
-                                            <option value="Analgesic">Antihistamine</option>
-                                            <option value="Analgesic">Vitamins</option>
+                                            <option value="Antipsychotic">Antipsychotic</option>
+                                            <option value="Antihistamine">Antihistamine</option>
+                                            <option value="Vitamins">Vitamins</option>
                                             <option value="Other">Other...</option>
                                         </select>
                                         {data.category_selection === 'Other' && (

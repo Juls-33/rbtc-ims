@@ -107,19 +107,24 @@ class MedicineController extends Controller
             ];
         });
 
-        $logsQuery = StockLog::with(['batch.medicine', 'staff']);
+        $logsQuery = StockLog::with(['medicine', 'batch.medicine', 'staff']);
 
         // 1. ADD: Universal Search for Logs
         if ($request->search) {
             $searchTerm = "%{$request->search}%";
             $logsQuery->where(function($q) use ($searchTerm) {
                 $q->where('reason', 'LIKE', $searchTerm)
+                // Check direct medicine link (Catalog Updates)
+                ->orWhereHas('medicine', function($mq) use ($searchTerm) {
+                    $mq->where('generic_name', 'LIKE', $searchTerm);
+                })
+                // Check through batch (Stock Ins/Dispensing)
                 ->orWhereHas('batch.medicine', function($mq) use ($searchTerm) {
                     $mq->where('generic_name', 'LIKE', $searchTerm);
                 })
                 ->orWhereHas('staff', function($sq) use ($searchTerm) {
                     $sq->where('first_name', 'LIKE', $searchTerm)
-                        ->orWhere('last_name', 'LIKE', $searchTerm);
+                    ->orWhere('last_name', 'LIKE', $searchTerm);
                 })
                 ->orWhereHas('batch', function($bq) use ($searchTerm) {
                     $bq->where('sku_batch_id', 'LIKE', $searchTerm);
@@ -137,7 +142,9 @@ class MedicineController extends Controller
             return [
                 'dateTime' => $log->created_at->format('Y-m-d H:i'),
                 'id' => $log->batch->sku_batch_id ?? 'N/A',
-                'medicine_name' => $log->batch->medicine->generic_name ?? 'Catalog Update',
+                'medicine_name' => $log->medicine->generic_name 
+                    ?? $log->batch->medicine->generic_name 
+                    ?? 'Catalog Update',
                 'action' => $log->change_amount != 0 ? ($log->change_amount > 0 ? 'STOCK IN' : 'DISPENSE') : 'CATALOG MOD',
                 'amount' => (string)$log->change_amount, // Ensure it's a string for .startsWith check
                 'reason' => $log->reason,

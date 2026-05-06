@@ -295,7 +295,7 @@ export default function PatientManagement({ auth, patients, filters, selectableP
                                             </th>
                                         </>
                                     )}
-                                    <th className="p-4 text-center sticky right-0 bg-gray-50 z-20 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] w-40">Actions</th>
+                                    <th className="p-4 text-center sticky right-0 bg-gray-50 z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] w-40">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="text-slate-600 divide-y divide-slate-100">

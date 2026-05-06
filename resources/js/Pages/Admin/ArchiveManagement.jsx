@@ -116,7 +116,7 @@ export default function ArchiveManagement({ archives, filters = {} }) {
                                     <th className="p-4 border-r text-center">Archived By</th>
                                     <th className="p-4 border-r text-center">Date Archived</th>
                                     <th className="p-4 text-center">Purge Countdown</th>
-                                    <th className="p-4 text-center sticky right-0 bg-slate-50 z-20 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] w-48">Actions</th>
+                                    <th className="p-4 text-center sticky right-0 bg-slate-50 z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] w-48">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">

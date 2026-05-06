@@ -96,7 +96,7 @@ export default function StaffManagementTable({ staff = [], activeTab, searchQuer
                                 </th>
                             )}
                             
-                            <th className="p-4 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-20 w-[160px]">
+                            <th className="p-4 text-center sticky right-0 bg-slate-50 shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-10 w-[160px]">
                                 Actions
                             </th>
                         </tr>
