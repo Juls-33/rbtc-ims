@@ -30,13 +30,22 @@ export default function RoomManagement({ auth, categories, groupedCategories, or
     const renderRoomCard = (room) => (
         <div key={room.id} className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow group flex flex-col justify-between">
             <div>
-                <div className="flex justify-between items-start mb-2">
+               <div className="flex flex-col items-start gap-1">
                     <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
                         room.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
                         room.status === 'Occupied' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-amber-50 text-amber-700 border-amber-100'
                     }`}>
                         {room.status}
                     </span>
+
+                    {/* Patient name will now safely print right here, below the tag */}
+                    {room.status?.toLowerCase() === 'occupied' && room.assigned_patient ? (
+                        <div className="text-[10px] text-slate-500 font-bold max-w-[140px] truncate pl-1 mt-0.5" title={room.assigned_patient}>
+                            👤 {room.assigned_patient}
+                        </div>
+                    ) : room.status?.toLowerCase() === 'occupied' && (
+                        <span className="text-[9px] text-slate-400 italic pl-1 mt-0.5">Patient info loading...</span>
+                    )}
                 </div>
                 <h4 className="font-black text-slate-800 text-sm uppercase tracking-tight line-clamp-1">{room.room_location}</h4>
                 <p className="font-mono text-emerald-600 font-bold text-xs mt-1 mb-4">₱{parseFloat(room.room_rate).toLocaleString(undefined, {minimumFractionDigits: 2})}/mo</p>

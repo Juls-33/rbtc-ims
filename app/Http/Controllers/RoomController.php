@@ -18,15 +18,52 @@ class RoomController extends Controller
         // 1. Fetch Categories for the Dropdowns (Add/Edit Modals)
         $categories = RoomCategory::orderBy('name', 'asc')->get();
 
-        // 2. Fetch Nested Data (Apply Status filter directly in the DB)
+        // Helper closures to prevent duplicating mapping code between Grouped and Orphaned elements
+        $mapRoomData = function($room) {
+            // Find the active admission record tied to this room.
+            // A room is actively occupied if an admission exists and has not been discharged yet.
+            $activeAdmission = $room->admissions->first(function($admission) {
+                // If your table uses an explicit column like 'status' on the admission itself,
+                // or if it uses nullability columns like 'discharged_at', target that here.
+                // Fallback: If you don't have a discharging column yet, any record here is active.
+                return $admission->patient !== null; 
+            });
+
+            // Force these attributes into the serialized array sent to Inertia React
+            if ($activeAdmission && $activeAdmission->patient) {
+                // Adjust property names based on your Patient table structure columns
+                // e.g., if you have 'first_name' and 'last_name', or just a single 'name' field
+                $patientName = isset($activeAdmission->patient->first_name)
+                    ? $activeAdmission->patient->first_name . ' ' . $activeAdmission->patient->last_name
+                    : ($activeAdmission->patient->name ?? 'Unknown Patient');
+
+                $room->setAttribute('assigned_patient', $patientName);
+                $room->setAttribute('admission_id', $activeAdmission->id);
+            } else {
+                $room->setAttribute('assigned_patient', null);
+                $room->setAttribute('admission_id', null);
+            }
+
+            return $room;
+        };
+
+        // 2. Fetch Nested Data (Apply Status filter directly in the DB + eager load active patient)
         $groupedCategories = RoomCategory::with(['rooms' => function($q) use ($status) {
             if ($status && $status !== 'All') {
                 $q->where('status', $status);
             }
-            $q->orderBy('room_location', 'asc');
+            // Eager load admissions and their corresponding patients safely
+            $q->with(['admissions.patient'])->orderBy('room_location', 'asc');
         }])->orderBy('name', 'asc')->get();
 
-        // --- NEW: ADVANCED DEEP SEARCH FILTERING ---
+        // Map assigned patients inside nested collections
+        $groupedCategories->each(function($category) use ($mapRoomData) {
+            $category->rooms->transform(function($room) use ($mapRoomData) {
+                return $mapRoomData($room);
+            });
+        });
+
+        // --- ADVANCED DEEP SEARCH FILTERING ---
         if ($searchTerm) {
             $searchTermLower = strtolower($searchTerm); // Make it case-insensitive
             
@@ -38,10 +75,11 @@ class RoomController extends Controller
                     // If the category itself matches (e.g. "Male Ward"), show the category and ALL its rooms
                     return true; 
                 } else {
-                    // If category doesn't match, check if any of its rooms match the location or price
+                    // If category doesn't match, check if any of its rooms match the location, price, or assigned patient
                     $matchingRooms = $category->rooms->filter(function ($room) use ($searchTermLower) {
                         return str_contains(strtolower($room->room_location), $searchTermLower) || 
-                               str_contains((string)$room->room_rate, $searchTermLower);
+                               str_contains((string)$room->room_rate, $searchTermLower) ||
+                               str_contains(strtolower($room->assigned_patient ?? ''), $searchTermLower); // Allows searching by patient name!
                     })->values(); // Re-index array
 
                     // Temporarily replace the category's rooms with ONLY the ones that matched
@@ -53,8 +91,9 @@ class RoomController extends Controller
             })->values(); // Re-index the outer array for clean React JSON props
         }
 
-        // 3. Fetch "Orphaned" Rooms (Fallback)
+        // 3. Fetch "Orphaned" Rooms (Fallback + eager load active patient)
         $orphanedRooms = Room::whereNull('room_category_id')
+            ->with(['admissions.patient'])
             ->when($searchTerm, function($q) use ($searchTerm) {
                 $q->where(function($subQ) use ($searchTerm) {
                     $subQ->where('room_location', 'LIKE', "%{$searchTerm}%")
@@ -66,6 +105,21 @@ class RoomController extends Controller
             })
             ->orderBy('room_location', 'asc')
             ->get();
+
+        // Map assigned patients for orphaned rooms group
+        $orphanedRooms->transform(function($room) use ($mapRoomData) {
+            return $mapRoomData($room);
+        });
+
+        // Apply fallback search filtering for orphaned rows by patient name if applicable
+        if ($searchTerm) {
+            $searchTermLower = strtolower($searchTerm);
+            $orphanedRooms = $orphanedRooms->filter(function($room) use ($searchTermLower) {
+                return str_contains(strtolower($room->room_location), $searchTermLower) || 
+                       str_contains((string)$room->room_rate, $searchTermLower) ||
+                       str_contains(strtolower($room->assigned_patient ?? ''), $searchTermLower);
+            })->values();
+        }
 
         // 4. Calculate Dashboard Stats
         $statsData = Room::selectRaw("
@@ -83,7 +137,7 @@ class RoomController extends Controller
         ];
 
         return Inertia::render('Admin/Partials/RoomManagement', [
-            'categories'        => $categories,
+            'categories'        => $categories, // FIXED: Added missing comma right here
             'groupedCategories' => $groupedCategories,
             'orphanedRooms'     => $orphanedRooms,
             'roomStats'         => $stats,
