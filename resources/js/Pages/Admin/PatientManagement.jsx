@@ -290,6 +290,9 @@ export default function PatientManagement({ auth, patients, filters, selectableP
                                             <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('status')}>
                                                 Status <SortIcon column="status" />
                                             </th>
+                                            {activeTab === 'outpatient' && (
+                                                <th className="p-4 border-r">Assigned Doctor</th>
+                                            )}
                                             <th className="p-4 border-r cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('bill_status')}>
                                                 Bill Status <SortIcon column="bill_status" />
                                             </th>
@@ -315,6 +318,7 @@ export default function PatientManagement({ auth, patients, filters, selectableP
                                                 <td className="p-4 border-r font-mono text-[11px] font-bold text-slate-500">{patient.patient_id}</td>
                                                 <td className="p-4 border-r font-black text-slate-800 tracking-tight">{patient.name}</td>
                                                 <td className="p-4 border-r text-xs">{patient.contact_no}</td>
+                                                
                                                 <td className="p-4 border-r text-center">
                                                     <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
                                                         activeTab === 'outpatient' 
@@ -326,6 +330,24 @@ export default function PatientManagement({ auth, patients, filters, selectableP
                                                         {activeTab === 'outpatient' ? 'OUTPATIENT' : patient.status}
                                                     </span>
                                                 </td>
+                                                {activeTab === 'outpatient' && (
+                                                    <td className="p-4 border-r text-xs font-bold text-slate-700">
+                                                        {(() => {
+                                                            if (!patient.visit_history || patient.visit_history.length === 0) return <span className="text-slate-400 italic font-normal">Unassigned</span>;
+                                                            
+                                                            // Sort history to locate the most recent clinical visit record entry
+                                                            const latestVisit = [...patient.visit_history].sort((a, b) => 
+                                                                new Date(b.visit_date || b.date) - new Date(a.visit_date || a.date)
+                                                            )[0];
+                                                            
+                                                            if (!latestVisit || !latestVisit.staff_id) return <span className="text-slate-400 italic font-normal">Unassigned</span>;
+                                                            
+                                                            // Find the doctor matching the staff identifier lookup signature
+                                                            const doctor = doctors.find(doc => String(doc.id) === String(latestVisit.staff_id));
+                                                            return doctor ? `Dr. ${doctor.first_name} ${doctor.last_name}` : <span className="text-slate-400 italic font-normal">Unassigned</span>;
+                                                        })()}
+                                                    </td>
+                                                )}
                                                 <td className="p-4 border-r text-center">
                                                     <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${patient.bill_status === 'UNPAID' ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>{patient.bill_status}</span>
                                                 </td>
