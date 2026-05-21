@@ -2,13 +2,14 @@ import React, { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import DatePicker from '@/Components/DatePicker';
 
-export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onError }) {
+export default function EditVisitModal({ isOpen, onClose, visit, doctors = [], onSuccess, onError }) {
     // 1. ADDED: 'checkup_fee' to form data to satisfy controller validation
     const { data, setData, put, processing, reset, errors, setError, clearErrors } = useForm({
         visit_date: '',
         weight: '',
         reason: '',
         checkup_fee: '', 
+        staff_id: '',
     });
 
     const today = new Date().toISOString().split('T')[0];
@@ -16,11 +17,15 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
     useEffect(() => {
         if (visit && isOpen) {
             setData({
-                // 2. FIXED: Reference visit.visit_date instead of visit.date
-                visit_date: visit.visit_date || '', 
+                // Check both visit_date and date to handle different backend serialization shapes
+                visit_date: visit.visit_date || visit.date || '', 
+                
                 weight: visit.weight?.toString().replace('KG', '') || '',
                 reason: visit.reason || '',
                 checkup_fee: visit.checkup_fee || 0,
+                
+                // Check both staff_id and doctor_id, and explicitly parse to a string for select element matching
+                staff_id: visit.staff_id ? String(visit.staff_id) : (visit.doctor_id ? String(visit.doctor_id) : ''),
             });
         }
     }, [visit, isOpen]);
@@ -110,7 +115,7 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
                         className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors text-2xl leading-none"
                     >&times;</button>
                 </div>
-
+                
                 <div className="p-6 md:p-8 space-y-6 overflow-y-auto no-scrollbar flex-1 text-slate-800">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div className="space-y-1">
@@ -152,7 +157,23 @@ export default function EditVisitModal({ isOpen, onClose, visit, onSuccess, onEr
                             {errors.weight && <p className="text-red-600 text-[10px] mt-1 font-black italic uppercase">{errors.weight}</p>}
                         </div>
                     </div>
-
+                    {/* Doctor Update Dropdown Input */}
+                    <div className="space-y-1">
+                        <Label text="Assigned Consulting Physician" required fieldError={errors.staff_id} />
+                        <select 
+                            value={data.staff_id} 
+                            onChange={e => setData('staff_id', e.target.value)} 
+                            className={inputClass(errors.staff_id)}
+                        >
+                            <option value="">Select Doctor</option>
+                            {doctors?.map(doc => (
+                                <option key={doc.id} value={doc.id.toString()}>
+                                    Dr. {doc.first_name} {doc.last_name}
+                                </option>
+                            ))}
+                        </select>
+                        {errors.staff_id && <p className="text-red-600 text-[10px] mt-1 font-black italic uppercase">{errors.staff_id}</p>}
+                    </div>
                     <div className="space-y-1">
                         <Label text="Reason / Clinical Findings" current={data.reason.length} max={250} required fieldError={errors.reason} />
                         <textarea 

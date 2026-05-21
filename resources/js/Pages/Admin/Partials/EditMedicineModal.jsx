@@ -45,15 +45,6 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
     }, [data.generic_name, data.brand_name, data.dosage_amount]);
 
     useEffect(() => {
-        transform((formValues) => ({
-            ...formValues,
-            category: finalCategory,
-            dosage: constructedDosage,
-            sku_id: generatedSkuPrefix, 
-        }));
-    }, [finalCategory, constructedDosage, generatedSkuPrefix]);
-
-    useEffect(() => {
         if (medicine && isOpen) {
             const dosageParts = (medicine.dosage || "").split(" ");
             const amount = dosageParts[0] || "";
@@ -103,13 +94,16 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (validate()) {
+            // Safe transformation right before sending to Laravel
+            transform((formValues) => ({
+                ...formValues,
+                category: finalCategory,
+                dosage: constructedDosage,
+                sku_id: generatedSkuPrefix, 
+            }));
+
             put(route('inventory.update', medicine.id), {
                 onSuccess: () => {
-                    // setToastInfo({ 
-                    //     show: true, 
-                    //     message: 'Medicine record and SKU updated!', 
-                    //     type: 'success' 
-                    // });
                     handleModalClose();
                 },
                 onError: (err) => {
@@ -129,7 +123,6 @@ export default function EditMedicineModal({ isOpen, onClose, medicine }) {
             });
         }
     };
-
     const inputClass = (error) => `w-full border rounded px-3 py-2 text-sm transition-colors ${
         error ? 'border-red-500 bg-red-50' : 'border-slate-300 focus:ring-[#E6AA68] focus:border-[#E6AA68]'
     }`;

@@ -33,14 +33,7 @@ export default function AddMedicineModal({ isOpen, onClose }) {
         return `${g}-${b}-${d}`;
     }, [data.generic_name, data.brand_name, data.dosage_amount]);
 
-    useEffect(() => {
-        transform((formValues) => ({
-            ...formValues,
-            category: finalCategory,
-            dosage: constructedDosage,
-            sku_id: generatedSku,
-        }));
-    }, [finalCategory, constructedDosage, generatedSku]);
+
 
     const validate = () => {
         let isValid = true;
@@ -72,28 +65,32 @@ export default function AddMedicineModal({ isOpen, onClose }) {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (validate()) {
+            // Safe transformation right before sending to Laravel
+            transform((formValues) => ({
+                ...formValues,
+                category: finalCategory,
+                dosage: constructedDosage,
+                sku_id: generatedSku, // FIXED: Changed from generatedSkuPrefix to generatedSku
+            }));
+
+            // Notice this uses 'post' and the correct storage route
             post(route('inventory.store'), {
                 onSuccess: () => {
-                    setToastInfo({ 
-                        show: true, 
-                        message: 'Medicine added successfully!', 
-                        type: 'success' 
-                    });
                     handleModalClose();
                 },
                 onError: (err) => {
-                    console.error("Backend Error:", err);
+                    console.error("Creation Error:", err);
                     setToastInfo({ 
                         show: true, 
-                        message: 'Submission failed. Please check for duplicate records or server errors.', 
+                        message: 'Failed to add medicine. Please verify your inputs.', 
                         type: 'error' 
                     });
-                },
+                }
             });
         } else {
             setToastInfo({ 
                 show: true, 
-                message: 'Please fill in all mandatory fields correctly.', 
+                message: 'Please fill in all required fields.', 
                 type: 'error' 
             });
         }
@@ -175,7 +172,6 @@ export default function AddMedicineModal({ isOpen, onClose }) {
                                         <div>
                                             <Label text="Form" />
                                             <select value={data.dosage_form_selection} onChange={e => setData('dosage_form_selection', e.target.value)} className={inputClass()}>
-                                                <option value="Tablet">Tablet</option>
                                                 <option value="Tablet">Tablet</option>
                                                 <option value="Capsule">Capsule</option>
                                                 <option value="Syrup">Syrup</option>

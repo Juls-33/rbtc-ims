@@ -360,7 +360,7 @@ export default function PatientManagement({ auth, patients, filters, selectableP
             <EditPatientModal isOpen={isEditModalOpen} onClose={() => { setIsEditModalOpen(false); setSelectedPatient(null); }} patient={selectedPatient} />
             <DeletePatientModal isOpen={isDeleteModalOpen} onClose={() => { setIsDeleteModalOpen(false); setPatientToDelete(null); }} patient={patientToDelete} />
             <AdmitPatientModal isOpen={isAdmitModalOpen} onClose={() => setIsAdmitModalOpen(false)} patients={selectablePatients || []} rooms={rooms || []} doctors={doctors || []} />
-            <AddVisitModal isOpen={isAddVisitModalOpen} onClose={() => setIsAddVisitModalOpen(false)} patients={selectablePatients || []} />
+            <AddVisitModal isOpen={isAddVisitModalOpen} onClose={() => setIsAddVisitModalOpen(false)} patients={selectablePatients || []} doctors={doctors || []} />
         </AuthenticatedLayout>
     );
 }

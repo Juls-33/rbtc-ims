@@ -364,7 +364,7 @@ export default function PatientProfile({ patient, initialTab, onBack, doctors, r
             {tabContent}
             <EditPatientModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} patient={patient} />
                 <DeletePatientModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} patient={patient} onBack={onBack} />
-            {isEditVisitOpen && <EditVisitModal isOpen={isEditVisitOpen} onClose={() => setIsEditVisitOpen(false)} visit={selectedVisit} />}
+            {isEditVisitOpen && <EditVisitModal isOpen={isEditVisitOpen} onClose={() => setIsEditVisitOpen(false)} visit={selectedVisit} doctors={doctors || []}/>}
             {isVisitBillOpen && <ViewOutpatientBillModal isOpen={isVisitBillOpen} onClose={() => setIsVisitBillOpen(false)} patient={patient} visit={selectedVisit} medicines={inventory} />}
             {isEditAdmissionOpen && patient.active_admission && <EditAdmissionModal isOpen={isEditAdmissionOpen} onClose={() => setIsEditAdmissionOpen(false)} admission={patient.active_admission} doctors={doctors} rooms={rooms} />}
             {isBillModalOpen && activeAdmissionId && <ViewBillModal key={`bill-${activeAdmissionId}`} isOpen={isBillModalOpen} onClose={() => { setIsBillModalOpen(false); setActiveAdmissionId(null); }} admissionId={activeAdmissionId} patient={patient} medicines={inventory} admissionData={selectedAdmissionData} />}

@@ -2,9 +2,10 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm } from '@inertiajs/react';
 import DatePicker from '@/Components/DatePicker';
 
-export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
+export default function AddVisitModal({ isOpen, onClose, patients = [], doctors = [] }) {
     const { data, setData, post, processing, reset, errors, setError, clearErrors } = useForm({
         patient_id: '',
+        staff_id: '',
         visit_date: new Date().toISOString().split('T')[0], 
         weight: '',
         checkup_fee: 2500, 
@@ -53,6 +54,10 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
         if (!data.patient_id) {
             setError('patient_id', 'Please select a patient.');
             isValid = false;
+        }
+        if (!data.staff_id) { 
+            setError('staff_id', 'Please assign a doctor.'); 
+            isValid = false; 
         }
         if (!data.visit_date) {
             setError('visit_date', 'Visit date is required.');
@@ -173,6 +178,24 @@ export default function AddVisitModal({ isOpen, onClose, patients = [] }) {
                             </div>
                         )}
                         {errors.patient_id && <p className="text-red-600 text-[10px] mt-1.5 font-black italic uppercase tracking-tight ml-1">{errors.patient_id}</p>}
+                    </div>
+                    
+                    {/* Doctor Selection Input Field */}
+                    <div className="space-y-1">
+                        <Label text="Assigned Consulting Physician" required fieldError={errors.staff_id} />
+                        <select 
+                            value={data.staff_id} 
+                            onChange={e => setData('staff_id', e.target.value)} 
+                            className={inputClass(errors.staff_id)}
+                        >
+                            <option value="">-- Select Consulting Doctor --</option>
+                            {doctors?.map(doc => (
+                                <option key={doc.id} value={doc.id}>
+                                    Dr. {doc.first_name} {doc.last_name} 
+                                </option>
+                            ))}
+                        </select>
+                        {errors.staff_id && <p className="text-red-600 text-[10px] mt-1 font-black italic uppercase">{errors.staff_id}</p>}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

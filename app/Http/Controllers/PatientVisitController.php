@@ -12,6 +12,7 @@ class PatientVisitController extends Controller
     {
        $validated = $request->validate([
             'patient_id'  => 'required|exists:patients,id',
+            'staff_id'    => 'required|exists:staff,id',
             'visit_date'  => 'required|date',
             'weight'      => 'nullable|numeric',
             'checkup_fee' => 'required|numeric|min:0',
@@ -43,6 +44,7 @@ class PatientVisitController extends Controller
         // 3. Ensure 'checkup_fee' is also updatable
         $validated = $request->validate([
             'visit_date'  => 'required|date',
+            'staff_id'    => 'required|exists:staff,id',
             'weight'      => 'nullable|string',
             'checkup_fee' => 'required|numeric|min:0', // New validation rule
             'reason'      => 'required|string',

@@ -152,11 +152,13 @@ class PatientController extends Controller
                     'weight'   => $visit->weight ? "{$visit->weight}KG" : 'N/A',
                     'reason'   => $visit->reason,
                     'checkup_fee' => (float)$visit->checkup_fee, 
+                    'staff_id' => $visit->staff_id,
                     'total_bill'  => (float)($visit->total_bill ?? $visit->checkup_fee),
                     'amount_paid' => (float)($visit->amount_paid ?? 0),
                     'payment_source' => $visit->payment_source,
                     'balance'     => (float)($visit->balance ?? $visit->checkup_fee),
                     'status'      => $visit->status,
+                    
                     'bill_items'  => $visit->bill_items->map(fn($item) => [
                         'id'          => $item->id,
                         'medicine'    => $item->medicine ? [
