@@ -55,12 +55,14 @@ class PatientVisit extends Model
         // Ensure the foreign key matches your database (staff_id)
         return $this->belongsTo(Staff::class, 'staff_id');
     }
-
     public function doctor()
     {
         return $this->belongsTo(Staff::class, 'staff_id');
     }
-    
+    public function nurse()
+    {
+        return $this->belongsTo(Staff::class, 'nurse_id');
+    }
     public function archive($reason, $staffId)
     {
         $data = $this->toArray();

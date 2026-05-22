@@ -46,71 +46,79 @@ class DoctorController extends Controller
         ]);
     } 
 
+    // Inside DoctorController.php
     public function patients(Request $request)
     {
         $doctorId = auth()->id();
-        
-        // 1. Build Query
-        $query = Patient::query();
 
-        // 2. SCOPE: Assignment Logic (Must be an 'AND' block)
-        $query->where(function($q) use ($doctorId) {
-            $q->whereHas('admissions', fn($aq) => $aq->where('staff_id', $doctorId))
-            ->orWhereHas('visits', fn($vq) => $vq->where('staff_id', $doctorId));
+        // Scope queries strictly to patients assigned to this doctor
+        // via active admissions OR historic direct clinical visits
+        $query = Patient::where(function($q) use ($doctorId) {
+            $q->whereHas('admissions', function($sub) use ($doctorId) {
+                $sub->where('staff_id', $doctorId);
+            })->orWhereHas('visits', function($sub) use ($doctorId) {
+                $sub->where('staff_id', $doctorId);
+            });
         });
 
-        // 3. SEARCH: Using your exact model's Blind Index logic
+        // Search Filter (Scoped safely within the doctor's assigned boundary)
         if ($request->search) {
             $searchTerm = $request->search;
             $query->where(function($q) use ($searchTerm) {
-                $q->whereBlind('first_name', 'first_name_index', $searchTerm)
-                ->orWhereBlind('last_name', 'last_name_index', $searchTerm)
-                ->orWhere('id', $searchTerm); 
+                $q->where('first_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('last_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('id', 'like', "%{$searchTerm}%");
             });
         }
 
-        // 4. STATUS FILTER
+        // Apply classification filters directly to the server database builder query
         if ($request->status) {
-            $status = $request->status;
-            if ($status === 'OUTPATIENT') {
-                $query->whereDoesntHave('admissions', fn($aq) => $aq->where('status', 'ADMITTED'));
-            } else {
-                $query->whereHas('admissions', fn($aq) => $aq->where('status', $status));
+            $statusFilter = strtolower($request->status);
+            if ($statusFilter === 'inpatient') {
+                // Patient has an active admission under this doctor
+                $query->whereHas('admissions', function($sub) use ($doctorId) {
+                    $sub->where('staff_id', $doctorId)->where('status', 'Admitted');
+                });
+            } elseif ($statusFilter === 'outpatient') {
+                // Patient has checked in under this doctor but has no active admission room
+                $query->whereDoesntHave('admissions', function($sub) {
+                    $sub->where('status', 'Admitted');
+                });
             }
         }
 
-        // 5. SORTING: Removed 'name' as requested. 
-        $sortKey = $request->input('sort', 'id');
-        $sortDir = $request->input('direction', 'desc');
+        // Fetch paginated results ensuring relationship metrics are loaded
+        $patientsData = $query->with(['visits' => function($q) use ($doctorId) {
+            $q->where('staff_id', $doctorId)->latest('visit_date');
+        }])->paginate(10)->withQueryString();
 
-        $sortMap = [
-            'id'   => 'id',
-            'dob'  => 'birth_date',
+        // Explicitly map values safely for React UI consumption
+        $transformedPatients = [
+            'data' => collect($patientsData->items())->map(function($patient) use ($doctorId) {
+                // Grab the last recorded visit logged under this specific doctor
+                $latestVisit = $patient->visits->first();
+                
+                // Establish active listing classification status contextually
+                $isActiveInpatient = $patient->admissions()->where('staff_id', $doctorId)->where('status', 'Admitted')->exists();
+                $classification = $isActiveInpatient ? 'INPATIENT' : 'OUTPATIENT';
+
+                return [
+                    'id' => $patient->id,
+                    'name' => "{$patient->first_name} {$patient->last_name}",
+                    'phone' => $patient->phone ?? $patient->contact_number ?? 'None Recorded',
+                    'latest_visit' => $latestVisit ? \Carbon\Carbon::parse($latestVisit->visit_date)->format('Y-m-d H:i') : 'No visits recorded',
+                    'status' => $classification,
+                ];
+            }),
+            'links' => $patientsData->linkCollection()->toArray(),
+            'current_page' => $patientsData->currentPage(),
+            'last_page' => $patientsData->lastPage(),
+            'total' => $patientsData->total(),
         ];
 
-        $dbSortKey = $sortMap[$sortKey] ?? 'id';
-        $query->orderBy($dbSortKey, $sortDir);
-
-        // 6. FETCH & TRANSFORM
-        $patientsPaginator = $query->with(['admissions'])
-            ->paginate(10)
-            ->withQueryString();
-
-        $patientsPaginator->getCollection()->transform(function ($p) {
-            $latest = $p->admissions->sortByDesc('admission_date')->first();
-            return [
-                'id'      => $p->id,
-                'p_id'    => $p->patient_id, 
-                'name'    => $p->full_name,
-                'dob'     => $p->birth_date,
-                'contact' => $p->contact_no,
-                'status'  => $latest ? strtoupper($latest->status) : 'OUTPATIENT',
-            ];
-        });
-
         return Inertia::render('Doctor/Patients', [
-            'patients' => $patientsPaginator,
-            'filters'  => $request->only(['search', 'status', 'sort', 'direction'])
+            'patients' => $transformedPatients,
+            'filters' => $request->only(['search', 'status', 'sort', 'direction']),
         ]);
     }
     public function showPatient($id)
@@ -122,6 +130,14 @@ class DoctorController extends Controller
 
         $latestAdmission = $patient->admissions->sortByDesc('admission_date')->first();
         $latestVisit = $patient->visits()->latest()->first();
+
+        $nurses = Staff::where('role', 'Nurse')
+            ->orderBy('last_name')
+            ->get()
+            ->map(fn($n) => [
+                'id'   => $n->id, // primary database key
+                'name' => "Nurse " . $n->last_name . ", " . $n->first_name,
+            ]);
 
         return Inertia::render('Doctor/PatientProfile', [
             'patient' => [
@@ -146,6 +162,8 @@ class DoctorController extends Controller
                 'hr'     => $latestVisit->heart_rate ?? '—', 
                 'temp'   => $latestVisit->temperature ?? '—',
             ],  
+
+            'nurses'  => $nurses,
 
             'prescriptionHistory' => $patient->prescriptions
                 ->sortByDesc('created_at')
@@ -179,6 +197,7 @@ class DoctorController extends Controller
                     'doctor' => $visit->staff 
                         ? "Dr. " . $visit->staff->last_name 
                         : "Missing ID: " . $visit->staff_id,
+                    'nurse'      => $visit->nurse ? "Nurse " . $visit->nurse->last_name : null,    
                     'vitals'     => [
                         'bp'   => $visit->blood_pressure,
                         'hr'   => $visit->heart_rate,
@@ -358,15 +377,16 @@ class DoctorController extends Controller
         $validated = $request->validate([
             'note'       => 'required|string',
             'visit_date' => 'required|date',
+            'nurse_id'   => 'nullable|exists:staff,id',
         ]);
 
         // This creates a NEW entry in patient_visits
         PatientVisit::create([
             'patient_id' => $id,
-            'staff_id'   => auth()->id(), // Automatic from the logged-in doctor
+            'staff_id'   => auth()->id(), 
             'visit_date' => $validated['visit_date'],
-            'reason'     => $validated['note'], // This maps to your "latestNote" logic
-            // Vitals can remain null for consultation-only visits
+            'reason'     => $validated['note'], 
+            'nurse_id'   => $validated['nurse_id'] ?? null,
         ]);
 
         return back()->with('message', 'Consultation note added successfully!');
@@ -377,5 +397,53 @@ class DoctorController extends Controller
         $visit->delete();
 
         return back()->with('message', 'Consultation note deleted.');
+    }
+
+    public function getSelectablePatients()
+    {
+        $doctorId = auth()->id();
+
+        // Only populate the Add Outpatient selection list with patients 
+        // that the admin has officially connected or assigned to this doctor
+        $selectablePatients = Patient::whereHas('admissions', function($q) use ($doctorId) {
+            $q->where('staff_id', $doctorId);
+        })->orWhereHas('visits', function($q) use ($doctorId) {
+            $q->where('staff_id', $doctorId);
+        })->get()->map(fn($patient) => [
+            'id' => $patient->id,
+            'name' => "{$patient->first_name} {$patient->last_name}",
+        ]);
+
+        return response()->json([
+            'selectablePatients' => $selectablePatients
+        ]);
+    }
+
+    public function storeOutpatientVisit(Request $request)
+    {
+        $validated = $request->validate([
+            'patient_id'     => 'required|exists:patients,id',
+            'visit_date'     => 'required|date',
+            'blood_pressure' => 'nullable|string',
+            'heart_rate'     => 'nullable|string',
+            'temperature'    => 'nullable|string',
+            'weight'         => 'nullable|string',
+            'reason'         => 'required|string|max:255',
+        ]);
+
+        // Create the new outpatient visit entry assigning the current authenticated doctor
+        PatientVisit::create([
+            'patient_id'     => $validated['patient_id'],
+            'staff_id'       => auth()->id(), // Automatically logs the active doctor
+            'visit_date'     => $validated['visit_date'],
+            'blood_pressure' => $validated['blood_pressure'],
+            'heart_rate'     => $validated['heart_rate'],
+            'temperature'    => $validated['temperature'],
+            'weight'         => $validated['weight'],
+            'reason'         => $validated['reason'],
+            'status'         => 'Completed',
+        ]);
+
+        return redirect()->back()->with('success', 'Outpatient records recorded successfully!');
     }
 }

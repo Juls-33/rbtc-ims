@@ -11,8 +11,8 @@ import Button from '@/Components/Button';
 import Toast from '@/Components/Toast';
 import DatePicker from '@/Components/DatePicker';
 
-    export default function DoctorPatientProfile({ auth, patient, admissionHistory, medicines, prescriptionHistory, consultationHistory = [] }) {
-        const [activeTab, setActiveTab] = useState('admission');
+    export default function DoctorPatientProfile({ auth, patient, nurses = [], admissionHistory, medicines, prescriptionHistory, consultationHistory = [] }) {
+    const [activeTab, setActiveTab] = useState('admission');
         
         // Modal States
         const [showNoteModal, setShowNoteModal] = useState(false);
@@ -85,7 +85,7 @@ import DatePicker from '@/Components/DatePicker';
         } = useForm({
             patient_id: patient.db_id, display_patient_id: patient.id,
             patient_name: patient.name, doctor_id: auth.user.id, doctor_name: auth.user.name,
-            visit_date: new Date().toISOString().slice(0, 16), note: '',
+            visit_date: new Date().toISOString().slice(0, 16), note: '', nurse_id: '',
         });
 
         const submitVitals = (e) => {
@@ -718,27 +718,24 @@ import DatePicker from '@/Components/DatePicker';
 
             {/* --- MODALS --- */}
             {/* 1. Consultation Note */}
-            <Modal show={showNoteModal} onClose={() => setShowNoteModal(false)} maxWidth="md">
+            <Modal show={showNoteModal} onClose={closeNoteModal} maxWidth="md">
                 <form onSubmit={submitNote} noValidate>
-                    {/* HEADER: Responsive padding and tracking */}
                     <div className="bg-[#3D52A0] text-white px-5 md:px-6 py-4 flex justify-between items-center shadow-md">
                         <div>
                             <h3 className="font-black uppercase tracking-tight text-sm leading-none">Add Consultation Note</h3>
                             <p className="text-[10px] text-blue-100 uppercase mt-1 tracking-widest italic">Clinical Observation Entry</p>
                         </div>
-                        <button type="button" onClick={() => setShowNoteModal(false)} className="text-2xl font-light hover:text-red-300 transition-colors">&times;</button>
+                        <button type="button" onClick={closeNoteModal} className="text-2xl font-light hover:text-red-300 transition-colors">&times;</button>
                     </div>
                     
-                    {/* BODY: Responsive padding (p-5 on mobile, p-8 on desktop) */}
-                    <div className="p-5 md:p-8 space-y-6 bg-white">
+                    <div className="p-5 md:p-8 space-y-6 bg-white text-slate-800">
                         
-                        {/* GRID: grid-cols-1 for mobile stacking, md:grid-cols-2 for desktop */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <Label text="Doctor's Name" required={false} />
                                 <input 
                                     className="w-full bg-slate-50 border border-slate-200 p-2 text-sm rounded italic text-slate-400 cursor-not-allowed" 
-                                    value={noteForm.data.doctor_name} 
+                                    value={noteData.doctor_name} 
                                     disabled 
                                 />
                             </div>
@@ -746,10 +743,31 @@ import DatePicker from '@/Components/DatePicker';
                                 <Label text="Patient Name" required={false} />
                                 <input 
                                     className="w-full bg-slate-50 border border-slate-200 p-2 text-sm rounded italic text-slate-400 cursor-not-allowed" 
-                                    value={noteForm.data.patient_name} 
+                                    value={noteData.patient_name} 
                                     disabled 
                                 />
                             </div>
+                        </div>
+
+                        {/* ASSIGN NURSE SELECT DROPDOWN ELEMENT */}
+                        <div>
+                            <Label text="Assign Nurse to Patient" required={false} fieldError={noteErrors.nurse_id} />
+                            <select
+                                className="w-full bg-white border border-slate-300 p-2 text-sm rounded text-slate-700 focus:border-[#3D52A0] focus:ring-1 focus:ring-[#3D52A0] mt-1"
+                                value={noteData.nurse_id || ''}
+                                onChange={e => {
+                                    setNoteData('nurse_id', e.target.value || '');
+                                    if (noteErrors.nurse_id) clearNoteErrors('nurse_id');
+                                }}
+                            >
+                                <option value="">-- Click to Select Nurse (Optional) --</option>
+                                {nurses.map(nurse => (
+                                    <option key={nurse.id} value={nurse.id}>
+                                        {nurse.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <InputError message={noteErrors.nurse_id} className="mt-1" />
                         </div>
 
                         <div>
@@ -772,7 +790,6 @@ import DatePicker from '@/Components/DatePicker';
                             <InputError message={noteErrors.note} className="mt-1" />
                         </div>
 
-                        {/* FOOTER: flex-col-reverse for mobile (Cancel on bottom), sm:flex-row for desktop */}
                         <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
                             <SecondaryButton 
                                 onClick={closeNoteModal}
@@ -782,10 +799,10 @@ import DatePicker from '@/Components/DatePicker';
                             </SecondaryButton>
                             <Button 
                                 type="submit" 
-                                disabled={noteForm.processing} 
+                                disabled={processingNote} 
                                 className="w-full sm:w-auto bg-[#3D52A0] text-white font-black uppercase text-[10px] tracking-widest px-8 shadow-lg active:scale-95 transition-transform"
                             >
-                                {noteForm.processing ? 'PROCESSING...' : 'Save Record'}
+                                {processingNote ? 'PROCESSING...' : 'Save Record'}
                             </Button>
                         </div>
                     </div>

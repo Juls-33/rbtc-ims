@@ -147,6 +147,10 @@ Route::middleware(['auth', 'verified','checkStatus', 'force.password.change'])->
 
         //faqs
         Route::get('/faqs', fn() => Inertia::render('Doctor/Faqs'))->name('doctor.faqs');
+
+        // Outpatient Registrations
+        Route::get('/doctor/patients-list', [DoctorController::class, 'getSelectablePatients'])->name('doctor.patients.list');
+        Route::post('/doctor/outpatients/store', [DoctorController::class, 'storeOutpatientVisit'])->name('doctor.outpatients.store');
     });
 
     // Nurse Routes
