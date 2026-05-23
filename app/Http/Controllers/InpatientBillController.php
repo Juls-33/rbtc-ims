@@ -18,35 +18,75 @@ class InpatientBillController extends Controller
      */
     public function addItem(Request $request)
     {
+        // Capture the state flags coming from the frontend form payload
+        $isOutside = !empty($request->is_outside_purchase) && $request->is_outside_purchase == true;
+        
+        // An entry is miscellaneous if medicine_id is null/blank, meaning it's a custom text entry
+        $isMisc = empty($request->medicine_id);
+
         $validated = $request->validate([   
-            'admission_id' => 'required|exists:admissions,id',
-            'bill_id'      => 'required|exists:bill_details,id',
-            'medicine_id'  => 'nullable|exists:medicine_catalog,id',
-            'batch_id'     => 'nullable|exists:medicine_batches,id',
-            'description'  => 'required|string',
-            'quantity'     => 'required|integer|min:1',
-            'unit_price'   => 'required|numeric|min:0',
-            'total_price'  => 'required|numeric|min:0',
+            'admission_id'        => 'required|exists:admissions,id',
+            'bill_id'             => 'required|exists:bill_details,id',
+            
+            // FIXED: Conditional validation setup. Only require exist checks if they are filled!
+            'medicine_id'         => 'nullable|exists:medicine_catalog,id',
+            'batch_id'            => 'nullable|exists:medicine_batches,id',
+            
+            'description'         => 'required|string|max:255',
+            'quantity'            => 'required|integer|min:1',
+            'unit_price'          => 'required|numeric|min:0',
+            'total_price'         => 'required|numeric|min:0',
+            'is_outside_purchase' => 'nullable|boolean',
         ]);
 
-        return DB::transaction(function () use ($validated, $request) {
-            if ($request->filled('batch_id')) {
-                $batch = MedicineBatch::lockForUpdate()->findOrFail($request->batch_id);
-                if ($batch->current_quantity < $request->quantity) {
-                    return redirect()->back()->with('error', 'Insufficient stock for ' . $request->description);
-                }
-                $batch->decrement('current_quantity', $request->quantity);
+        // Format properties if flagged as a custom free-form text item or bought offsite
+        if ($isOutside) {
+            $validated['unit_price'] = 0;
+            $validated['total_price'] = 0;
+            $validated['medicine_id'] = null;
+            $validated['batch_id'] = null;
+
+            if (!str_contains($validated['description'], '(Outside Purchase)')) {
+                $validated['description'] .= ' (Outside Purchase)';
             }
-            InpatientBillItem::create($validated);
+        } elseif ($isMisc) {
+            // If it's a pure misc item (like "hello"), explicitly enforce null for structural keys
+            $validated['medicine_id'] = null;
+            $validated['batch_id'] = null;
+            $validated['total_price'] = $validated['unit_price'] * $validated['quantity'];
+        } else {
+            $validated['total_price'] = $validated['unit_price'] * $validated['quantity'];
+        }
 
-            $bill = BillDetail::findOrFail($request->bill_id);
-            $bill->increment('total_amount', $validated['total_price']);
+        try {
+            return DB::transaction(function () use ($validated, $isOutside, $isMisc) {
+                // Deduct stock ONLY if it is a real medicine and NOT a misc text entry/outside purchase
+                if (!$isOutside && !$isMisc && !empty($validated['batch_id'])) {
+                    $batch = MedicineBatch::lockForUpdate()->findOrFail($validated['batch_id']);
+                    
+                    if ($batch->current_quantity < $validated['quantity']) {
+                        throw new \Exception('Insufficient stock available for ' . $validated['description']);
+                    }
+                    
+                    $batch->decrement('current_quantity', $validated['quantity']);
+                }
 
-            $admission = Admission::findOrFail($request->admission_id);
-            $admission->syncLiveTotals();
+                // Save the row smoothly
+                InpatientBillItem::create($validated);
 
-            return redirect()->back()->with('success', "Item added to Month #{$bill->month_number} statement.");
-        });
+                // Synchronize accounting ledger values
+                $bill = BillDetail::findOrFail($validated['bill_id']);
+                $bill->increment('total_amount', $validated['total_price']);
+
+                $admission = Admission::findOrFail($validated['admission_id']);
+                $admission->syncLiveTotals();
+
+                return redirect()->back()->with('success', "Item registered successfully.");
+            });
+
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
     }
 
     /**

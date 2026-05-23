@@ -20,6 +20,7 @@ class InpatientBillItem extends Model
         'quantity',
         'unit_price',
         'total_price',
+        'is_outside_purchase',
     ];
 
     public function admission()

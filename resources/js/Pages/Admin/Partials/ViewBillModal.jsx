@@ -93,9 +93,10 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
     }, [medicines]);
 
     const filteredMedicineResults = useMemo(() => {
-        const query = medSearchTerm.toLowerCase();
+        const query = (medSearchTerm || '').toLowerCase();
         return localInventory.filter(m => 
-            m.name.toLowerCase().includes(query) || m.brand_name.toLowerCase().includes(query)
+            (m.name || '').toLowerCase().includes(query) || 
+            (m.brand_name || '').toLowerCase().includes(query)
         );
     }, [localInventory, medSearchTerm]);
 
@@ -128,16 +129,54 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
         });
     };
 
-    const handleAddMedicine = () => {
-        if (isMiscMode ? !medForm.data.description : !selectedMed) return;
+    const handleDeleteItem = (item) => {
+        if (!item?.id) return;
+        
+        if (confirm(`Are you sure you want to delete "${item.description}" from this billing cycle?`)) {
+            // HIGHLIGHT: Changed route name target from .deleteItem to .removeItem
+            router.delete(route('admin.billing.inpatient.removeItem', item.id), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setToast({ message: 'Item deleted and inventory restored successfully!', type: 'success' });
+                },
+                onError: (err) => {
+                    console.error("Deletion Error:", err);
+                    setToast({ message: 'Failed to delete billing item.', type: 'error' });
+                }
+            });
+        }
+    };
 
+    const handleAddMedicine = () => {
+        // 1. FRONTEND MODE RULES VALIDATION GUARD
+        if (isMiscMode) {
+            // In Misc/Outside Mode, description text box cannot be empty
+            if (!medForm.data.description || medForm.data.description.trim() === '') {
+                setToast({ message: 'Please specify the item description.', type: 'error' });
+                return;
+            }
+        } else {
+            // In Standard Mode, they MUST select an item from the dropdown search catalog. 
+            // If they just typed "hello" without selecting anything, block it instantly!
+            if (!selectedMed) {
+                setToast({ message: 'Invalid medicine. You must pick an item from the catalog dropdown.', type: 'error' });
+                return;
+            }
+        }
+
+        // 2. Compile clean formatting parameters layout payload
         const finalData = {
             ...medForm.data,
             admission_id: admission.id,
             bill_id: currentStatement?.id, 
+            
+            // Safely clear out IDs for custom free text inputs
             medicine_id: isMiscMode ? null : selectedMed?.id,
             batch_id: isMiscMode ? null : medForm.data.batch_id,
-            description: isMiscMode ? medForm.data.description : `${selectedMed?.name} (${selectedMed?.brand_name})`,
+            
+            description: isMiscMode ? medForm.data.description : `${selectedMed?.name} (${selectedMed?.brand_name || 'No Brand'})`,
+            unit_price: medForm.data.is_outside_purchase ? 0 : medForm.data.unit_price,
+            total_price: medForm.data.is_outside_purchase ? 0 : (medForm.data.unit_price * medForm.data.quantity),
         };
 
         router.post(route('admin.billing.inpatient.addItem'), finalData, {
@@ -148,8 +187,8 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
             onSuccess: () => {
                 setSelectedMed(null);
                 setMedSearchTerm('');
-                medForm.reset('description', 'quantity', 'unit_price', 'total_price');
-                setToast({ message: 'Item added successfully!', type: 'success' });
+                medForm.reset('description', 'quantity', 'unit_price', 'total_price', 'is_outside_purchase');
+                setToast({ message: 'Item logged to statement successfully!', type: 'success' });
             }
         });
     };
@@ -329,7 +368,7 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                                             <td className="p-4 text-right font-mono">₱{parseFloat(item.unit_price).toLocaleString()}</td>
                                             <td className="p-4 text-right font-black text-emerald-700">₱{parseFloat(item.total_price).toLocaleString()}</td>
                                             <td className="p-4 text-center sticky right-0 bg-white">
-                                                <button onClick={() => setItemToDelete(item)} className="text-rose-600 font-black uppercase text-[10px]">Del</button>
+                                                <button type="button" onClick={() => handleDeleteItem(item)} className="text-rose-600 font-black uppercase text-[10px] hover:text-rose-800 transition-colors">Del</button>
                                             </td>
                                         </tr>
                                     ))}
@@ -337,26 +376,23 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                                     {/* ADD NEW ITEM ROW */}
                                     <tr className="bg-emerald-50/40 border-t-2 border-emerald-100" ref={medDropdownRef}>
                                         <td className="p-3 relative overflow-visible">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex justify-between items-center px-1 mb-1">
-                                                    <span className="text-[8px] font-black text-emerald-700 uppercase">
+                                            <div className="flex flex-col gap-1.5">
+                                                <div className="flex justify-between items-center px-1 mb-0.5">
+                                                    <span className="text-[8px] font-black text-emerald-700 uppercase flex items-center gap-2">
                                                         {isMiscMode ? '⚡ Misc Item' : '💊 Medicine'}
+                                                        {medForm.data.is_outside_purchase && (
+                                                            <span className="bg-amber-100 text-amber-800 text-[7px] px-1.5 py-0.5 rounded font-black border border-amber-200 animate-pulse">
+                                                                EXTERNAL PROUREMENT
+                                                            </span>
+                                                        )}
                                                     </span>
                                                     <button 
                                                         type="button" 
                                                         onClick={() => {
                                                             setIsMiscMode(!isMiscMode);
-                                                            medForm.setData({
-                                                                ...medForm.data,
-                                                                medicine_id: null,
-                                                                batch_id: null,
-                                                                description: '',
-                                                                unit_price: 0,
-                                                                total_price: 0,
-                                                                quantity: 1
-                                                            });
+                                                            medForm.reset('description', 'quantity', 'unit_price', 'total_price', 'is_outside_purchase', 'medicine_id', 'batch_id');
                                                             setMedSearchTerm('');
-                                                        }} 
+                                                        }}
                                                         className="text-[8px] font-black text-blue-700 uppercase hover:underline"
                                                     >
                                                         {isMiscMode ? '[Switch to Search]' : '[Switch to Misc]'}
@@ -366,10 +402,10 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                                                 {isMiscMode ? (
                                                     <input 
                                                         type="text" 
-                                                        placeholder="Enter Item Name (e.g. PPE, Lab Fee...)" 
-                                                        className="w-full border-emerald-200 rounded-lg text-xs font-bold py-2 px-3 shadow-inner"
+                                                        placeholder="Enter custom text description (e.g. Bandage, Medicine, etc.)" 
+                                                        className="w-full border-emerald-200 rounded-lg text-xs font-bold py-2 px-3 shadow-inner bg-white focus:ring-1 focus:ring-emerald-500"
                                                         value={medForm.data.description}
-                                                        onChange={(e) => medForm.setData('description', e.target.value)}
+                                                        onChange={(e) => medForm.setData({ ...medForm.data, description: e.target.value })}
                                                     />
                                                 ) : (
                                                     <input 
@@ -382,7 +418,35 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                                                     />
                                                 )}
                                                 
-                                                {/* DROPDOWN: High z-index to stay on top */}
+                                                {/* OPTIONAL OUTSIDE INPUT ROW CHECKBOX CHECK */}
+                                                <div className="flex items-center gap-2 mt-1 px-1">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        id="outside_purchase_toggle"
+                                                        className="w-3.5 h-3.5 text-amber-600 border-slate-300 rounded focus:ring-amber-500 bg-white"
+                                                        checked={medForm.data.is_outside_purchase}
+                                                        onChange={(e) => {
+                                                            const checked = e.target.checked;
+                                                            
+                                                            // 1. Force the layout tab mode state to switch to miscellaneous input mode instantly
+                                                            setIsMiscMode(checked); 
+                                                            
+                                                            // 2. Synchronize Inertia form parameters layout state payload safely
+                                                            medForm.setData({
+                                                                ...medForm.data,
+                                                                is_outside_purchase: checked,
+                                                                description: checked ? '' : medForm.data.description, // Clear if toggled
+                                                                unit_price: 0,
+                                                                total_price: 0
+                                                            });
+                                                        }}
+                                                    />
+                                                    <label htmlFor="outside_purchase_toggle" className="text-[9px] font-black uppercase text-amber-700 tracking-wider cursor-pointer selection-none">
+                                                        Bought Outside (Item will itemize as ₱0.00 cost)
+                                                    </label>
+                                                </div>
+                                                
+                                                {/* DROPDOWN MENU */}
                                                 {!isMiscMode && isMedDropdownOpen && (
                                                     <div className="absolute left-0 right-0 top-full mt-1 bg-white border-2 border-emerald-500 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] max-h-60 overflow-y-auto z-[9999]">
                                                         {filteredMedicineResults.map(m => (
@@ -399,7 +463,7 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                                             </div>
                                         </td>
 
-                                        {/* QUANTITY: Same design as medicines */}
+                                        {/* QUANTITY CHANGER INPUT */}
                                         <td className="p-3">
                                             <div className="flex items-center justify-center gap-1 bg-white rounded-lg p-1 border border-emerald-200 shadow-sm">
                                                 <button type="button" onClick={() => adjustQuantity(-1)} className="w-8 h-8 flex items-center justify-center bg-slate-50 border rounded hover:bg-rose-500 hover:text-white font-bold transition-colors">-</button>
@@ -413,9 +477,13 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                                             </div>
                                         </td>
 
-                                        {/* PRICE: Manual input if Misc, Read-only if Medicine */}
+                                        {/* PRICE COLUMN CELL CONTAINER */}
                                         <td className="p-3">
-                                            {isMiscMode ? (
+                                            {medForm.data.is_outside_purchase ? (
+                                                <div className="text-right px-2 font-mono font-black text-amber-600 italic">
+                                                    ₱0.00
+                                                </div>
+                                            ) : isMiscMode ? (
                                                 <div className="relative">
                                                     <span className="absolute left-2 top-2 text-[10px] font-bold text-slate-400">₱</span>
                                                     <input 
@@ -436,12 +504,12 @@ export default function ViewBillModal({ isOpen, onClose, admissionId, patient, m
                                             )}
                                         </td>
 
-                                        {/* TOTAL: Auto-calculated */}
+                                        {/* OVERALL CALCULATED RUNTIME TOTALS COLUMN CELL */}
                                         <td className="p-3 text-right font-black text-emerald-700 pr-4">
-                                            ₱{parseFloat(medForm.data.total_price || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                            ₱{medForm.data.is_outside_purchase ? '0.00' : parseFloat(medForm.data.total_price || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
                                         </td>
 
-                                        {/* ACTION: Forced !static to prevent "Gray Shit" overlap */}
+                                        {/* SUBMIT STORAGE ACTION TRIGGER BUTTON */}
                                         <td className="p-3 !static bg-emerald-100/30"> 
                                             <Button 
                                                 variant="success" 
