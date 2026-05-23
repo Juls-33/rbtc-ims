@@ -85,6 +85,17 @@ export default function PatientManagement({ auth, patients, filters, selectableP
             };
         });
 
+        data = data.filter(patient => {
+            if (activeTab === 'outpatient') {
+                // Only keep patients who actually have at least one outpatient clinic visit logged
+                return patient.visit_history && patient.visit_history.length > 0;
+            }
+            if (activeTab === 'inpatient') {
+                // Only keep inpatients who currently have an active admission or past stays
+                return patient.active_admission || (patient.admission_history && patient.admission_history.length > 0);
+            }
+            return true; // 'all' tab keeps everyone
+        });
         // 4. APPLY HIERARCHICAL SORTING
         data.sort((a, b) => {
             // LEVEL 1: Tab-Specific Bill Status (UNPAID always goes to the top)
